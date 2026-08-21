@@ -47,78 +47,145 @@ SHEET_COLS = [("Lvl", "Level"), ("HP", "HP"), ("Cur HP", "Current HP"), ("EP", "
               ("Dex", "Dex"), ("Eva", "Eva"), ("Agl", "Agl")]
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Xenosaga II Editor</title>
 <style>
- :root { color-scheme: light dark; }
- body { font: 15px/1.5 system-ui, sans-serif; margin: 0; }
- header { background:#1a1a2e; color:#e6e6fa; padding:18px 24px; }
- header h1 { margin:0; font-size:20px; }
- header .sub { opacity:.7; font-size:13px; }
- main { padding:24px; max-width:960px; }
- section { margin-bottom:28px; }
- h2 { font-size:16px; border-bottom:1px solid #8884; padding-bottom:6px; }
+ /* Xenosaga sci-fi theme; all colors via CSS vars. Default = deep-space dark;
+    body.light overrides to a clean steel/white variant. */
+ :root{
+  --bg:#0a0f1e; --panel:#111a30; --panel2:#1a2440; --headbg:linear-gradient(180deg,#15203c,#101a30);
+  --ink:#e8eefb; --mut:#8695b8; --line:#293350;
+  --acc:#46a6ff; --acc2:#7cc3ff; --accink:#04101f;
+  --warn:#f0b429; --warnbd:#a97b1e; --changed-bg:#33290f;
+  --input:#0d1526; --ring:#46a6ff40; --shadow:0 3px 16px #0007; --ok:#3ddc84; --err:#ff7a7a;
+ }
+ body.light{
+  --bg:#e7ecf4; --panel:#f8fafd; --panel2:#eaf0f9; --headbg:linear-gradient(180deg,#f3f8ff,#e8f0fb);
+  --ink:#15203a; --mut:#5c6c8e; --line:#ccd6e6;
+  --acc:#1668d4; --acc2:#2f86e6; --accink:#f4f9ff;
+  --warn:#8a5c10; --warnbd:#c79a2e; --changed-bg:#fbf0cd;
+  --input:#fff; --ring:#1668d433; --shadow:0 2px 12px #0002; --ok:#1a8f4a; --err:#c0392b;
+ }
+ * { box-sizing:border-box; }
+ body { font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; margin:0;
+   background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; }
+ header { position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:14px;
+   padding:13px 22px; background:var(--headbg); border-bottom:1px solid var(--acc);
+   box-shadow:var(--shadow); }
+ header h1 { margin:0; font-size:18px; letter-spacing:.02em; color:var(--acc2);
+   font-weight:700; }
+ header .sub { color:var(--mut); font-size:12px; }
+ header .spacer { flex:1; }
+ main { padding:22px; max-width:1040px; margin:0 auto; }
+ .card { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+   padding:16px 18px; margin-bottom:16px; box-shadow:var(--shadow); }
+ .card h2 { margin:0 0 12px; font-size:14px; text-transform:uppercase; letter-spacing:.08em;
+   color:var(--acc2); }
  table { border-collapse:collapse; width:100%; font-size:14px; }
- td, th { text-align:left; padding:5px 9px; border-bottom:1px solid #8883; }
- #sheet td, #sheet th { text-align:right; }
- #sheet td.name, #sheet th.name { text-align:left; }
- .ok { color:#2e9e4f; font-weight:600; }
- .bad { color:#c0392b; }
- .pill { display:inline-block; padding:1px 8px; border-radius:10px; background:#8883; font-size:12px; }
- .todo li { margin:2px 0; }
- code { background:#8882; padding:1px 4px; border-radius:3px; }
- select { font-size:14px; padding:4px 8px; max-width:100%; }
- .es { opacity:.7; }
- #sheet input { width:6ch; text-align:right; font:inherit; padding:2px 4px;
-   border:1px solid #8886; border-radius:5px; background:transparent; color:inherit; }
- #gold { font:inherit; padding:3px 6px; border:1px solid #8886; border-radius:5px;
-   background:transparent; color:inherit; }
- input.changed { color:#b8860b; border-color:#d9a520; background:#f6edcf40; font-weight:600; }
- .restore { display:none; margin-left:3px; background:transparent; border:1px solid #8886;
-   color:#888; border-radius:5px; padding:1px 5px; cursor:pointer; font:inherit; line-height:1; }
- .restore:hover { border-color:#d9a520; color:#b8860b; }
+ th { text-align:left; padding:6px 10px; font-size:11px; text-transform:uppercase;
+   letter-spacing:.06em; color:var(--mut); border-bottom:1px solid var(--line); }
+ td { text-align:left; padding:5px 10px; border-bottom:1px solid var(--line); }
+ tbody tr:hover td { background:var(--panel2); }
+ #sheet th, #sheet td { text-align:right; }
+ #sheet th.name, #sheet td.name { text-align:left; font-weight:600; }
+ #sheet thead th { position:sticky; top:52px; background:var(--panel); z-index:5; }
+ .es td.name { color:var(--mut); }
+ .pill { display:inline-block; padding:1px 9px; border-radius:20px; background:var(--panel2);
+   border:1px solid var(--line); font-size:11px; letter-spacing:.03em; }
+ code { background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:12px; }
+ select,input { background:var(--input); color:var(--ink); border:1px solid var(--line);
+   border-radius:7px; font:inherit; padding:4px 8px; }
+ select:focus,input:focus { outline:0; border-color:var(--acc); box-shadow:0 0 0 3px var(--ring); }
+ select:hover,input:hover { border-color:var(--acc); }
+ #sheet input { width:6.5ch; text-align:right; padding:3px 5px; }
+ #gold { width:12ch; }
+ input.changed { color:var(--warn); border-color:var(--warnbd); background:var(--changed-bg);
+   font-weight:600; }
+ .restore { display:none; margin-left:3px; background:transparent; border:1px solid var(--line);
+   color:var(--mut); border-radius:6px; padding:2px 6px; cursor:pointer; font:inherit; line-height:1; }
+ .restore:hover { border-color:var(--warnbd); color:var(--warn); }
  .restore.show { display:inline-block; }
- button#savebtn, button#revertbtn { font:inherit; padding:5px 12px; border-radius:6px;
-   border:1px solid #8886; background:#8881; color:inherit; cursor:pointer; }
- button#savebtn:disabled, button#revertbtn:disabled { opacity:.45; cursor:default; }
- #badge { color:#b8860b; font-weight:600; }
- #status { font-size:13px; }
- #status.ok { color:#2e9e4f; } #status.err { color:#c0392b; }
+ .btn { font:inherit; padding:6px 13px; border-radius:8px; cursor:pointer; border:1px solid var(--line);
+   background:var(--panel2); color:var(--ink); transition:.12s; }
+ .btn:hover:not(:disabled) { border-color:var(--acc); }
+ .btn.primary { background:var(--acc); color:var(--accink); border:0; font-weight:600; }
+ .btn.primary:hover:not(:disabled) { background:var(--acc2); }
+ .btn:disabled { opacity:.4; cursor:default; }
+ .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; }
+ .toolbar label { color:var(--mut); font-size:13px; }
+ #badge { font-weight:700; }
+ #status { font-size:13px; margin-left:2px; }
+ #status.ok { color:var(--ok); } #status.err { color:var(--err); }
  .cell { white-space:nowrap; }
+ .ok { color:var(--ok); font-weight:600; } .bad { color:var(--err); }
+ .note { color:var(--mut); font-size:12.5px; margin:12px 0 0; }
+ .todo { margin:0; padding-left:18px; } .todo li { margin:3px 0; }
+ #toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+   background:var(--panel); color:var(--ink); border:1px solid var(--acc); border-radius:10px;
+   padding:10px 18px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:.22s;
+   font-size:14px; z-index:50; }
+ #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+ #toast.err { border-color:var(--err); }
 </style></head><body>
 <header>
- <h1>Xenosaga Episode II — ISO &amp; Save Editor</h1>
- <div class="sub">%%GAME%% · discs %%SERIALS%%</div>
+ <h1>XENOSAGA II</h1>
+ <span class="sub">ISO &amp; Save Editor · discs %%SERIALS%%</span>
+ <span class="spacer"></span>
+ <button id="themebtn" class="btn" title="Toggle light/dark">◐ Theme</button>
 </header>
 <main>
- <section><h2>Discs detected</h2>%%ISOS%%</section>
- <section><h2>Character sheet</h2>
-  <p>Save: <select id="savesel">%%SAVEOPTS%%</select>
-     &nbsp; Gold: <span class="cell"><input id="gold" type="number" min="0"
-       max="4294967295" style="width:11ch"></span>
-     &nbsp; <button id="savebtn" disabled>Save changes <span id="badge"></span></button>
-     <button id="revertbtn" disabled>Revert all</button>
-     &nbsp; <span id="status"></span></p>
+ <div class="card"><h2>Character sheet</h2>
+  <div class="toolbar">
+    <label>Save</label> <select id="savesel">%%SAVEOPTS%%</select>
+    <label>Gold</label> <span class="cell"><input id="gold" type="number" min="0" max="4294967295" autocomplete="off"></span>
+    <span class="spacer" style="flex:1"></span>
+    <button id="maxbtn" class="btn" disabled>Max all stats</button>
+    <button id="revertbtn" class="btn" disabled>Revert all</button>
+    <button id="savebtn" class="btn primary" disabled>Save changes <span id="badge"></span></button>
+    <span id="status"></span>
+  </div>
   <table id="sheet"><thead>%%SHEETHEAD%%</thead><tbody id="sheetbody"></tbody></table>
-  <p style="opacity:.6;font-size:13px">Edits write to the selected file (a
-   <code>.bak</code> is made first) and are re-read to verify. Note: the in-game
-   save checksum isn't cracked yet, so an edited save <b>may be rejected by the
-   game</b> until it is — test one in your emulator.</p>
- </section>
- <section><h2>Saves detected</h2>%%SAVES%%</section>
- <section><h2>Reverse-engineering roadmap</h2>
+  <p class="note">Edits stage in memory and highlight amber (each has a ↺ restore); <b>Save
+   changes</b> writes them to the selected file in one pass — a <code>.bak</code> is made
+   first and the result is re-read to verify. The in-game save checksum isn't cracked yet,
+   so an edited save <b>may be rejected by the game</b> until it is — test one in an emulator.</p>
+ </div>
+ <div class="card"><h2>Discs detected</h2>%%ISOS%%</div>
+ <div class="card"><h2>Saves detected</h2>%%SAVES%%</div>
+ <div class="card"><h2>Reverse-engineering roadmap</h2>
   <ul class="todo">
-   <li><b>ISO tables</b> — locate character/tech/gear/enemy/shop records.</li>
-   <li><b>Checksum</b> — crack the save checksum before enabling writes.</li>
-   <li><b>Party / inventory</b> — need a known-content reference save to confirm.</li>
+   <li><b>ISO tables</b> — characters/enemies/items/shops in the disc (new-game edits).</li>
+   <li><b>Save checksum</b> — crack gamedata +0x08 so edited saves load guaranteed.</li>
+   <li><b>Party / inventory / EXP</b> — need a known-content reference save to confirm.</li>
   </ul>
-  <p style="opacity:.6">Nothing is uploaded. Supply your own ISO/saves. See
+  <p class="note">Nothing is uploaded. Supply your own ISO/saves. See
    <code>Editor/Xenosaga2_ISO_offsets.md</code> for progress.</p>
- </section>
+ </div>
 </main>
+<div id="toast"></div>
 <script>
 const COLS = %%COLS%%;
+// per-field caps for the "Max all stats" convenience button
+const CAPS = {Level:99, HP:9999, "Current HP":9999, EP:99, Str:999, Vit:999,
+  Eatk:999, Edef:999, Dex:99, Eva:99, Agl:99};
 const $ = s => document.querySelector(s);
 let CUR = -1;   // index of the loaded save
+
+// theme toggle (persisted)
+(function(){
+  const saved = localStorage.getItem('x2theme');
+  if(saved==='light') document.body.classList.add('light');
+  $('#themebtn').onclick = () => {
+    document.body.classList.toggle('light');
+    localStorage.setItem('x2theme', document.body.classList.contains('light')?'light':'dark');
+  };
+})();
+
+let toastT;
+function toast(msg, err){
+  const t=$('#toast'); t.textContent=msg; t.className='show'+(err?' err':'');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className=t.className.replace('show',''),2400);
+}
 
 // wire a single input for staging: amber when value != data-def, with a ↺ restore btn
 function decorate(inp){
@@ -155,13 +222,14 @@ async function loadSave(){
   const rows = d.characters.filter(c=>c.active).map((c,ri)=>{
     const idx = d.characters.indexOf(c);
     const tds = COLS.map(k =>
-      '<td class="cell"><input type="number" min="0" data-idx="'+idx+'" data-field="'+k[1]+
+      '<td class="cell"><input type="number" min="0" autocomplete="off" data-idx="'+idx+'" data-field="'+k[1]+
       '" data-def="'+(c[k[1]]??0)+'" value="'+(c[k[1]]??0)+'"></td>').join('');
     const cls = c.name.startsWith('E.S.') ? ' class="es"' : '';
     return '<tr'+cls+'><td class="name">'+c.name+'</td>'+tds+'</tr>';
   }).join('');
   $('#sheetbody').innerHTML = rows;
   document.querySelectorAll('#sheet input').forEach(decorate);
+  $('#maxbtn').disabled = false;
   updatePending();
 }
 
@@ -192,11 +260,20 @@ $('#savebtn').onclick = async () => {
       if(inp.nextElementSibling&&inp.nextElementSibling.classList.contains('restore'))
         inp.nextElementSibling.classList.remove('show');
     });
-    s.textContent='✓ saved '+res.count+' field(s) (.bak kept, round-trip verified)';
-    s.className='ok';
-  } else { s.textContent='✗ '+(res.error||'write failed'); s.className='err'; }
+    s.textContent='✓ saved '+res.count+' field(s)';
+    s.className='ok'; toast('✓ Saved '+res.count+' field(s) · .bak kept · verified');
+  } else { s.textContent='✗ '+(res.error||'write failed'); s.className='err';
+    toast('✗ '+(res.error||'write failed'), true); }
   s.dataset.sticky='1'; setTimeout(()=>{s.dataset.sticky='0';},50);
   updatePending();
+};
+
+$('#maxbtn').onclick = () => {
+  document.querySelectorAll('#sheet input').forEach(inp=>{
+    const cap = CAPS[inp.dataset.field];
+    if(cap!==undefined){ inp.value = cap; inp.dispatchEvent(new Event('input',{bubbles:true})); }
+  });
+  toast('Maxed all stats — review, then Save changes');
 };
 
 $('#revertbtn').onclick = () => {
@@ -268,7 +345,8 @@ class Handler(BaseHTTPRequestHandler):
         pass  # quiet
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        route = self.path.split("?", 1)[0]
+        if route in ("/", "/index.html"):
             body = render().encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
