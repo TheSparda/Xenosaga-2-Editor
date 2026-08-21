@@ -73,18 +73,23 @@ CHAR_TABLE_OFF = 0x1174
 CHAR_STRIDE    = 0x108             # 264 bytes/record (matches pnach EE stride)
 CHAR_COUNT     = 15               # rec0-6 on-foot, 7-9 reserved, 10-14 E.S. units
 
-# Fields within one 0x108 character record. Level/HP/id verified by tracking a
-# single character across 20 save points (level 7 -> 54); the five u16 stats
-# grow in lockstep with level. Stat *names* (STR/VIT/...) are not pinned yet, so
-# they're numbered. Everything past +0x22 is tech-level arrays (0x14 x8, 0x64 x8).
+# Fields within one 0x108 character record. The record is [char id u16] followed
+# by the game's in-RAM stat struct, so offsets map 1:1 onto the CodeBreaker stat
+# addresses (Shion base EE 0x61B592): HP, EP, Str, Vit, Ether-Atk, Ether-Def are
+# u16 (game caps: HP 9999, EP/Dex/Eva/Agl 99, Str..Edef 999); Dex/Eva/Agl are u8.
+# Names cross-checked against the pnach + almarsguides code lists. Level verified
+# by tracking one character across 20 saves (7 -> 54). Past +0x22 = tech arrays.
 CHAR_FIELDS = [
     ("Character id", 0x00, 2, "char"),
-    ("HP",           0x02, 2, "num"),
-    ("Stat 1",       0x06, 2, "num"),
-    ("Stat 2",       0x08, 2, "num"),
-    ("Stat 3",       0x0A, 2, "num"),
-    ("Stat 4",       0x0C, 2, "num"),
-    ("Stat 5",       0x0E, 2, "num"),
+    ("HP",           0x02, 2, "num"),   # max HP (u16, cap 9999)
+    ("EP",           0x06, 2, "num"),   # Ether Points (cap 99)
+    ("Str",          0x08, 2, "num"),   # Strength     (cap 999)
+    ("Vit",          0x0A, 2, "num"),   # Vitality
+    ("Eatk",         0x0C, 2, "num"),   # Ether Attack
+    ("Edef",         0x0E, 2, "num"),   # Ether Defense
+    ("Dex",          0x10, 1, "num"),   # Dexterity    (cap 99)
+    ("Eva",          0x11, 1, "num"),   # Evasion
+    ("Agl",          0x12, 1, "num"),   # Agility (tentative; ~constant in samples)
     ("Level",        0x13, 1, "num"),
 ]
 

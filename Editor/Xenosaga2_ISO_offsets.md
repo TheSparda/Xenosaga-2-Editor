@@ -75,6 +75,23 @@ order which matches 1:1): 0 chaos, 1 KOS-MOS, 2 Shion, 3 Jin, 4 Ziggy, 5 MOMO,
 **round-trip verifies** the write. Confirmed surgical (only the 3 targeted byte-runs
 change) on a copied save.
 
+### Online research findings (2026-08 sweep)
+- **No public Xenosaga II save editor exists** (checked save-editor.com, ps2savetools,
+  GameHacking.org, romhacking.net, GBAtemp). We're first — so the checksum is undocumented
+  and won't be found online; it has to come from the game's own code or an emulator test.
+- **PS2 games generally do validate a save checksum on load** and mark the save corrupt if
+  it fails — so our `+0x08` field probably matters. (save-editor.com, ps2savetools.)
+- **Stat names + caps** came from the almarsguides CodeBreaker lists cross-checked with our
+  pnach: the save character record is `[char id u16]` + the in-RAM stat struct, so its
+  offsets map 1:1 onto the pnach stat addresses (Shion stat base EE `0x61B592`). This is how
+  CHAR_FIELDS got named (HP/EP/Str/Vit/Eatk/Edef/Dex/Eva/Agl) — validated by Shion decoding
+  as a low-Str/high-Ether build.
+- **pleonex/Xenosaga** (GitHub) is Xenosaga *I* only (ISO file extraction), no save/checksum.
+- **Method to crack the checksum** (from GameHacking.org "save hashing routines" + PS2DIS):
+  run the game in PCSX2, find the save block in EE RAM, set a **write breakpoint on the
+  checksum word**, trigger a save, and read the routine that computes it; or disassemble the
+  boot ELF (we have it on the ISO) around the mc write. This is the definitive next step.
+
 ### Checksum status (BLOCKER for guaranteed-valid writes)
 gamedata `+0x08` is a 4-byte value that changes per save. It resisted **every** standard
 algorithm tried across all 20 slots: CRC-32 (all 16 init/reflect/xorout variants, LE/BE),
