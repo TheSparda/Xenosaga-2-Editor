@@ -107,6 +107,25 @@ ROSTER = {
     13: "E.S. (slot 14)", 14: "E.S. (slot 15)",
 }
 
+# ---------------------------------------------------------------------------
+# INVENTORY reference (item id -> name), from the disc-1 pnach. The in-RAM tables
+# are: consumables @ EE 0x61C800 (u16 quantity per id, cap 99), key items @ EE
+# 0x61CC00 (u16 have-flag per id). These id->name maps are authoritative; the
+# SAVE-side offsets of the inventory are NOT confirmed yet — the local samples hold
+# almost no consumables and there's no known-inventory reference to verify a
+# candidate, so decoding inventory from a save is deferred (see offsets notes).
+# ---------------------------------------------------------------------------
+INV_CONSUMABLE_RAM = 0x61C800    # u16 quantity per consumable id (cap 99)
+INV_KEYITEM_RAM    = 0x61CC00    # u16 have-flag per key-item id
+
+def consumable_names():
+    """{int id: name} for the 36 consumable items."""
+    return {int(k): v for k, v in res_json("x2_consumables.json").items()}
+
+def keyitem_names():
+    """{int id: name} for the 107 key items."""
+    return {int(k): v for k, v in res_json("x2_keyitems.json").items()}
+
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
 TECH_FIELDS = []      # Tech / Ether effect table
 GEAR_FIELDS = []      # Weapon / armor / accessory table

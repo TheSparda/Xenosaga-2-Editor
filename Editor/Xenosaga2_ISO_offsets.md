@@ -73,6 +73,20 @@ psv (full), **sharkport `.sps/.xps`** (uncompressed), **cbs** (RC4+zlib) — all
 the same 20,832-byte gamedata. `.max` (Ps2PowerSave/LZARI) still TODO. WRITE is PSV-only
 so far (sharkport/cbs need splice-back + their own container checksums).
 
+### Inventory (item catalog mapped; save offset needs ground truth)
+From the disc-1 pnach: **36 consumables** at EE RAM `0x61C800` (u16 quantity per id,
+cap 99, id = (addr-0x61C800)/2) and **107 key items** at EE RAM `0x61CC00` (u16
+have-flag per id). Full id→name maps saved as `Editor/x2_consumables.json` /
+`x2_keyitems.json` and exposed via `x2fields.consumable_names()` / `keyitem_names()`.
+
+The SAVE-side inventory offset is **not confirmed**: the save re-serializes the work
+RAM (not a linear copy), the 36 local samples hold almost no consumables (so there's
+little signal), and there's no known-inventory reference to verify a candidate. Two
+0/1 flag tables that accumulate with story progress were located at gamedata `0x28BA`
+(len ~255) and `0x2AE4` (len ~452) — these are key-items and/or event flags, but which
+is which can't be confirmed without ground truth. Cheapest unblock: one PCSX2 save
+with a known set of items → diff pinpoints both the consumable array and key-item table.
+
 ### Active party — needs ground truth (open)
 The active-party list could not be reliably identified from the 36 save samples: index
 scans over the header + post-char state (excluding the JPEG at 0x174-0x1174 and the char
