@@ -69,8 +69,27 @@ order which matches 1:1): 0 chaos, 1 KOS-MOS, 2 Shion, 3 Jin, 4 Ziggy, 5 MOMO,
 
 `x2save.py <file.psv>` decodes gold + the party. Validated on all 20 slots.
 
+### Save WRITE (implemented in x2save.py — `set` command)
+`apply_edits()` edits gold + character fields in the 20,832-byte payload;
+`write_save()` splices it back into the PSV (length preserved), keeps a `.bak`, and
+**round-trip verifies** the write. Confirmed surgical (only the 3 targeted byte-runs
+change) on a copied save.
+
+### Checksum status (BLOCKER for guaranteed-valid writes)
+gamedata `+0x08` is a 4-byte value that changes per save. It resisted **every** standard
+algorithm tried across all 20 slots: CRC-32 (all 16 init/reflect/xorout variants, LE/BE),
+byte/u16/u32 sums, negate-to-zero, sum-to-constant, Adler-32, Fletcher-32, and truncated
+MD5/SHA-1/SHA-256 — over ranges `[0C:L]`, `[10:L]`, `[1174:L]`, image-excluded
+concatenations, etc. So it's a **custom** routine (or possibly a value the game doesn't
+verify). `fix_checksum()` is the one hook to implement once cracked; today it's a
+pass-through and the `+0x08` field is preserved as-is.
+- [ ] Determine empirically whether the game validates `+0x08` (load an edited save in
+  PCSX2). If it loads → likely unchecked, writes are good as-is. If rejected → crack it.
+- [ ] PSV wrapper has a PS3 HMAC-SHA1 signature (header 0x08); editing gamedata
+  invalidates it. Fine for emulator/mymc workflows; real-PS3 re-import needs re-signing.
+
 ### Save TODO
-- [ ] `.max` / `.sps` / `.cbs` gamedata extraction (they wrap the same 20,832-byte
+- [ ] `.max` / `.sps` / `.cbs` gamedata extraction + write (they wrap the same 20,832-byte
   payload; SharkPort layout is `magic → 0 → title → desc → dirname → datalen →
   McFsEntry files → u32 checksum`).
 - [ ] Pin the five stat names/order; decode EXP, current-vs-max HP, equipment, techs.

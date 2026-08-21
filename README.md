@@ -12,9 +12,11 @@ Built in the mold of the [Suikoden III editor](https://github.com/TheSparda/Suik
 Everything runs locally — nothing is uploaded. The repo ships with **no game data**; supply
 your own legally-obtained ISOs and/or saves.
 
-> **Status: early.** Disc identification, save inventory, and **read-only PSV save
-> decoding** (gold + per-character level/HP/stats) work today. ISO tables and save
-> *writing* are still being reverse-engineered — see
+> **Status: early.** Disc identification, save inventory, PSV save **decoding** and
+> **editing** (gold + per-character level/HP/stats, with backup + round-trip verify)
+> work today. One caveat: the gamedata's internal checksum isn't cracked yet, so an
+> edited save *may* be rejected by the game — **please test one edited save in your
+> emulator and report back.** ISO-side editing is still being reverse-engineered — see
 > [`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md).
 
 ## Run
@@ -35,6 +37,8 @@ python3 x2patch.py verify "../ISO/....(Disc 1).iso"   # identify a disc (serial/
 python3 x2patch.py info   "../ISO/....(Disc 2).iso"
 python3 x2save.py ../Saves                            # inventory local saves by format
 python3 x2save.py "../Saves/.../BASLUS-....PSV"        # decode a PSV: gold + party
+# edit a PSV (makes a .bak, verifies the write); --char 0=chaos, 1=KOS-MOS, ...
+python3 x2save.py set "…/BASLUS-….PSV" --gold 9999999 --char 0 --level 99 --hp 9999
 ```
 
 ## Layout
