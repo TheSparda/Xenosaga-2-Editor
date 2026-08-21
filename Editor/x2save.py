@@ -261,13 +261,52 @@ def apply_edits(gd, edits):
             b[base + off:base + off + width] = v.to_bytes(width, "little")
     return fix_checksum(bytes(b))
 
+def _sharkport_gd_span(data):
+    """Return (offset, length) of the gamedata file inside a SharkPort save."""
+    import io
+    f = io.BytesIO(data); f.read(17); f.read(4)
+    for _ in range(3):
+        n = struct.unpack("<L", f.read(4))[0]; f.read(n)
+    f.read(4)
+    hlen, dn, dl, dm, cr, mo = struct.unpack("<H64sL8xH2x8s8s", f.read(98)); f.read(hlen - 98)
+    for _ in range(dl - 2):
+        hlen, name, flen, mode, cr, mo = struct.unpack("<H64sL8xH2x8s8s", f.read(98)); f.read(hlen - 98)
+        off = f.tell()
+        if flen == F.GAMEDATA_SIZE:
+            return off, flen
+        f.read(flen)
+    raise ValueError("gamedata not found in SharkPort save")
+
 def _splice_gamedata(container, fmt, new_gd):
-    """Return a new container image with its gamedata replaced (length preserved)."""
+    """Return a new container image with its gamedata replaced (length preserved).
+
+    Mirrors the Suikoden-3 editor: psv/sharkport are patched in place (their container
+    checksums/signatures aren't gamedata-dependent for PC tools); cbs is decompressed,
+    patched, and re-compressed (RC4+zlib)."""
+    if len(new_gd) != F.GAMEDATA_SIZE:
+        raise ValueError("gamedata length changed; refusing to write")
     if fmt == "psv":
         o, n = psv_gamedata_span(container)
-        if n != len(new_gd):
-            raise ValueError("gamedata length changed; refusing to write")
         return container[:o] + new_gd + container[o + n:]
+    if fmt == "sharkport":
+        o, n = _sharkport_gd_span(container)
+        return container[:o] + new_gd + container[o + n:]
+    if fmt == "cbs":
+        import zlib
+        hlen = struct.unpack_from("<L", container, 8)[0]
+        dlen = struct.unpack_from("<L", container, 12)[0]
+        body = bytearray(zlib.decompressobj().decompress(_cbs_rc4(container[hlen:]), dlen))
+        pos = 0
+        while pos < len(body):
+            h = struct.unpack_from("<8s8sLHHLL32s", bytes(body), pos); sz = h[2]
+            if sz == F.GAMEDATA_SIZE:
+                body[pos + 64:pos + 64 + sz] = new_gd
+                newcomp = _cbs_rc4(zlib.compress(bytes(body), 9))
+                newb = bytearray(container[:hlen]) + newcomp
+                struct.pack_into("<L", newb, 16, len(newb))   # flen = total file size
+                return bytes(newb)
+            pos += 64 + sz
+        raise ValueError("gamedata not found in CodeBreaker save")
     raise NotImplementedError(f"writing {fmt!r} containers not implemented yet")
 
 def write_save(path, edits, make_backup=True, fmt=None):

@@ -67,8 +67,23 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  .todo li { margin:2px 0; }
  code { background:#8882; padding:1px 4px; border-radius:3px; }
  select { font-size:14px; padding:4px 8px; max-width:100%; }
- .gold { font-weight:600; }
- .es { opacity:.75; }
+ .es { opacity:.7; }
+ #sheet input { width:6ch; text-align:right; font:inherit; padding:2px 4px;
+   border:1px solid #8886; border-radius:5px; background:transparent; color:inherit; }
+ #gold { font:inherit; padding:3px 6px; border:1px solid #8886; border-radius:5px;
+   background:transparent; color:inherit; }
+ input.changed { color:#b8860b; border-color:#d9a520; background:#f6edcf40; font-weight:600; }
+ .restore { display:none; margin-left:3px; background:transparent; border:1px solid #8886;
+   color:#888; border-radius:5px; padding:1px 5px; cursor:pointer; font:inherit; line-height:1; }
+ .restore:hover { border-color:#d9a520; color:#b8860b; }
+ .restore.show { display:inline-block; }
+ button#savebtn, button#revertbtn { font:inherit; padding:5px 12px; border-radius:6px;
+   border:1px solid #8886; background:#8881; color:inherit; cursor:pointer; }
+ button#savebtn:disabled, button#revertbtn:disabled { opacity:.45; cursor:default; }
+ #badge { color:#b8860b; font-weight:600; }
+ #status { font-size:13px; }
+ #status.ok { color:#2e9e4f; } #status.err { color:#c0392b; }
+ .cell { white-space:nowrap; }
 </style></head><body>
 <header>
  <h1>Xenosaga Episode II — ISO &amp; Save Editor</h1>
@@ -78,8 +93,16 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  <section><h2>Discs detected</h2>%%ISOS%%</section>
  <section><h2>Character sheet</h2>
   <p>Save: <select id="savesel">%%SAVEOPTS%%</select>
-     &nbsp; Gold: <span class="gold" id="gold">—</span></p>
+     &nbsp; Gold: <span class="cell"><input id="gold" type="number" min="0"
+       max="4294967295" style="width:11ch"></span>
+     &nbsp; <button id="savebtn" disabled>Save changes <span id="badge"></span></button>
+     <button id="revertbtn" disabled>Revert all</button>
+     &nbsp; <span id="status"></span></p>
   <table id="sheet"><thead>%%SHEETHEAD%%</thead><tbody id="sheetbody"></tbody></table>
+  <p style="opacity:.6;font-size:13px">Edits write to the selected file (a
+   <code>.bak</code> is made first) and are re-read to verify. Note: the in-game
+   save checksum isn't cracked yet, so an edited save <b>may be rejected by the
+   game</b> until it is — test one in your emulator.</p>
  </section>
  <section><h2>Saves detected</h2>%%SAVES%%</section>
  <section><h2>Reverse-engineering roadmap</h2>
@@ -94,21 +117,98 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 </main>
 <script>
 const COLS = %%COLS%%;
-async function loadSave() {
-  const i = document.getElementById('savesel').value;
-  const r = await fetch('/api/save?i=' + i);
-  if (!r.ok) { document.getElementById('sheetbody').innerHTML =
-      '<tr><td colspan="99">decode failed</td></tr>'; return; }
-  const d = await r.json();
-  document.getElementById('gold').textContent = d.gold.toLocaleString();
-  const rows = d.characters.filter(c => c.active).map(c => {
-    const tds = COLS.map(k => '<td>' + (c[k[1]] ?? '') + '</td>').join('');
-    const cls = c.name.startsWith('E.S.') ? ' class="es"' : '';
-    return '<tr' + cls + '><td class="name">' + c.name + '</td>' + tds + '</tr>';
-  }).join('');
-  document.getElementById('sheetbody').innerHTML = rows;
+const $ = s => document.querySelector(s);
+let CUR = -1;   // index of the loaded save
+
+// wire a single input for staging: amber when value != data-def, with a ↺ restore btn
+function decorate(inp){
+  const def = inp.getAttribute('data-def');
+  let btn = inp.nextElementSibling;
+  if(!btn || !btn.classList.contains('restore')){
+    btn = document.createElement('button'); btn.type='button'; btn.className='restore';
+    btn.textContent='↺'; btn.title='Restore to '+def; inp.after(btn);
+  }
+  const refresh = () => {
+    const ch = String(inp.value) !== String(def);
+    inp.classList.toggle('changed', ch); btn.classList.toggle('show', ch); updatePending();
+  };
+  inp.addEventListener('input', refresh);
+  btn.onclick = () => { inp.value = def; refresh(); };
+  refresh();
 }
-document.getElementById('savesel').addEventListener('change', loadSave);
+
+function changedInputs(){ return [...document.querySelectorAll('#sheet input.changed, #gold.changed')]; }
+function updatePending(){
+  const n = changedInputs().length;
+  $('#badge').textContent = n ? '('+n+')' : '';
+  $('#savebtn').disabled = !n; $('#revertbtn').disabled = !n;
+  if(!n && $('#status').dataset.sticky!=='1') $('#status').textContent='';
+}
+
+async function loadSave(){
+  CUR = $('#savesel').value;
+  $('#status').textContent=''; $('#status').className='';
+  const r = await fetch('/api/save?i='+CUR);
+  if(!r.ok){ $('#sheetbody').innerHTML='<tr><td colspan="99">decode failed</td></tr>'; return; }
+  const d = await r.json();
+  const g = $('#gold'); g.value = d.gold; g.setAttribute('data-def', d.gold); decorate(g);
+  const rows = d.characters.filter(c=>c.active).map((c,ri)=>{
+    const idx = d.characters.indexOf(c);
+    const tds = COLS.map(k =>
+      '<td class="cell"><input type="number" min="0" data-idx="'+idx+'" data-field="'+k[1]+
+      '" data-def="'+(c[k[1]]??0)+'" value="'+(c[k[1]]??0)+'"></td>').join('');
+    const cls = c.name.startsWith('E.S.') ? ' class="es"' : '';
+    return '<tr'+cls+'><td class="name">'+c.name+'</td>'+tds+'</tr>';
+  }).join('');
+  $('#sheetbody').innerHTML = rows;
+  document.querySelectorAll('#sheet input').forEach(decorate);
+  updatePending();
+}
+
+function collectEdits(){
+  const edits = { characters:{} };
+  const g = $('#gold');
+  if(g.classList.contains('changed')) edits.gold = +g.value;
+  changedInputs().forEach(inp=>{
+    if(inp.id==='gold') return;
+    const idx = inp.dataset.idx, f = inp.dataset.field;
+    (edits.characters[idx] = edits.characters[idx] || {})[f] = +inp.value;
+  });
+  return edits;
+}
+
+$('#savebtn').onclick = async () => {
+  const edits = collectEdits();
+  $('#savebtn').disabled = true; $('#status').textContent='saving…'; $('#status').className='';
+  const r = await fetch('/api/write', { method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({i:+CUR, edits}) });
+  const res = await r.json().catch(()=>({ok:false,error:'bad response'}));
+  const s = $('#status');
+  if(res.ok){
+    // commit: new saved values become the baseline (clears amber)
+    document.querySelectorAll('#sheet input, #gold').forEach(inp=>{
+      inp.setAttribute('data-def', inp.value);
+      inp.classList.remove('changed');
+      if(inp.nextElementSibling&&inp.nextElementSibling.classList.contains('restore'))
+        inp.nextElementSibling.classList.remove('show');
+    });
+    s.textContent='✓ saved '+res.count+' field(s) (.bak kept, round-trip verified)';
+    s.className='ok';
+  } else { s.textContent='✗ '+(res.error||'write failed'); s.className='err'; }
+  s.dataset.sticky='1'; setTimeout(()=>{s.dataset.sticky='0';},50);
+  updatePending();
+};
+
+$('#revertbtn').onclick = () => {
+  document.querySelectorAll('#sheet input, #gold').forEach(inp=>{
+    inp.value = inp.getAttribute('data-def'); inp.classList.remove('changed');
+    if(inp.nextElementSibling&&inp.nextElementSibling.classList.contains('restore'))
+      inp.nextElementSibling.classList.remove('show');
+  });
+  updatePending();
+};
+
+$('#savesel').addEventListener('change', loadSave);
 loadSave();
 </script>
 </body></html>"""
@@ -205,6 +305,33 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         else:
             self.send_error(404)
+
+    def _json(self, obj, code=200):
+        body = json.dumps(obj).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        if self.path != "/api/write":
+            self.send_error(404); return
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            req = json.loads(self.rfile.read(n))
+            s = decodable_saves()[int(req["i"])]
+            edits = req.get("edits", {}) or {}
+            # normalize character keys to ints
+            chars = {int(k): v for k, v in (edits.get("characters") or {}).items()}
+            norm = {"characters": chars}
+            if "gold" in edits:
+                norm["gold"] = edits["gold"]
+            count = (1 if "gold" in edits else 0) + sum(len(v) for v in chars.values())
+            SV.write_save(s["path"], norm, fmt=s["format"])
+            self._json({"ok": True, "count": count})
+        except Exception as e:
+            self._json({"ok": False, "error": str(e)}, code=200)
 
 
 def main():
