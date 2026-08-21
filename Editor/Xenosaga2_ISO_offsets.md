@@ -92,7 +92,43 @@ change) on a copied save.
   checksum word**, trigger a save, and read the routine that computes it; or disassemble the
   boot ELF (we have it on the ISO) around the mc write. This is the definitive next step.
 
+### Boot ELF map (SLUS_208.92, extracted from disc 1)
+`x2patch.py extract <iso> --name SLUS_208.92` pulls the 5,877,344-byte boot ELF
+(MIPS32 LE, R5900). Program headers:
+
+| Seg | file off | vaddr | filesz | flags | notes |
+|---|---|---|---|---|---|
+| 0 | 0x1000 | 0x120000 | 0x195D38 | R-X | **code** (entry 0x120008) |
+| 1 | 0x196D80 | 0x2B5D80 | 0x3E83FC | RW- | **data** (+BSS to memsz 0x71FFF0) |
+| 2 | 0x580000 | 0xA80000 | 0x3E28 | RWX | small |
+
+va→file for code: `off = va - 0x120000 + 0x1000`; for data: `off = va - 0x2B5D80 + 0x196D80`.
+The save RAM (char/stat tables 0x61xxxx) and the **gamedata work buffer @ VA 0x695160**
+all live in the initialized-data segment, so they exist at those fixed EE addresses at
+runtime. Two overlays (OV01/OV02.OVL) also present but the save code is in the main ELF.
+
+### Save subsystem (located via disassembly — capstone MIPS)
+- Save-file registration passes `(ptr, size)` per file: `icon.sys`=0x3C4, **gamedata=0x5160**
+  (20,832), system.ico, etc. (around va 0x1EB190).
+- Save path string `/BASLUS-20892Xeno2` @ va 0x68DF88, referenced at va 0x19DE8C.
+- Memcard file-I/O dispatcher (jump table by file index 1..9) @ va 0x19DE98.
+- Gamedata buffer pointer getter @ va 0x187D58 → returns **0x695160**.
+- **Save serializer region ≈ va 0x186000–0x188900** (50+ field writers over a common
+  primitive 0x1867A0) — the checksum is computed here, then stored to `buffer+8` (0x695168)
+  via a register offset (no absolute xref, so it's not directly greppable).
+- Game RNG: 64-bit PCG/Knuth LCG (mult `0x5851F42D4C957F2D`) @ va 0x2AA130 — this is `rand`,
+  NOT the save checksum (the LCG-hash family was tested against +0x08 and did not match).
+
 ### Checksum status (BLOCKER for guaranteed-valid writes)
+**Not cracked yet, but pinpointed.** Ruled out (all 20 saves): CRC-32 (16 variants, LE/BE),
+byte/u16/u32 sums, sum-to-const, Adler/Fletcher, truncated MD5/SHA, and the LCG-hash family
+— so it's a bespoke routine inside the save serializer. Two ways to finish it:
+1. **Runtime (fast):** in PCSX2, set an **EE write breakpoint on 0x695168** (the gamedata
+   buffer's checksum word), trigger an in-game save; the game halts on the exact store
+   instruction inside the checksum routine — read that loop and implement `fix_checksum()`.
+2. **Static:** disassemble the 0x186000–0x188900 serializer for the loop that writes
+   `buffer+8`; slower (blind) but doable.
+Until then, `x2save.fix_checksum()` preserves +0x08 as-is.
 gamedata `+0x08` is a 4-byte value that changes per save. It resisted **every** standard
 algorithm tried across all 20 slots: CRC-32 (all 16 init/reflect/xorout variants, LE/BE),
 byte/u16/u32 sums, negate-to-zero, sum-to-constant, Adler-32, Fletcher-32, and truncated

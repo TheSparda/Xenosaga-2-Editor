@@ -68,6 +68,43 @@ class Iso:
     def __enter__(self): return self
     def __exit__(self, *a): self.close()
 
+    # --- ISO9660 directory walk (root only; enough to reach the boot ELF/overlays)
+    _SECTOR = 2048
+
+    def _read_lba(self, lba, n=1):
+        return self.read(lba * self._SECTOR, n * self._SECTOR)
+
+    def list_files(self):
+        """Yield (name, lba, size, is_dir) for the ISO's root directory."""
+        pvd = self._read_lba(16)
+        root = pvd[156:156 + 34]
+        root_lba = struct.unpack_from("<I", root, 2)[0]
+        root_size = struct.unpack_from("<I", root, 10)[0]
+        data = self._read_lba(root_lba, (root_size + self._SECTOR - 1) // self._SECTOR)
+        i = 0
+        while i < len(data):
+            rlen = data[i]
+            if rlen == 0:
+                i = (i // self._SECTOR + 1) * self._SECTOR
+                if i >= len(data):
+                    break
+                continue
+            ext_lba = struct.unpack_from("<I", data, i + 2)[0]
+            ext_size = struct.unpack_from("<I", data, i + 10)[0]
+            flags = data[i + 25]
+            namelen = data[i + 32]
+            name = data[i + 33:i + 33 + namelen].decode("latin1").split(";")[0]
+            if name not in ("\x00", "\x01"):          # skip . and ..
+                yield name, ext_lba, ext_size, bool(flags & 2)
+            i += rlen
+
+    def extract_file(self, name):
+        """Return the bytes of a root-level file (e.g. 'SLUS_208.92'), or None."""
+        for fn, lba, size, isdir in self.list_files():
+            if not isdir and fn.upper() == name.upper():
+                return self.read(lba * self._SECTOR, size)
+        return None
+
 
 # ---------------------------------------------------------------------------
 # VERIFIED: identify the disc from its own filesystem (no hardcoded LBAs).
@@ -141,6 +178,22 @@ def cmd_find_bytes(a):
         off = iso.find(needle, start=a.start)
         print("not found" if off < 0 else f"found at 0x{off:X} ({off})")
 
+def cmd_list(a):
+    with Iso(a.iso) as iso:
+        print(f"{'name':<18} {'lba':>8} {'size':>12}  dir?")
+        for name, lba, size, isdir in iso.list_files():
+            print(f"  {name:<16} {lba:>8} {size:>12}  {'D' if isdir else ''}")
+
+def cmd_extract(a):
+    with Iso(a.iso) as iso:
+        blob = iso.extract_file(a.name)
+        if blob is None:
+            raise SystemExit(f"{a.name!r} not found in ISO root")
+        out = a.out or a.name
+        with open(out, "wb") as f:
+            f.write(blob)
+        print(f"extracted {a.name} -> {out} ({len(blob):,} bytes, magic {blob[:4].hex()})")
+
 def cmd_dump_region(a):
     with Iso(a.iso) as iso:
         data = iso.read(a.off, a.len)
@@ -165,6 +218,13 @@ def main():
     sp.add_argument("iso"); sp.add_argument("--hex", required=True)
     sp.add_argument("--start", type=lambda x: int(x, 0), default=0)
     sp.set_defaults(fn=cmd_find_bytes)
+
+    sp = sub.add_parser("list", help="list the ISO's root-directory files")
+    sp.add_argument("iso"); sp.set_defaults(fn=cmd_list)
+
+    sp = sub.add_parser("extract", help="extract a root file (e.g. the boot ELF)")
+    sp.add_argument("iso"); sp.add_argument("--name", required=True)
+    sp.add_argument("--out"); sp.set_defaults(fn=cmd_extract)
 
     sp = sub.add_parser("dump-region", help="hex-dump a byte range")
     sp.add_argument("iso")
