@@ -86,9 +86,13 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
    letter-spacing:.06em; color:var(--mut); border-bottom:1px solid var(--line); }
  td { text-align:left; padding:5px 10px; border-bottom:1px solid var(--line); }
  tbody tr:hover td { background:var(--panel2); }
- #sheet th, #sheet td { text-align:right; }
- #sheet th.name, #sheet td.name { text-align:left; font-weight:600; }
- #sheet thead th { position:sticky; top:52px; background:var(--panel); z-index:5; }
+ /* character sheet: each unit spans two rows so all 11 fields fit without scroll */
+ #sheet td { text-align:center; border-bottom:0; padding:4px 6px; }
+ #sheet td.name { text-align:left; font-weight:600; font-size:15px; vertical-align:middle;
+   white-space:nowrap; padding-left:2px; border-right:1px solid var(--line); }
+ #sheet tr.u2 td { padding-bottom:11px; border-bottom:1px solid var(--line); }
+ #sheet .fl { font-size:9.5px; text-transform:uppercase; letter-spacing:.05em;
+   color:var(--mut); margin-bottom:2px; }
  .es td.name { color:var(--mut); }
  .pill { display:inline-block; padding:1px 9px; border-radius:20px; background:var(--panel2);
    border:1px solid var(--line); font-size:11px; letter-spacing:.03em; }
@@ -97,7 +101,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
    border-radius:7px; font:inherit; padding:4px 8px; }
  select:focus,input:focus { outline:0; border-color:var(--acc); box-shadow:0 0 0 3px var(--ring); }
  select:hover,input:hover { border-color:var(--acc); }
- #sheet input { width:6.5ch; text-align:right; padding:3px 5px; }
+ #sheet input { width:7ch; text-align:center; padding:3px 5px; }
  #gold { width:12ch; }
  input.changed { color:var(--warn); border-color:var(--warnbd); background:var(--changed-bg);
    font-weight:600; }
@@ -219,13 +223,21 @@ async function loadSave(){
   if(!r.ok){ $('#sheetbody').innerHTML='<tr><td colspan="99">decode failed</td></tr>'; return; }
   const d = await r.json();
   const g = $('#gold'); g.value = d.gold; g.setAttribute('data-def', d.gold); decorate(g);
-  const rows = d.characters.filter(c=>c.active).map((c,ri)=>{
+  const GA = COLS.slice(0, 6), GB = COLS.slice(6);   // two rows: 6 fields + the rest
+  const cell = (c, idx, k) =>
+    '<td><div class="fl">'+k[0]+'</div><span class="cell"><input type="number" min="0" '+
+    'autocomplete="off" data-idx="'+idx+'" data-field="'+k[1]+'" data-def="'+(c[k[1]]??0)+
+    '" value="'+(c[k[1]]??0)+'"></span></td>';
+  const rows = d.characters.filter(c=>c.active).map(c=>{
     const idx = d.characters.indexOf(c);
-    const tds = COLS.map(k =>
-      '<td class="cell"><input type="number" min="0" autocomplete="off" data-idx="'+idx+'" data-field="'+k[1]+
-      '" data-def="'+(c[k[1]]??0)+'" value="'+(c[k[1]]??0)+'"></td>').join('');
-    const cls = c.name.startsWith('E.S.') ? ' class="es"' : '';
-    return '<tr'+cls+'><td class="name">'+c.name+'</td>'+tds+'</tr>';
+    const es = c.name.startsWith('E.S.') ? ' es' : '';
+    const cols = GA.length;
+    const rowA = '<tr class="u1'+es+'"><td class="name" rowspan="2">'+c.name+'</td>'
+      + GA.map(k=>cell(c,idx,k)).join('') + '</tr>';
+    const pad = cols - GB.length;
+    const rowB = '<tr class="u2'+es+'">' + GB.map(k=>cell(c,idx,k)).join('')
+      + '<td></td>'.repeat(pad>0?pad:0) + '</tr>';
+    return rowA + rowB;
   }).join('');
   $('#sheetbody').innerHTML = rows;
   document.querySelectorAll('#sheet input').forEach(decorate);
@@ -327,8 +339,7 @@ def render():
 
     opts = "".join(f"<option value='{i}'>{html.escape(s['name'])} ({s['format']})</option>"
                    for i, s in enumerate(decodable_saves()))
-    head = "<tr><th class='name'>character</th>" + \
-           "".join(f"<th>{h}</th>" for h, _ in SHEET_COLS) + "</tr>"
+    head = ""   # fields are self-labeled per cell (2-row layout)
 
     return (PAGE
             .replace("%%GAME%%", html.escape(F.GAME_NAME))
