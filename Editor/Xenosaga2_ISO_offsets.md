@@ -60,8 +60,27 @@ Character record (0x108 bytes) — offsets within the record:
 +0x0C u16  stat 4   |
 +0x0E u16  stat 5  /
 +0x13 u8   LEVEL            (verified: 7 at 1.5h -> 54 at 30h)
-+0x23..    tech-level arrays (0x14 x8, then 0x64 x8)  [partial]
++0x23..0x32  constant per-character config (0x14 x8, 0x64 x8 — affinities/base tech)
++0x33..    growing list of learned tech/skill ids (0x1D,0x1E,0x1F,... as you level)
++0x5C u16  CURRENT HP       (== base HP early; exceeds it later via gear bonus)
++0x60 u16  unknown, level-correlated
 ```
+The 0x108 record is now essentially fully mapped. **Total EXP is NOT in the record** —
+EXP-to-next lives in a separate RAM table (pnach 0x61C4xx), not yet located in the save.
+
+### Containers supported (x2save.py)
+psv (full), **sharkport `.sps/.xps`** (uncompressed), **cbs** (RC4+zlib) — all decode to
+the same 20,832-byte gamedata. `.max` (Ps2PowerSave/LZARI) still TODO. WRITE is PSV-only
+so far (sharkport/cbs need splice-back + their own container checksums).
+
+### Active party — needs ground truth (open)
+The active-party list could not be reliably identified from the 36 save samples: index
+scans over the header + post-char state (excluding the JPEG at 0x174-0x1174 and the char
+table) turned up only high-variability regions, and the SharkPort scene descriptions
+("Jin vs. Margulis", "Albedo", ...) name story points, not rosters. Unlike level/HP/gold
+(verifiable by correlation), a party field can't be *confirmed* without a known-party
+reference save or the running game. Cheapest unblock: 2-3 PCSX2 saves with deliberately
+different parties → diff pinpoints it in minutes.
 Record index -> character (inferred, but cross-validated against the pnach EE-RAM
 order which matches 1:1): 0 chaos, 1 KOS-MOS, 2 Shion, 3 Jin, 4 Ziggy, 5 MOMO,
 6 Jr., 7-9 reserved (unrecruited), 10 E.S. Dinah, 11 E.S. Zebulun, 12 E.S. Asher,

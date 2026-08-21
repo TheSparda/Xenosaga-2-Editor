@@ -91,7 +91,11 @@ CHAR_FIELDS = [
     ("Eva",          0x11, 1, "num"),   # Evasion
     ("Agl",          0x12, 1, "num"),   # Agility (tentative; ~constant in samples)
     ("Level",        0x13, 1, "num"),
+    ("Current HP",   0x5C, 2, "num"),   # live HP (==base at low lvl, +gear bonus later)
 ]
+
+# +0x23..0x32 are constant per-character config (0x14 x8, 0x64 x8 — affinities/base tech),
+# +0x33.. is a growing list of learned tech/skill ids. Not exposed as editable yet.
 
 # rec index -> character. Inferred from the pnach EE-RAM order (Chaos lowest
 # address, stride 0x40), which matches the save record order 1:1 (7 on-foot
