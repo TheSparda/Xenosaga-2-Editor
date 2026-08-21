@@ -67,6 +67,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <main>
  <section><h2>Discs detected</h2>{iso_table}</section>
  <section><h2>Saves detected</h2>{save_table}</section>
+ <section><h2>Decoded saves (PSV)</h2>{decoded_table}</section>
  <section><h2>Reverse-engineering roadmap</h2>
   <ul class="todo">
    <li><b>ISO tables</b> — locate character/tech/gear/enemy/shop records (start from the
@@ -104,10 +105,30 @@ def render():
     else:
         save_table = "<p>No saves found under <code>Saves/</code>.</p>"
 
+    # Decode the PSV saves (the format we've reverse-engineered so far).
+    drows = []
+    for s in saves:
+        if s["format"] != "psv":
+            continue
+        try:
+            d = SV.decode_save(s["path"])
+        except Exception:
+            continue
+        party = ", ".join(f"{c['name']} L{c['Level']}"
+                           for c in d["characters"] if c["active"])
+        drows.append(f"<tr><td>{html.escape(s['name'])}</td>"
+                     f"<td>{d['gold']:,}</td><td>{html.escape(party)}</td></tr>")
+    if drows:
+        decoded_table = ("<table><tr><th>file</th><th>gold</th><th>party</th></tr>"
+                         + "".join(drows) + "</table>")
+    else:
+        decoded_table = ("<p>No decodable PSV saves found. (.max/.sps/.cbs decode "
+                         "is still on the roadmap.)</p>")
+
     return PAGE.format(
         game=html.escape(F.GAME_NAME),
         serials=", ".join(sorted(F.SERIALS)),
-        iso_table=iso_table, save_table=save_table)
+        iso_table=iso_table, save_table=save_table, decoded_table=decoded_table)
 
 
 class Handler(BaseHTTPRequestHandler):

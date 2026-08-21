@@ -34,17 +34,49 @@ Save ids embedded in the containers:
   `BASLUS-20892Xeno201...`.
 - `BESCES-82034` — PAL (one local `.max` sample, `10890.max`, is a European save — skip for USA work).
 
+### PSV container (VERIFIED — implemented in x2save.py)
+Standard PS3-export layout: 0x84-byte signed header, then a McFsEntry-style table
+(each file's `mode` u32 at name−4 = `0x8427` dir / `0x8497` file; `size` u32 at name−8),
+then the file bodies concatenated in entry order. Body starts at
+`filesize − sum(file sizes)`. A slot holds three files: `system.ico`, the save data
+file (named after its folder, e.g. `BASLUS-20892Xeno201`), and `icon.sys` (964 B).
+The icon.sys title carries the save name + playtime, e.g. `XenosagaEPII-01[30:18]`.
+
+### gamedata payload (VERIFIED — 20,832 bytes, from 20 PSV slots)
+```
+0x0000  header: +0x08 u32 checksum-ish ("muY+"); +0x10 u8 counter
+0x00D0  u32  GOLD                     (rises/falls with earning+spending)
+0x0174..0x0D44  embedded JPEG thumbnail (per-save screenshot)
+0x0D44..0x1174  ~1 KB high-entropy block (2nd image / packed state)  [TODO]
+0x1174  character table: 15 records x 0x108 bytes
+```
+Character record (0x108 bytes) — offsets within the record:
+```
++0x00 u16  character id   (constant per char; chaos=0x0564, KOS-MOS=0x056A, ...)
++0x02 u16  HP (max)        (verified: grows level 7->54 across the 20 saves)
++0x06 u16  stat 1  \
++0x08 u16  stat 2   |  five stats; grow in lockstep with level (names TBD)
++0x0A u16  stat 3   |
++0x0C u16  stat 4   |
++0x0E u16  stat 5  /
++0x13 u8   LEVEL            (verified: 7 at 1.5h -> 54 at 30h)
++0x23..    tech-level arrays (0x14 x8, then 0x64 x8)  [partial]
+```
+Record index -> character (inferred, but cross-validated against the pnach EE-RAM
+order which matches 1:1): 0 chaos, 1 KOS-MOS, 2 Shion, 3 Jin, 4 Ziggy, 5 MOMO,
+6 Jr., 7-9 reserved (unrecruited), 10 E.S. Dinah, 11 E.S. Zebulun, 12 E.S. Asher,
+13-14 more E.S. slots. E.S. records carry mech-scale HP (10k-24k), confirming them.
+
+`x2save.py <file.psv>` decodes gold + the party. Validated on all 20 slots.
+
 ### Save TODO
-- [ ] Extract the inner `gamedata` payload from each container (`extract_gamedata`).
-  - `.psv`: `\x00VSP` header + SHA1 signature block, then the PS2 dir/file entries.
-  - `.max`: `Ps2PowerSave` header, folder name, then per-file blobs.
-  - `.sps`: `SharkPortSave` header, title/desc strings, then payload.
-  - `.cbs`: `CFU\0` header (decompressed len at +4), RC4-then-zlib like S3's `.cbs`.
-- [ ] Confirm the raw `gamedata` size (compare the 20 PSV slots — identical 29,468 bytes,
-  so the payload is fixed-size; subtract the PSV wrapper to get it).
-- [ ] Map fields: characters (level/HP/EXP/stats/techs/gear), party, inventory, gold, playtime.
-- [ ] Crack the save checksum before enabling any write path (S3 used "all u32 sum to 0";
-  check whether X2 uses the same trick).
+- [ ] `.max` / `.sps` / `.cbs` gamedata extraction (they wrap the same 20,832-byte
+  payload; SharkPort layout is `magic → 0 → title → desc → dirname → datalen →
+  McFsEntry files → u32 checksum`).
+- [ ] Pin the five stat names/order; decode EXP, current-vs-max HP, equipment, techs.
+- [ ] Decode the 0x0D44..0x1174 block and the header checksum at +0x08.
+- [ ] Crack/confirm the save checksum before enabling any write path.
+- [ ] Party / inventory / event-flag tables (item-slot tables seen at ~0x3030+).
 
 ## Cheat codes as anchors (VERIFIED present)
 
