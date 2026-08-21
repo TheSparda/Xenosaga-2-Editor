@@ -1,0 +1,39 @@
+# Game images — never commit (multi-GB, copyrighted)
+*.iso
+*.bin
+*.img
+ISO/
+
+# Player saves — personal / copyrighted; used locally for research only
+Saves/
+*.psv
+*.PSV
+*.psu
+*.max
+*.cbs
+*.sps
+*.xps
+*.mcd
+*.mc2
+*.ps2
+
+# Third-party cheat files (used locally as RE anchors, not redistributed)
+Cheats/
+
+# Backups the editor makes before writing
+*.bak
+*.TEST.iso
+
+# Python
+__pycache__/
+*.pyc
+
+# Release build output (built locally by make_release.py, uploaded to Releases)
+dist/
+
+# macOS
+.DS_Store
+
+# editor/session config — not part of the project
+.claude/
+Editor/.x2editor.json
