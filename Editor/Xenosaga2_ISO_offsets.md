@@ -229,9 +229,16 @@ No public source has equipment ids: the disc-1 pnach AND almarsguides CodeBreake
 pages only cover stats + consumables + key items (checked exhaustively). The ISO is
 the sole source.
 
+### E.S. weapon/frame ids 31+ (blocked on menu-code disassembly)
+Attempted to map ids 31-37 to names via the equipment data table. A base-independent
+delta search (match the accessory name-offset delta sequence, any base K, word-strides
+1-23) over ISO 0x2000000-0x2040000 found **no pointer/record array** — so equipment
+names are resolved by **string index in the menu code**, not a scannable file-offset
+table. The weapon/frame names exist (~0x20107F0: MINIGUN, MICRO MISSILE, DRAGON BLADE,
+X-BUSTER, Moonlight Blade, Corona/Odin Buster, ...) but their id↔name mapping needs
+either ELF disassembly of the equip menu or a ground-truth save. Left raw in the editor.
+
 ### ISO TODO
-- [ ] Map E.S. weapon/frame ids 31+ (names exist as attack entries ~0x20107F0, e.g.
-  MINIGUN/DRAGON BLADE; need the binary equipment data table for the id↔name pointers).
 - [ ] Find on-foot accessory storage (candidate record slots were constant in samples).
 - [ ] Map the pointer/index tables so every string gets an authoritative id.
 - [ ] Locate editable ISO tables (character growth, enemy stats, shops) for new-game edits.
