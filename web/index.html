@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0f1e">
+<title>Xenosaga II Editor (Web)</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Xenosaga II Editor">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>XENOSAGA II</h1>
+    <span class="tag">web · runs on your device</span>
+    <button id="installBtn" class="chip hidden">⬇ Install</button>
+    <button id="themeBtn" class="chip">◐ Theme</button>
+  </header>
+
+  <nav class="modebar">
+    <button class="mtab on" data-mode="save">Save Editor</button>
+    <button class="mtab" data-mode="iso">ISO Editor</button>
+  </nav>
+
+  <section id="mode-save" class="mode">
+    <p class="sub">Full save editor — gold and every character's level, HP, stats, and E.S. gear.
+      Everything runs in your browser via Python (Pyodide); your save <b>never leaves the
+      device</b>. Works on desktop and Android. Back up first.</p>
+
+    <div class="card" id="loaderCard">
+      <h2>1 · Load save</h2>
+      <div class="drop" id="drop">
+        <div><b>Drop a save file here</b> or</div>
+        <label class="file"><button type="button" id="pickBtn" disabled>Choose file…</button>
+          <input type="file" id="file" hidden></label>
+        <div class="muted" id="engineStatus"><span class="spinner"></span>Starting Python engine…</div>
+        <div class="muted small">Supports .psv (PS3), .sps/.xps (SharkPort), and .cbs (CodeBreaker).</div>
+      </div>
+      <div id="recent"></div>
+    </div>
+
+    <div id="editor"></div>
+  </section>
+
+  <section id="mode-iso" class="mode hidden">
+    <p class="sub">Edit the disc directly — enemy stats (HP, Atk, Def, Cash, EXP) for a new game.
+      Changes write <b>in place</b> into your ISO; nothing is uploaded. Desktop Chromium only
+      (File System Access API). Back up first.</p>
+    <div id="isoRoot"></div>
+  </section>
+
+  <footer>
+    <span class="credit">Made by <b>Sparda</b> ·
+      <a href="https://github.com/TheSparda/Xenosaga-2-Editor" target="_blank" rel="noopener noreferrer">GitHub</a></span>
+    <span class="note">Save editor: in-browser Pyodide port of <code>x2save.py</code> (works everywhere).
+      ISO editor: in-place enemy-table edits on desktop Chromium.</span>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<script src="app.js"></script>
+<script src="iso.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "Xenosaga II Editor",
+  "short_name": "Xenosaga II",
+  "description": "Edit Xenosaga Episode II (PS2) saves and the disc's enemy table entirely on your device.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0f1e",
+  "theme_color": "#0a0f1e",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "share_target": {
+    "action": "share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [{
+        "name": "save",
+        "accept": ["application/octet-stream", ".psv", ".sps", ".xps", ".cbs", ".bin", ".max"]
+      }]
+    }
+  }
+}
