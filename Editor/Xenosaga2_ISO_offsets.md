@@ -245,10 +245,21 @@ Verified by HP alignment: Perun 860 → Stribog 2560 → ... → Margulis 32000 
 → Orgulla 999999 → Patriarch 192000. Names saved to `x2_enemies.json`;
 `x2fields.enemy_names()` + `ENEMY_TABLE_OFF/STRIDE/COUNT/FIELDS`.
 
-Record layout (0x5C): +0x00 4 growth/param bytes; +0x04 8× element affinity (0x64=100%);
-+0x10.. stat block (not fully labeled); **+0x36 u32 HP** (verified); +0x3A level/const.
-Editing writes to ISO 0x2000000 + id*0x5C + field. ~30 more boss names (Albedo/Orgulla/
-Dark Erde Kaiser/ZU) exist past the 97 — likely a second stat block, TODO.
+Record layout (0x5C), verified/inferred via range + HP-correlation across 97 enemies:
++0x00 4 param bytes; +0x04 8× element affinity (0x64=100%); **+0x36 u32 HP** (verified);
++0x3A 99 (const); **+0x3E u16 Atk**, **+0x42 u16 Def** (stats, 1-999, corr +0.77/+0.69);
+**+0x4E u16 Cash**, **+0x50 u16 EXP** (rewards, corr +0.80). Editing writes to
+ISO 0x2000000 + id*0x5C + field. ~30 more boss names (Albedo/Orgulla/Dark Erde Kaiser/ZU)
+exist past the 97 — likely a second stat block, TODO.
+
+### Character-growth & shop tables (located region, not yet labeled)
+The gap between the enemy name table and the skills strings (ISO ~0x2002900-0x2009B58)
+is **pure binary** — data tables with no embedded name anchors. Character growth/base
+stats and shop stock/price tables are almost certainly here (or in the ELF data seg),
+but without a name anchor they need ELF disassembly of the stat-growth / shop code (or a
+ground-truth diff) to label safely — a bigger dig than the enemy table, which had the
+adjacent name table to anchor it. Character names aren't a clean null-terminated table in
+either the ELF or XENOSAGA.01 (menu/portrait-driven).
 
 ### ISO TODO
 - [ ] Find on-foot accessory storage (candidate record slots were constant in samples).

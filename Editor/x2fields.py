@@ -161,10 +161,14 @@ ENEMY_TABLE_OFF = 0x2000000    # disc-1 raw byte offset of record 0
 ENEMY_STRIDE    = 0x5C          # 92 bytes/record
 ENEMY_COUNT     = 97
 ENEMY_FIELDS = [
-    ("HP", 0x36, 4, "num"),     # verified; more fields (stats/affinities) TBD
+    ("HP",   0x36, 4, "num"),   # verified (Perun 860 .. Patriarch 192000)
+    ("Atk",  0x3E, 2, "num"),   # stat, 1-999, +0.77 HP-correlation
+    ("Def",  0x42, 2, "num"),   # stat, 1-999
+    ("Cash", 0x4E, 2, "num"),   # battle cash reward
+    ("EXP",  0x50, 2, "num"),   # battle EXP reward (+0.80 HP-correlation)
 ]
-# +0x00: 4 growth/param bytes; +0x04: 8x element affinity (0x64=100%); +0x10..: stat
-# block (not fully labeled); +0x36 u32 HP; +0x3A: level/const.
+# +0x00: 4 param bytes; +0x04: 8x element affinity (0x64=100%); +0x36 u32 HP;
+# +0x3A: 99 (const, level cap?). Atk/Def/Cash/EXP inferred by range+HP-correlation.
 
 def enemy_names():
     """{int id: name} for the 97 enemies (Perun..Patriarch)."""
