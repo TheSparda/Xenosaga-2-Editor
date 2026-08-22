@@ -238,6 +238,18 @@ table. The weapon/frame names exist (~0x20107F0: MINIGUN, MICRO MISSILE, DRAGON 
 X-BUSTER, Moonlight Blade, Corona/Odin Buster, ...) but their id↔name mapping needs
 either ELF disassembly of the equip menu or a ground-truth save. Left raw in the editor.
 
+### ISO ENEMY table (VERIFIED — disc 1)
+**97 enemy stat records** at raw offset **0x2000000**, stride **0x5C** (92 B), directly
+followed by the **enemy name table at 0x2002342** (sequential, record[i] ↔ name[i]).
+Verified by HP alignment: Perun 860 → Stribog 2560 → ... → Margulis 32000 → Albedo 57600
+→ Orgulla 999999 → Patriarch 192000. Names saved to `x2_enemies.json`;
+`x2fields.enemy_names()` + `ENEMY_TABLE_OFF/STRIDE/COUNT/FIELDS`.
+
+Record layout (0x5C): +0x00 4 growth/param bytes; +0x04 8× element affinity (0x64=100%);
++0x10.. stat block (not fully labeled); **+0x36 u32 HP** (verified); +0x3A level/const.
+Editing writes to ISO 0x2000000 + id*0x5C + field. ~30 more boss names (Albedo/Orgulla/
+Dark Erde Kaiser/ZU) exist past the 97 — likely a second stat block, TODO.
+
 ### ISO TODO
 - [ ] Find on-foot accessory storage (candidate record slots were constant in samples).
 - [ ] Map the pointer/index tables so every string gets an authoritative id.

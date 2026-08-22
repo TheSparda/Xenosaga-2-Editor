@@ -152,8 +152,25 @@ def es_equip_catalog():
     accessory. Higher gear ids (34-37 seen = weapon/frame items) aren't mapped yet."""
     return {int(k): v for k, v in res_json("x2_es_equip.json").items()}
 
+# ---------------------------------------------------------------------------
+# ISO ENEMY table (VERIFIED — disc 1). 97 enemy stat records at raw offset
+# 0x2000000, stride 0x5C, followed by the name table at 0x2002342. HP verified
+# aligned to names (Perun 860 ... Margulis 32000 ... Patriarch 192000).
+# ---------------------------------------------------------------------------
+ENEMY_TABLE_OFF = 0x2000000    # disc-1 raw byte offset of record 0
+ENEMY_STRIDE    = 0x5C          # 92 bytes/record
+ENEMY_COUNT     = 97
+ENEMY_FIELDS = [
+    ("HP", 0x36, 4, "num"),     # verified; more fields (stats/affinities) TBD
+]
+# +0x00: 4 growth/param bytes; +0x04: 8x element affinity (0x64=100%); +0x10..: stat
+# block (not fully labeled); +0x36 u32 HP; +0x3A: level/const.
+
+def enemy_names():
+    """{int id: name} for the 97 enemies (Perun..Patriarch)."""
+    return {int(k): v for k, v in res_json("x2_enemies.json").items()}
+
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
-TECH_FIELDS = []      # Tech / Ether effect table
+TECH_FIELDS = []      # Tech / Ether effect table (names @ISO ~0x2009B58)
 GEAR_FIELDS = []      # Weapon / armor / accessory table
-ENEMY_FIELDS = []     # Enemy stat table
 SHOP_FIELDS = []      # Shop stock / price tables
