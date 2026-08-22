@@ -159,6 +159,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
    first and the result is re-read to verify. The in-game save checksum isn't cracked yet,
    so an edited save <b>may be rejected by the game</b> until it is — test one in an emulator.</p>
  </div>
+ <div class="card"><h2>Enemy editor · ISO (new game)</h2>%%ENEMYUI%%</div>
  <div class="card"><h2>Discs detected</h2>%%ISOS%%</div>
  <div class="card"><h2>Saves detected</h2>%%SAVES%%</div>
  <div class="card"><h2>Reverse-engineering roadmap</h2>
@@ -199,16 +200,17 @@ function toast(msg, err){
 }
 
 // wire a single input for staging: amber when value != data-def, with a ↺ restore btn
-function decorate(inp){
+function decorate(inp, onchange){
   const def = inp.getAttribute('data-def');
   let btn = inp.nextElementSibling;
   if(!btn || !btn.classList.contains('restore')){
     btn = document.createElement('button'); btn.type='button'; btn.className='restore';
     btn.textContent='↺'; btn.title='Restore to '+def; inp.after(btn);
   }
+  const notify = onchange || updatePending;
   const refresh = () => {
     const ch = String(inp.value) !== String(def);
-    inp.classList.toggle('changed', ch); btn.classList.toggle('show', ch); updatePending();
+    inp.classList.toggle('changed', ch); btn.classList.toggle('show', ch); notify();
   };
   inp.addEventListener('input', refresh);
   btn.onclick = () => { inp.value = def; refresh(); };
@@ -319,8 +321,60 @@ $('#revertbtn').onclick = () => {
 
 $('#savesel').addEventListener('change', loadSave);
 loadSave();
+
+// ---- Enemy editor (ISO) ----
+const EFLDS = %%ENEMYFLDS%%;
+function enemyChanged(){ return [...document.querySelectorAll('#enemyrow input.changed')]; }
+function updateEnemyPending(){
+  const n = enemyChanged().length;
+  const b=$('#ebadge'); if(b) b.textContent = n?'('+n+')':'';
+  const s=$('#enemysave'), r=$('#enemyrevert');
+  if(s) s.disabled=!n; if(r) r.disabled=!n;
+}
+async function loadEnemy(){
+  const sel=$('#enemysel'); if(!sel) return;
+  $('#estatus').textContent=''; $('#estatus').className='';
+  const d=await (await fetch('/api/enemy?i='+sel.value)).json();
+  $('#enemyrow').innerHTML = EFLDS.map(f=>
+    '<td class="cell"><div class="fl">'+f+'</div><span class="cell"><input type="number" '+
+    'min="0" autocomplete="off" data-ef="'+f+'" data-def="'+d[f]+'" value="'+d[f]+'"></span></td>').join('');
+  $('#enemyrow').querySelectorAll('input').forEach(inp=>decorate(inp, updateEnemyPending));
+  updateEnemyPending();
+}
+if($('#enemysel')){
+  $('#enemysel').addEventListener('change', loadEnemy);
+  $('#enemyrevert').onclick = () => {
+    $('#enemyrow').querySelectorAll('input').forEach(inp=>{ inp.value=inp.getAttribute('data-def');
+      inp.classList.remove('changed'); const b=inp.nextElementSibling; if(b&&b.classList.contains('restore'))b.classList.remove('show'); });
+    updateEnemyPending();
+  };
+  $('#enemysave').onclick = async () => {
+    const edits={}; enemyChanged().forEach(inp=>edits[inp.dataset.ef]=+inp.value);
+    const bak = $('#enemybak') && $('#enemybak').checked;
+    $('#enemysave').disabled=true; $('#estatus').textContent='writing…'; $('#estatus').className='';
+    const res=await (await fetch('/api/enemy_write',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({i:+$('#enemysel').value, edits, backup:bak})})).json().catch(()=>({ok:false,error:'bad response'}));
+    const s=$('#estatus');
+    if(res.ok){
+      $('#enemyrow').querySelectorAll('input').forEach(inp=>{ inp.setAttribute('data-def',inp.value);
+        inp.classList.remove('changed'); const b=inp.nextElementSibling; if(b&&b.classList.contains('restore'))b.classList.remove('show'); });
+      s.textContent='✓ wrote '+res.count+' field(s) to ISO'; s.className='ok';
+      toast('✓ Enemy saved to ISO'+(res.backup?' (.bak made)':''));
+    } else { s.textContent='✗ '+(res.error||'write failed'); s.className='err'; toast('✗ '+(res.error||'write failed'),true); }
+    updateEnemyPending();
+  };
+  loadEnemy();
+}
 </script>
 </body></html>"""
+
+
+def disc1_iso():
+    """Path of the recognized disc-1 ISO under the project folder, or None."""
+    for d in scan_isos(SCAN_ROOT):
+        if d["ok"] and d["disc"] == 1:
+            return d["path"]
+    return None
 
 
 def decodable_saves():
@@ -361,6 +415,25 @@ def render():
                    for i, s in enumerate(decodable_saves()))
     head = ""   # fields are self-labeled per cell (2-row layout)
 
+    # Enemy editor UI (only if the disc-1 ISO is present)
+    if disc1_iso():
+        enames = F.enemy_names()
+        eopts = "".join(f"<option value='{i}'>{i:02d} · {html.escape(enames[i])}</option>"
+                        for i in sorted(enames))
+        enemy_ui = (
+            "<div class='toolbar'>"
+            "<label>Enemy</label> <select id='enemysel'>" + eopts + "</select>"
+            "<label style='margin-left:8px'><input type='checkbox' id='enemybak'> back up ISO first (4.6 GB)</label>"
+            "<span class='spacer' style='flex:1'></span>"
+            "<button id='enemyrevert' class='btn' disabled>Revert</button>"
+            "<button id='enemysave' class='btn primary' disabled>Save to ISO <span id='ebadge'></span></button>"
+            "<span id='estatus'></span></div>"
+            "<table id='enemytbl'><tbody><tr id='enemyrow'></tr></tbody></table>"
+            "<p class='note'>Edits write <b>directly to the disc image</b> (new-game values) — "
+            "work on a copy or tick the backup box. HP is verified; Atk/Def/Cash/EXP are inferred.</p>")
+    else:
+        enemy_ui = "<p class='note'>Disc 1 ISO not found under the project folder — enemy editing needs it.</p>"
+
     return (PAGE
             .replace("%%GAME%%", html.escape(F.GAME_NAME))
             .replace("%%SERIALS%%", ", ".join(sorted(F.SERIALS)))
@@ -371,7 +444,9 @@ def render():
             .replace("%%COLS%%", json.dumps(SHEET_COLS))
             .replace("%%ESCOLS%%", json.dumps([[l, l] for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS]))
             .replace("%%ESEQUIP%%", json.dumps({str(i): v["name"]
-                     for i, v in F.es_equip_catalog().items()})))
+                     for i, v in F.es_equip_catalog().items()}))
+            .replace("%%ENEMYUI%%", enemy_ui)
+            .replace("%%ENEMYFLDS%%", json.dumps([f[0] for f in F.ENEMY_FIELDS])))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -402,6 +477,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif self.path.startswith("/api/enemy?"):
+            from urllib.parse import urlparse, parse_qs
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                i = int(q.get("i", ["0"])[0])
+                with X.Iso(disc1_iso()) as iso:
+                    data = X.read_enemy(iso, i)
+            except Exception as e:
+                self.send_error(500, str(e)); return
+            self._json(data)
         elif self.path == "/api/status":
             data = {
                 "game": F.GAME_NAME,
@@ -427,6 +512,22 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if self.path == "/api/enemy_write":
+            try:
+                n = int(self.headers.get("Content-Length", 0))
+                req = json.loads(self.rfile.read(n))
+                path = disc1_iso()
+                if not path:
+                    raise RuntimeError("disc-1 ISO not found")
+                did_bak = False
+                if req.get("backup"):
+                    X.backup(path); did_bak = True
+                with X.Iso(path, write=True) as iso:
+                    count = X.write_enemy(iso, int(req["i"]), req.get("edits", {}) or {})
+                self._json({"ok": True, "count": count, "backup": did_bak})
+            except Exception as e:
+                self._json({"ok": False, "error": str(e)})
+            return
         if self.path != "/api/write":
             self.send_error(404); return
         try:

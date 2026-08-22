@@ -153,6 +153,31 @@ def backup(path):
 
 
 # ---------------------------------------------------------------------------
+# ENEMY table read/write (disc 1). Records at F.ENEMY_TABLE_OFF, stride
+# F.ENEMY_STRIDE; editable fields in F.ENEMY_FIELDS. Raw byte offsets.
+# ---------------------------------------------------------------------------
+def enemy_base(i):
+    return F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE
+
+def read_enemy(iso, i):
+    base = enemy_base(i)
+    return {lbl: int.from_bytes(iso.read(base + off, w), "little")
+            for (lbl, off, w, _k) in F.ENEMY_FIELDS}
+
+def write_enemy(iso, i, edits):
+    """Write edited fields for enemy `i`. edits = {field_label: value}. Values are
+    clamped to field width. Returns the count of fields written."""
+    base = enemy_base(i)
+    n = 0
+    for (lbl, off, w, _k) in F.ENEMY_FIELDS:
+        if lbl in edits and edits[lbl] is not None:
+            v = max(0, min(int(edits[lbl]), (1 << (8 * w)) - 1))
+            iso.write(base + off, v.to_bytes(w, "little"))
+            n += 1
+    return n
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 def cmd_verify(a):
