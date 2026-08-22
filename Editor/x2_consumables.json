@@ -1,38 +1,146 @@
 {
-"11": "Antidote H",
-"10": "Antidote L",
-"36": "Awakening I",
-"37": "Awakening II",
-"38": "Awakening III",
-"39": "Awakening IV",
-"20": "Bio Sphere",
-"14": "Boost Max",
-"15": "CF Bomb",
-"26": "Class Upgrade A",
-"27": "Class Upgrade B",
-"28": "Class Upgrade C",
-"34": "Ether Core",
-"6": "Ether Pack DX",
-"5": "Ether Pack M",
-"4": "Ether Pack S",
-"0": "Med Kit S",
-"16": "Hemlock",
-"33": "Junked Circuit",
-"3": "Med Kit DX",
-"2": "Med Kit L",
-"1": "Med Kit M",
-"29": "Nano Repair A",
-"30": "Nano Repair Z",
-"31": "Nano Sphere",
-"8": "Rejuvenator DX",
-"9": "Rejuvenator E",
-"7": "Rejuvenator M",
-"13": "Revive DX",
-"12": "Revive S",
-"32": "Scrap Iron",
-"21": "Skill Upgrade A",
-"23": "Skill Upgrade B",
-"95": "Skill Upgrade C",
-"24": "Skill Upgrade D",
-"25": "Skill Upgrade E"
+"11": {
+"name": "Antidote H",
+"desc": "Heal H-type status effects."
+},
+"10": {
+"name": "Antidote L",
+"desc": "Heal L-type status effects."
+},
+"36": {
+"name": "Awakening I",
+"desc": "Double Attack for Jr. and MOMO."
+},
+"37": {
+"name": "Awakening II",
+"desc": "Double Attack for Shion and KOS-MOS."
+},
+"38": {
+"name": "Awakening III",
+"desc": "Double Attack for Jin and Shion."
+},
+"39": {
+"name": "Awakening IV",
+"desc": "Double Attack for chaos and MOMO."
+},
+"20": {
+"name": "Bio Sphere",
+"desc": "Recover all HP and EP (entire party)."
+},
+"14": {
+"name": "Boost Max",
+"desc": "Boost Gauge maximum +1 (up to 5)."
+},
+"15": {
+"name": "CF Bomb",
+"desc": "Disable an enemy's defense shield."
+},
+"26": {
+"name": "Class Upgrade A",
+"desc": "Class Points +10."
+},
+"27": {
+"name": "Class Upgrade B",
+"desc": "Class Points +50."
+},
+"28": {
+"name": "Class Upgrade C",
+"desc": "Class Points +100."
+},
+"34": {
+"name": "Ether Core",
+"desc": "A rare part used to fix broken Ether."
+},
+"6": {
+"name": "Ether Pack DX",
+"desc": "Recover all EP."
+},
+"5": {
+"name": "Ether Pack M",
+"desc": "Recover 50% of MAX EP."
+},
+"4": {
+"name": "Ether Pack S",
+"desc": "Recover 25% of MAX EP."
+},
+"0": {
+"name": "Med Kit S",
+"desc": "Recover 25% of MAX HP."
+},
+"16": {
+"name": "Hemlock",
+"desc": "Set HP to 1."
+},
+"33": {
+"name": "Junked Circuit",
+"desc": "A destroyed circuit."
+},
+"3": {
+"name": "Med Kit DX",
+"desc": "Recover all HP."
+},
+"2": {
+"name": "Med Kit L",
+"desc": "Recover 75% of MAX HP."
+},
+"1": {
+"name": "Med Kit M",
+"desc": "Recover 50% of MAX HP."
+},
+"29": {
+"name": "Nano Repair A",
+"desc": "Recover 25% of MAX HP and EP (E.S. only)."
+},
+"30": {
+"name": "Nano Repair Z",
+"desc": "Recover 50% of MAX HP and EP (E.S. only)."
+},
+"31": {
+"name": "Nano Sphere",
+"desc": "Recover all HP and EP of all crafts (E.S. only)."
+},
+"8": {
+"name": "Rejuvenator DX",
+"desc": "Recover all HP and EP."
+},
+"9": {
+"name": "Rejuvenator E",
+"desc": "Recover all HP and EP for all allies."
+},
+"7": {
+"name": "Rejuvenator M",
+"desc": "Recover 50% of MAX HP and EP."
+},
+"13": {
+"name": "Revive DX",
+"desc": "Revive & recover all HP."
+},
+"12": {
+"name": "Revive S",
+"desc": "Revive & recover 25% of MAX HP."
+},
+"32": {
+"name": "Scrap Iron",
+"desc": "Remains of a machine."
+},
+"21": {
+"name": "Skill Upgrade A",
+"desc": "Skill Points +10."
+},
+"23": {
+"name": "Skill Upgrade B",
+"desc": "Skill Points +30."
+},
+"95": {
+"name": "Skill Upgrade C",
+"desc": "Skill Points +50."
+},
+"24": {
+"name": "Skill Upgrade D",
+"desc": "Skill Points +100."
+},
+"25": {
+"name": "Skill Upgrade E",
+"desc": "Skill Points +500."
+}
 }

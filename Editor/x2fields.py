@@ -129,13 +129,21 @@ ROSTER = {
 INV_CONSUMABLE_RAM = 0x61C800    # u16 quantity per consumable id (cap 99)
 INV_KEYITEM_RAM    = 0x61CC00    # u16 have-flag per key-item id
 
+# Catalog JSONs are {id: {"name":..., "desc":...}} — names from the pnach, in-game
+# descriptions extracted from the disc-1 data region (~ISO 0x200CE00).
+def consumable_catalog():
+    return {int(k): v for k, v in res_json("x2_consumables.json").items()}
+
+def keyitem_catalog():
+    return {int(k): v for k, v in res_json("x2_keyitems.json").items()}
+
 def consumable_names():
     """{int id: name} for the 36 consumable items."""
-    return {int(k): v for k, v in res_json("x2_consumables.json").items()}
+    return {i: v["name"] for i, v in consumable_catalog().items()}
 
 def keyitem_names():
     """{int id: name} for the 107 key items."""
-    return {int(k): v for k, v in res_json("x2_keyitems.json").items()}
+    return {i: v["name"] for i, v in keyitem_catalog().items()}
 
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
 TECH_FIELDS = []      # Tech / Ether effect table

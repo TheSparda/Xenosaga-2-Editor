@@ -195,9 +195,32 @@ values to search for. Useful anchors already visible:
 - Skill/class "max stars" (0x0F fills): region around `0x6A59xx`.
 - GS Campaign quest flags: `0x3ECA40`.
 
+### ISO data/text region (VERIFIED — disc 1, uncompressed)
+The game's menu text tables sit uncompressed in **XENOSAGA.01** and are directly
+readable at raw disc offsets. `x2patch.py strings <iso> --off 0x200CE1C` dumps them.
+Layout (disc-1 raw offsets):
+
+| Offset | Table |
+|---|---|
+| ~0x2009B58 | **Ether skills** (name + `target (EP n)\ndesc`): Medica, Refresh, Veils, Swords, Blasts, Erde Kaiser, Double/XSB/XBK variants |
+| ~0x200CE1C | **Consumable items** (name + desc) — same set as the pnach 36, in display order |
+| ~0x200D464 | **Secret Keys 1-31** (name + "unlocks Class X skill Y") |
+| ~0x200DF34 | **Key items** (name + desc): Decoders, letters, ZAZA clues, keys, seeds, rings, Robot Parts, ... (107) |
+| ~0x200FC10 | **Character techs / specials** (Twin Buster, Phoenix Blade, Cross Fist, ...) + E.S. weapon attacks (MINIGUN, MICRO MISSILE, DRAGON BLADE, X-BUSTER @ ~0x20107F0) |
+| ~0x2011611 | **Status/buff labels** (Beam Sword, Veils, Speed +25%, Safety Level, ...) |
+| ~0x2011800 | **internal skill/class ids** (`ck_*`, `rk_*` — resource names, not display) |
+
+Item/key catalogs now enriched with these descriptions in `x2_consumables.json` /
+`x2_keyitems.json` (36/36 and 103/107 matched). **Still needed:** the equipment
+data table (id→name+slot) that maps the E.S. gear ids (record +0x86/+0x88/+0x8A) to
+weapon/frame/armor names — the names exist above but the id→name pointer table isn't
+mapped yet. Likely a binary table with u32 pointers into this string pool.
+
 ### ISO TODO
-- [ ] Find the boot ELF inside each disc (SYSTEM.CNF → `SLUS_xxx.xx`), note its PT_LOAD
-  vaddr↔file mapping (S3 approach: `file_off = (vaddr - PL_VADDR) + PL_FILE`).
+- [ ] Find the equipment/accessory data tables (id→name+stats) to label E.S. gear +
+  on-foot accessories; look for a u32 pointer array into the 0x2009000+ string pool.
+- [ ] Map the pointer/index tables so every string gets an authoritative id.
+- [ ] Locate editable ISO tables (character growth, enemy stats, shops) for new-game edits.
 - [ ] Translate the pnach EE addresses through the ELF load map to locate the static tables
   on-disc (characters, techs/ether, gear, enemies, shops, text).
 - [ ] Build `x2fields.py` schemas as each table is verified byte-for-byte.

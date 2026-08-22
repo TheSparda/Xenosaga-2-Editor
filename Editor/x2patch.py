@@ -194,6 +194,15 @@ def cmd_extract(a):
             f.write(blob)
         print(f"extracted {a.name} -> {out} ({len(blob):,} bytes, magic {blob[:4].hex()})")
 
+def cmd_strings(a):
+    """Dump printable ASCII runs (offset: text) from a byte range — the game's
+    item/skill/text tables live uncompressed in the disc-1 data region ~0x200CE00."""
+    import re as _re
+    with Iso(a.iso) as iso:
+        data = iso.read(a.off, a.len)
+    for m in _re.finditer(rb"[\x20-\x7e]{%d,}" % a.min, data):
+        print(f"{a.off + m.start():08X}: {m.group().decode()}")
+
 def cmd_dump_region(a):
     with Iso(a.iso) as iso:
         data = iso.read(a.off, a.len)
@@ -225,6 +234,13 @@ def main():
     sp = sub.add_parser("extract", help="extract a root file (e.g. the boot ELF)")
     sp.add_argument("iso"); sp.add_argument("--name", required=True)
     sp.add_argument("--out"); sp.set_defaults(fn=cmd_extract)
+
+    sp = sub.add_parser("strings", help="dump ASCII strings (offset: text) from a range")
+    sp.add_argument("iso")
+    sp.add_argument("--off", type=lambda x: int(x, 0), required=True)
+    sp.add_argument("--len", type=lambda x: int(x, 0), default=0x2000)
+    sp.add_argument("--min", type=int, default=2, help="min run length")
+    sp.set_defaults(fn=cmd_strings)
 
     sp = sub.add_parser("dump-region", help="hex-dump a byte range")
     sp.add_argument("iso")

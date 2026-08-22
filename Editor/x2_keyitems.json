@@ -1,109 +1,430 @@
 {
-"59": "Aqua Maid Uniform",
-"38": "Autumn Seed",
-"58": "Black Maid Uniform",
-"56": "Blue Maid Uniform",
-"28": "Club Letter",
-"50": "Curry Recipe",
-"0": "Decoder 01",
-"1": "Decoder 02",
-"2": "Decoder 03",
-"3": "Decoder 04",
-"4": "Decoder 05",
-"5": "Decoder 06",
-"6": "Decoder 07",
-"7": "Decoder 08",
-"8": "Decoder 09",
-"9": "Decoder 10",
-"10": "Decoder 11",
-"11": "Decoder 12",
-"12": "Decoder 13",
-"13": "Decoder 14",
-"14": "Decoder 15",
-"15": "Decoder 16",
-"16": "Decoder 17",
-"17": "Decoder 18",
-"29": "Diamond Letter",
-"46": "Engagement Ring",
-"54": "Entertainment Guide",
-"30": "Facility Key",
-"62": "Free Play Token",
-"68": "Geriatric Swimsuit",
-"27": "Heart Letter",
-"47": "Hyper Fertilizer",
-"65": "Iron 4 Sheet Music",
-"67": "King's Key",
-"18": "Love Letter",
-"52": "Memory Locket",
-"53": "Music Box",
-"61": "Pink Book",
-"57": "Pink Maid Uniform",
-"40": "Power Battery",
-"64": "Red Eye Fish Print",
-"75": "Robot Part Body",
-"74": "Robot Part Head",
-"71": "Robot Part Left Arm",
-"73": "Robot Part Left Leg",
-"70": "Robot Part Right Arm",
-"72": "Robot Part Right Leg",
-"55": "Rules Of High Society",
-"49": "Secret Box",
-"76": "Secret Key 1",
-"85": "Secret Key 10",
-"86": "Secret Key 11",
-"87": "Secret Key 12",
-"88": "Secret Key 13",
-"89": "Secret Key 14",
-"90": "Secret Key 15",
-"91": "Secret Key 16",
-"92": "Secret Key 17",
-"93": "Secret Key 18",
-"94": "Secret Key 19",
-"77": "Secret Key 2",
-"95": "Secret Key 20",
-"96": "Secret Key 21",
-"97": "Secret Key 22",
-"98": "Secret Key 23",
-"99": "Secret Key 24",
-"100": "Secret Key 25",
-"101": "Secret Key 26",
-"102": "Secret Key 27",
-"103": "Secret Key 28",
-"104": "Secret Key 29",
-"78": "Secret Key 3",
-"105": "Secret Key 30",
-"106": "Secret Key 31",
-"79": "Secret Key 4",
-"80": "Secret Key 5",
-"81": "Secret Key 6",
-"82": "Secret Key 7",
-"83": "Secret Key 8",
-"84": "Secret Key 9",
-"41": "Sequencer A",
-"42": "Sequencer B",
-"43": "Sequencer C",
-"44": "Sequencer D",
-"69": "Sidney's Letter",
-"26": "Spode Letter",
-"36": "Spring Seed",
-"60": "Statue Blueprint",
-"32": "Stella's Hairpin",
-"33": "Stella's Scorset",
-"31": "Stella's Shoes",
-"37": "Summer Seed",
-"51": "Teddy Bear",
-"63": "Toy Store Key",
-"66": "Unlock COde",
-"48": "Vault Key",
-"34": "Water Tank A Key",
-"35": "Water Tank B Key",
-"45": "Wedding Ring",
-"39": "Winter Seed",
-"19": "ZAZA's Clue 1",
-"20": "ZAZA's Clue 2",
-"21": "ZAZA's Clue 3",
-"22": "ZAZA's Clue 4",
-"23": "ZAZA's Clue 5",
-"24": "ZAZA's Clue 6",
-"25": "ZAZA's Clue 7"
+"59": {
+"name": "Aqua Maid Uniform",
+"desc": "A pure aqua waitress uniform."
+},
+"38": {
+"name": "Autumn Seed",
+"desc": "A seed for an unknown flower."
+},
+"58": {
+"name": "Black Maid Uniform",
+"desc": "A bewitching black waitress uniform."
+},
+"56": {
+"name": "Blue Maid Uniform",
+"desc": "A cute blue waitress uniform."
+},
+"28": {
+"name": "Club Letter",
+"desc": "A letter shaped like a Club which appears to be from a niece to her aunt."
+},
+"50": {
+"name": "Curry Recipe",
+"desc": "Chop's ultimate curry recipe."
+},
+"0": {
+"name": "Decoder 01",
+"desc": "Decoder to unlock Segment Address No. 01."
+},
+"1": {
+"name": "Decoder 02",
+"desc": "Decoder to unlock Segment Address No. 02."
+},
+"2": {
+"name": "Decoder 03",
+"desc": "Decoder to unlock Segment Address No. 03."
+},
+"3": {
+"name": "Decoder 04",
+"desc": "Decoder to unlock Segment Address No. 04."
+},
+"4": {
+"name": "Decoder 05",
+"desc": "Decoder to unlock Segment Address No. 05."
+},
+"5": {
+"name": "Decoder 06",
+"desc": "Decoder to unlock Segment Address No. 06."
+},
+"6": {
+"name": "Decoder 07",
+"desc": "Decoder to unlock Segment Address No. 07."
+},
+"7": {
+"name": "Decoder 08",
+"desc": "Decoder to unlock Segment Address No. 08."
+},
+"8": {
+"name": "Decoder 09",
+"desc": "Decoder to unlock Segment Address No. 09."
+},
+"9": {
+"name": "Decoder 10",
+"desc": "Decoder to unlock Segment Address No. 10."
+},
+"10": {
+"name": "Decoder 11",
+"desc": "Decoder to unlock Segment Address No. 11."
+},
+"11": {
+"name": "Decoder 12",
+"desc": "Decoder to unlock Segment Address No. 12."
+},
+"12": {
+"name": "Decoder 13",
+"desc": "Decoder to unlock Segment Address No. 13."
+},
+"13": {
+"name": "Decoder 14",
+"desc": "Decoder to unlock Segment Address No. 14."
+},
+"14": {
+"name": "Decoder 15",
+"desc": "Decoder to unlock Segment Address No. 15."
+},
+"15": {
+"name": "Decoder 16",
+"desc": "Decoder to unlock Segment Address No. 16."
+},
+"16": {
+"name": "Decoder 17",
+"desc": "Decoder to unlock Segment Address No. 17."
+},
+"17": {
+"name": "Decoder 18",
+"desc": "Decoder to unlock Segment Address No. 18."
+},
+"29": {
+"name": "Diamond Letter",
+"desc": "A letter shaped like a Diamond which appears to be a description of days and nights on Second Miltia."
+},
+"46": {
+"name": "Engagement Ring",
+"desc": "A ring someone lost."
+},
+"54": {
+"name": "Entertainment Guide",
+"desc": "A paper-based antique document filled with entertainment information."
+},
+"30": {
+"name": "Facility Key",
+"desc": "Key to the power distribution facility of Second Miltia."
+},
+"62": {
+"name": "Free Play Token",
+"desc": "Play the quiz game on the Foundation."
+},
+"68": {
+"name": "Geriatric Swimsuit",
+"desc": "Swimsuit made from bio fibers to prevent drowning. The robot print on the back is amazing!"
+},
+"27": {
+"name": "Heart Letter",
+"desc": "A letter shaped like a Heart which contains work-related documents."
+},
+"47": {
+"name": "Hyper Fertilizer",
+"desc": "Second Miltia's natural fertilizer that accelerates the growth of plants."
+},
+"65": {
+"name": "Iron 4 Sheet Music",
+"desc": "Sheet music of the Iron 4 theme song composed by Margoyles."
+},
+"67": {
+"name": "King's Key",
+"desc": "Key to King's secret storage. Number 1857 is written on it."
+},
+"18": {
+"name": "Love Letter",
+"desc": "Love letter from Jacqueline to Sidney."
+},
+"52": {
+"name": "Memory Locket",
+"desc": "Locket with a picture of Kate and Rod."
+},
+"53": {
+"name": "Music Box",
+"desc": "An old-fashioned music box with a nostalgic melody."
+},
+"61": {
+"name": "Pink Book",
+"desc": "Book filled with memories of Roy's adolescence."
+},
+"57": {
+"name": "Pink Maid Uniform",
+"desc": "A scandalous pink waitress uniform."
+},
+"40": {
+"name": "Power Battery",
+"desc": "A rechargeable battery made by Vector Industries."
+},
+"64": {
+"name": "Red Eye Fish Print",
+"desc": "Fish print of the giant fish that ravaged the Foundation's beaches."
+},
+"75": {
+"name": "Robot Part Body",
+"desc": "The body of a giant robot. Take it to the Professor for an Ether skill!"
+},
+"74": {
+"name": "Robot Part Head",
+"desc": "The head of a giant robot. Take it to the Professor for an Ether skill!"
+},
+"71": {
+"name": "Robot Part Left Arm",
+"desc": "The left arm of a giant robot. Take both arms to the Professor for an Ether skill!"
+},
+"73": {
+"name": "Robot Part Left Leg",
+"desc": "The left leg of a giant robot. Take both legs to the Professor for an Ether skill!"
+},
+"70": {
+"name": "Robot Part Right Arm",
+"desc": "The right arm of a giant robot. Take both arms to the Professor for an Ether skill!"
+},
+"72": {
+"name": "Robot Part Right Leg",
+"desc": "The right leg of a giant robot. Take both legs to the Professor for an Ether skill!"
+},
+"55": {
+"name": "Rules Of High Society",
+"desc": ""
+},
+"49": {
+"name": "Secret Box",
+"desc": "A box with 'Dominic' written on top and filled with receipts for mice."
+},
+"76": {
+"name": "Secret Key 1",
+"desc": "Key to open the Level 1 Class H skill, Psycho Pocket."
+},
+"85": {
+"name": "Secret Key 10",
+"desc": "Key to open the Lv 2 Class H skill, Inner Peace."
+},
+"86": {
+"name": "Secret Key 11",
+"desc": "Key to open the Lv 2 Class H skill, ST Resist 20."
+},
+"87": {
+"name": "Secret Key 12",
+"desc": "Key to open the Lv 3 Class A skill, Safety Level."
+},
+"88": {
+"name": "Secret Key 13",
+"desc": "Key to open the Lv 3 Class A skill, Limiter Up."
+},
+"89": {
+"name": "Secret Key 14",
+"desc": "Key to open the Lv 3 Class C skill, Rapid Refresh."
+},
+"90": {
+"name": "Secret Key 15",
+"desc": "Key to open the Lv 3 Class C skill, Last Revenge."
+},
+"91": {
+"name": "Secret Key 16",
+"desc": "Key to open the Lv 3 Class E skill, First Combo."
+},
+"92": {
+"name": "Secret Key 17",
+"desc": "Key to open the Lv 3 Class F skill, Break B15."
+},
+"93": {
+"name": "Secret Key 18",
+"desc": "Key to open the Lv 3 Class F skill, Rare+30."
+},
+"94": {
+"name": "Secret Key 19",
+"desc": "Key to open the Lv 3 Class G skill, Ether Burst."
+},
+"77": {
+"name": "Secret Key 2",
+"desc": "Key to open the Level 1 Class H skill, Break B10."
+},
+"95": {
+"name": "Secret Key 20",
+"desc": "Key to open the Lv 3 Class H skill, Skill Up 10."
+},
+"96": {
+"name": "Secret Key 21",
+"desc": "Key to open the Lv 3 Class H skill, Experience Up 10."
+},
+"97": {
+"name": "Secret Key 22",
+"desc": "Key to open the Lv 3 Class H skill, Combo Boost."
+},
+"98": {
+"name": "Secret Key 23",
+"desc": "Key to open the Lv 3 Class H skill, EP Half."
+},
+"99": {
+"name": "Secret Key 24",
+"desc": "Key to open the Lv 4 Class A skill, Curse."
+},
+"100": {
+"name": "Secret Key 25",
+"desc": "Key to open the Lv 4 Class B skill, Focus 2."
+},
+"101": {
+"name": "Secret Key 26",
+"desc": "Key to open the Lv 4 Class C skill, Overload."
+},
+"102": {
+"name": "Secret Key 27",
+"desc": "Key to open the Lv 4 Class C skill, ST Double."
+},
+"103": {
+"name": "Secret Key 28",
+"desc": "Key to open the Lv 4 Class D skill, Best Ally."
+},
+"104": {
+"name": "Secret Key 29",
+"desc": "Key to open the Lv 4 Class D skill, Skill Up 15."
+},
+"78": {
+"name": "Secret Key 3",
+"desc": "Key to open the Level 1 Class H skill, Focus 1."
+},
+"105": {
+"name": "Secret Key 30",
+"desc": "Key to open the Lv 4 Class D skill, Experience Up 15."
+},
+"106": {
+"name": "Secret Key 31",
+"desc": "Key to open the Lv 4 Class D skill, Rebound."
+},
+"79": {
+"name": "Secret Key 4",
+"desc": "Key to open the Lv 1 Class H skill, EP Regen."
+},
+"80": {
+"name": "Secret Key 5",
+"desc": "Key to open the Lv 2 Class D skill, Stock 1."
+},
+"81": {
+"name": "Secret Key 6",
+"desc": "Key to open the Lv 2 Class D skill, Rare+10."
+},
+"82": {
+"name": "Secret Key 7",
+"desc": "Key to open the Lv 2 Class F skill, Junk Beam."
+},
+"83": {
+"name": "Secret Key 8",
+"desc": "Key to open the Lv 2 Class H skill, Boost 1."
+},
+"84": {
+"name": "Secret Key 9",
+"desc": "Key to open the Lv 2 Class H skill, Expansion Pack."
+},
+"41": {
+"name": "Sequencer A",
+"desc": "Key to unlock the green Forbidden Device."
+},
+"42": {
+"name": "Sequencer B",
+"desc": "Key to unlock the yellow Forbidden Device."
+},
+"43": {
+"name": "Sequencer C",
+"desc": "Key to unlock the red Forbidden Device."
+},
+"44": {
+"name": "Sequencer D",
+"desc": "Key to unlock the final Forbidden Device."
+},
+"69": {
+"name": "Sidney's Letter",
+"desc": "A very embarrassing letter to Jacqueline."
+},
+"26": {
+"name": "Spode Letter",
+"desc": ""
+},
+"36": {
+"name": "Spring Seed",
+"desc": "A radiant blue flower seed."
+},
+"60": {
+"name": "Statue Blueprint",
+"desc": "Blueprint for the stone statue on the Foundation that Janet was looking for."
+},
+"32": {
+"name": "Stella's Hairpin",
+"desc": "Stella's hairpin from her last performance."
+},
+"33": {
+"name": "Stella's Scorset",
+"desc": ""
+},
+"31": {
+"name": "Stella's Shoes",
+"desc": "Stella's ballet shoes."
+},
+"37": {
+"name": "Summer Seed",
+"desc": "A beautiful flower seed."
+},
+"51": {
+"name": "Teddy Bear",
+"desc": "Teddy bear Maple received from her father on her birthday."
+},
+"63": {
+"name": "Toy Store Key",
+"desc": "Key to Toy's Universe warehouse. Can only be used once. Pass code is '4949'."
+},
+"66": {
+"name": "Unlock COde",
+"desc": ""
+},
+"48": {
+"name": "Vault Key",
+"desc": "Key to Our Treasure's vault with the number 0813 written on it."
+},
+"34": {
+"name": "Water Tank A Key",
+"desc": "Key to the Second Miltia Water Works' water tank A."
+},
+"35": {
+"name": "Water Tank B Key",
+"desc": "Key to the Second Miltia Water Works' water tank B."
+},
+"45": {
+"name": "Wedding Ring",
+"desc": "A ring filled with love from Mickey to Mallory."
+},
+"39": {
+"name": "Winter Seed",
+"desc": "A flower seed emitting a suspicious aura."
+},
+"19": {
+"name": "ZAZA's Clue 1",
+"desc": "A memo left by Elsa's robot ZAZA with the number 2 written on it."
+},
+"20": {
+"name": "ZAZA's Clue 2",
+"desc": "A memo left by Elsa's robot ZAZA with the number 5 written on it."
+},
+"21": {
+"name": "ZAZA's Clue 3",
+"desc": "A memo left by Elsa's robot ZAZA with the number 8 written on it."
+},
+"22": {
+"name": "ZAZA's Clue 4",
+"desc": "A memo left by Elsa's robot ZAZA with the number 7 written on it."
+},
+"23": {
+"name": "ZAZA's Clue 5",
+"desc": "A memo left by Elsa's robot ZAZA with the number 6 written on it."
+},
+"24": {
+"name": "ZAZA's Clue 6",
+"desc": "A memo left by Elsa's robot ZAZA with the number 4 written on it."
+},
+"25": {
+"name": "ZAZA's Clue 7",
+"desc": "A memo left by Elsa's robot ZAZA with the number 3 written on it."
+}
 }
