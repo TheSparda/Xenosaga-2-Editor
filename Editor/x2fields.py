@@ -147,8 +147,9 @@ def keyitem_names():
 
 def es_equip_catalog():
     """{int id: {name, desc}} for the E.S. accessory/circuit table (from ISO
-    ~0x200C5D4). Covers ids 0-30; higher gear ids index weapon/frame tables not
-    yet mapped. id base inferred (unverified) — experimental."""
+    ~0x200C5D4). Covers ids 0-30 — id base (Auxiliary Armor A = 0) CONFIRMED by
+    cross-checking all 36 saves: every in-range E.S. gear value maps to a sensible
+    accessory. Higher gear ids (34-37 seen = weapon/frame items) aren't mapped yet."""
     return {int(k): v for k, v in res_json("x2_es_equip.json").items()}
 
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------

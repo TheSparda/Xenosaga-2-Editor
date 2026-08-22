@@ -216,9 +216,23 @@ data table (id→name+slot) that maps the E.S. gear ids (record +0x86/+0x88/+0x8
 weapon/frame/armor names — the names exist above but the id→name pointer table isn't
 mapped yet. Likely a binary table with u32 pointers into this string pool.
 
+### E.S. equipment (accessory table CONFIRMED, ids 0-30)
+The E.S. accessory/circuit list is in the ISO at ~0x200C5D4 (31 named entries with
+effects: Auxiliary Armor, EF Circuit, Anti-Fire/Ice/Thunder/Beam Armor, status Guards,
+Quick Charge, EMAX300, Auto Recover). Saved as `x2_es_equip.json`. **id base
+(Auxiliary Armor A = 0) is confirmed** by cross-checking all 36 saves: every E.S. gear
+slot value in 0-30 maps to a sensible accessory. The save's 4 gear slots
+(record +0x86/+0x88/+0x8A/+0x90) index a unified equipment list — accessories are
+0-30, and a small cluster of higher ids (34-37 observed) are weapon/frame items.
+
+No public source has equipment ids: the disc-1 pnach AND almarsguides CodeBreaker
+pages only cover stats + consumables + key items (checked exhaustively). The ISO is
+the sole source.
+
 ### ISO TODO
-- [ ] Find the equipment/accessory data tables (id→name+stats) to label E.S. gear +
-  on-foot accessories; look for a u32 pointer array into the 0x2009000+ string pool.
+- [ ] Map E.S. weapon/frame ids 31+ (names exist as attack entries ~0x20107F0, e.g.
+  MINIGUN/DRAGON BLADE; need the binary equipment data table for the id↔name pointers).
+- [ ] Find on-foot accessory storage (candidate record slots were constant in samples).
 - [ ] Map the pointer/index tables so every string gets an authoritative id.
 - [ ] Locate editable ISO tables (character growth, enemy stats, shops) for new-game edits.
 - [ ] Translate the pnach EE addresses through the ELF load map to locate the static tables
