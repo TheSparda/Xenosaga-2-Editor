@@ -97,6 +97,17 @@ CHAR_FIELDS = [
 # +0x23..0x32 are constant per-character config (0x14 x8, 0x64 x8 — affinities/base tech),
 # +0x33.. is a growing list of learned tech/skill ids. Not exposed as editable yet.
 
+# E.S. (mech) equipment slots — EXPERIMENTAL. These four u16s in the record vary
+# across saves for E.S. units only (weapon/frame/armor/anima ids), so they're
+# editable, but the slot->kind mapping and the id->name catalog are NOT confirmed
+# yet (that needs the ISO item tables + a ground-truth save). Raw numeric ids.
+ES_EQUIP_FIELDS = [
+    ("Gear 1", 0x86, 2, "num"),
+    ("Gear 2", 0x88, 2, "num"),
+    ("Gear 3", 0x8A, 2, "num"),
+    ("Gear 4", 0x90, 2, "num"),
+]
+
 # rec index -> character. Inferred from the pnach EE-RAM order (Chaos lowest
 # address, stride 0x40), which matches the save record order 1:1 (7 on-foot
 # filled, 3 empty, then the high-HP E.S. mech slots). Keyed by record index.

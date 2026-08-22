@@ -206,10 +206,11 @@ def decode_gamedata(gd):
     for i in range(F.CHAR_COUNT):
         base = F.CHAR_TABLE_OFF + i * F.CHAR_STRIDE
         rec = {}
-        for label, off, width, _kind in F.CHAR_FIELDS:
+        for label, off, width, _kind in F.CHAR_FIELDS + F.ES_EQUIP_FIELDS:
             rec[label] = int.from_bytes(gd[base + off:base + off + width], "little")
         rec["name"] = F.ROSTER.get(i, f"rec{i}")
         rec["active"] = rec["Character id"] != 0 and rec["Level"] > 0
+        rec["is_es"] = rec["name"].startswith("E.S.")
         chars.append(rec)
     return {"gold": gold, "characters": chars}
 
@@ -235,7 +236,7 @@ def fix_checksum(gd):
 _FIELD_MAX = {1: 0xFF, 2: 0xFFFF, 4: 0xFFFFFFFF}
 
 def _field_spec(label):
-    for lb, off, width, kind in F.CHAR_FIELDS:
+    for lb, off, width, kind in F.CHAR_FIELDS + F.ES_EQUIP_FIELDS:
         if lb == label:
             return off, width
     raise KeyError(label)

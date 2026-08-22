@@ -94,6 +94,9 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  #sheet .fl { font-size:9.5px; text-transform:uppercase; letter-spacing:.05em;
    color:var(--mut); margin-bottom:2px; }
  .es td.name { color:var(--mut); }
+ #sheet tr.gearrow td { background:var(--panel2); }
+ #sheet tr.gearrow .fl { color:var(--acc2); }
+ #sheet tr.gearrow .fl::before { content:"⚙ "; }
  .pill { display:inline-block; padding:1px 9px; border-radius:20px; background:var(--panel2);
    border:1px solid var(--line); font-size:11px; letter-spacing:.03em; }
  code { background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:12px; }
@@ -169,6 +172,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <div id="toast"></div>
 <script>
 const COLS = %%COLS%%;
+const ES_COLS = %%ESCOLS%%;   // E.S. mech gear slots (experimental, raw ids)
 // per-field caps for the "Max all stats" convenience button
 const CAPS = {Level:99, HP:9999, "Current HP":9999, EP:99, Str:999, Vit:999,
   Eatk:999, Edef:999, Dex:99, Eva:99, Agl:99};
@@ -228,16 +232,21 @@ async function loadSave(){
     '<td><div class="fl">'+k[0]+'</div><span class="cell"><input type="number" min="0" '+
     'autocomplete="off" data-idx="'+idx+'" data-field="'+k[1]+'" data-def="'+(c[k[1]]??0)+
     '" value="'+(c[k[1]]??0)+'"></span></td>';
+  const cols = GA.length;
   const rows = d.characters.filter(c=>c.active).map(c=>{
     const idx = d.characters.indexOf(c);
-    const es = c.name.startsWith('E.S.') ? ' es' : '';
-    const cols = GA.length;
-    const rowA = '<tr class="u1'+es+'"><td class="name" rowspan="2">'+c.name+'</td>'
+    const es = c.is_es ? ' es' : '';
+    const span = c.is_es ? 3 : 2;
+    const rowA = '<tr class="u1'+es+'"><td class="name" rowspan="'+span+'">'+c.name+'</td>'
       + GA.map(k=>cell(c,idx,k)).join('') + '</tr>';
-    const pad = cols - GB.length;
-    const rowB = '<tr class="u2'+es+'">' + GB.map(k=>cell(c,idx,k)).join('')
-      + '<td></td>'.repeat(pad>0?pad:0) + '</tr>';
-    return rowA + rowB;
+    const padB = cols - GB.length;
+    const rowB = '<tr class="u'+(c.is_es?'2m':'2')+es+'">' + GB.map(k=>cell(c,idx,k)).join('')
+      + '<td></td>'.repeat(padB>0?padB:0) + '</tr>';
+    if(!c.is_es) return rowA + rowB;
+    const padC = cols - ES_COLS.length;
+    const rowC = '<tr class="u2 es gearrow">' + ES_COLS.map(k=>cell(c,idx,k)).join('')
+      + '<td></td>'.repeat(padC>0?padC:0) + '</tr>';
+    return rowA + rowB + rowC;
   }).join('');
   $('#sheetbody').innerHTML = rows;
   document.querySelectorAll('#sheet input').forEach(decorate);
@@ -348,7 +357,8 @@ def render():
             .replace("%%SAVES%%", save_table)
             .replace("%%SAVEOPTS%%", opts or "<option>none</option>")
             .replace("%%SHEETHEAD%%", head)
-            .replace("%%COLS%%", json.dumps(SHEET_COLS)))
+            .replace("%%COLS%%", json.dumps(SHEET_COLS))
+            .replace("%%ESCOLS%%", json.dumps([[l, l] for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS])))
 
 
 class Handler(BaseHTTPRequestHandler):
