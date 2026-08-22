@@ -145,6 +145,12 @@ def keyitem_names():
     """{int id: name} for the 107 key items."""
     return {i: v["name"] for i, v in keyitem_catalog().items()}
 
+def es_equip_catalog():
+    """{int id: {name, desc}} for the E.S. accessory/circuit table (from ISO
+    ~0x200C5D4). Covers ids 0-30; higher gear ids index weapon/frame tables not
+    yet mapped. id base inferred (unverified) — experimental."""
+    return {int(k): v for k, v in res_json("x2_es_equip.json").items()}
+
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
 TECH_FIELDS = []      # Tech / Ether effect table
 GEAR_FIELDS = []      # Weapon / armor / accessory table

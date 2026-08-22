@@ -97,6 +97,8 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
  #sheet tr.gearrow td { background:var(--panel2); }
  #sheet tr.gearrow .fl { color:var(--acc2); }
  #sheet tr.gearrow .fl::before { content:"⚙ "; }
+ #sheet .gname { font-size:9px; color:var(--acc2); margin-top:2px; max-width:8.5ch;
+   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-left:auto; margin-right:auto; }
  .pill { display:inline-block; padding:1px 9px; border-radius:20px; background:var(--panel2);
    border:1px solid var(--line); font-size:11px; letter-spacing:.03em; }
  code { background:var(--panel2); padding:1px 5px; border-radius:4px; font-size:12px; }
@@ -173,6 +175,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <script>
 const COLS = %%COLS%%;
 const ES_COLS = %%ESCOLS%%;   // E.S. mech gear slots (experimental, raw ids)
+const ES_EQUIP = %%ESEQUIP%%; // id -> E.S. accessory name (ISO catalog, ids 0-30)
 // per-field caps for the "Max all stats" convenience button
 const CAPS = {Level:99, HP:9999, "Current HP":9999, EP:99, Str:999, Vit:999,
   Eatk:999, Edef:999, Dex:99, Eva:99, Agl:99};
@@ -250,6 +253,14 @@ async function loadSave(){
   }).join('');
   $('#sheetbody').innerHTML = rows;
   document.querySelectorAll('#sheet input').forEach(decorate);
+  // resolve E.S. gear ids -> accessory names (experimental; ids 0-30 known)
+  document.querySelectorAll('#sheet tr.gearrow input').forEach(inp=>{
+    const lab=document.createElement('div'); lab.className='gname';
+    inp.parentElement.appendChild(lab);
+    const upd=()=>{ const n=ES_EQUIP[inp.value];
+      lab.textContent = n||('id '+inp.value); inp.title = n||('unknown id '+inp.value); };
+    inp.addEventListener('input',upd); upd();
+  });
   $('#maxbtn').disabled = false;
   updatePending();
 }
@@ -358,7 +369,9 @@ def render():
             .replace("%%SAVEOPTS%%", opts or "<option>none</option>")
             .replace("%%SHEETHEAD%%", head)
             .replace("%%COLS%%", json.dumps(SHEET_COLS))
-            .replace("%%ESCOLS%%", json.dumps([[l, l] for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS])))
+            .replace("%%ESCOLS%%", json.dumps([[l, l] for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS]))
+            .replace("%%ESEQUIP%%", json.dumps({str(i): v["name"]
+                     for i, v in F.es_equip_catalog().items()})))
 
 
 class Handler(BaseHTTPRequestHandler):

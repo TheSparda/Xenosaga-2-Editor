@@ -1,0 +1,126 @@
+{
+"0": {
+"name": "Auxiliary Armor A",
+"desc": "Arm +30 Increase Physical Defense."
+},
+"1": {
+"name": "Auxiliary Armor B",
+"desc": "Arm +40 Increase Physical Defense."
+},
+"2": {
+"name": "EF Circuit A",
+"desc": "Edef +20 Increase Ether Defense."
+},
+"3": {
+"name": "EF Circuit B",
+"desc": "Edef +30 Increase Ether Defense."
+},
+"4": {
+"name": "Anti-Fire Armor",
+"desc": "Lower fire damage 25%."
+},
+"5": {
+"name": "Anti-Ice Armor",
+"desc": "Lower ice damage 25%."
+},
+"6": {
+"name": "Anti-Thunder Armor",
+"desc": "Lower thunder damage 25%."
+},
+"7": {
+"name": "Anti-Beam Armor",
+"desc": "Lower beam damage 25%."
+},
+"8": {
+"name": "Tuned Circuit",
+"desc": "Agility +1."
+},
+"9": {
+"name": "Charge Boost",
+"desc": "Increase charge 25% by using the STOCK command."
+},
+"10": {
+"name": "Charge Clean",
+"desc": "Clear all status effects by using the STOCK command."
+},
+"11": {
+"name": "Charge Recover",
+"desc": "Recover 5% of maximum HP by using the STOCK command."
+},
+"12": {
+"name": "Power Shield",
+"desc": "Damage reduction +20% when defending."
+},
+"13": {
+"name": "G Slow Guard",
+"desc": "Slow resistance +25%."
+},
+"14": {
+"name": "G Poison Guard",
+"desc": "Poison resistance +25%."
+},
+"15": {
+"name": "G Blind Guard",
+"desc": "Blind resistance +25%."
+},
+"16": {
+"name": "G Heavy Guard",
+"desc": "Heavy resistance +25%."
+},
+"17": {
+"name": "G Weak Guard",
+"desc": "Weak resistance +25%."
+},
+"18": {
+"name": "G Stun Guard",
+"desc": "Stun resistance +25%."
+},
+"19": {
+"name": "G Ether PD Guard",
+"desc": "Ether PD resistance +25%."
+},
+"20": {
+"name": "G Ether DD Guard",
+"desc": "Ether DD resistance +25%."
+},
+"21": {
+"name": "G Bind Guard",
+"desc": "Bind resistance +25%."
+},
+"22": {
+"name": "G Lost Guard",
+"desc": "Lost resistance +25%."
+},
+"23": {
+"name": "G Boost Guard",
+"desc": "Boost Lock resistance +25%."
+},
+"24": {
+"name": "G Poison EP Guard",
+"desc": "Poison EP resistance +25%."
+},
+"25": {
+"name": "G Energy Guard",
+"desc": "Charge Down resistance +25%."
+},
+"26": {
+"name": "G Power Charge",
+"desc": "Resistance to all status effects +25%."
+},
+"27": {
+"name": "G ST Double",
+"desc": "Double duration of status effects."
+},
+"28": {
+"name": "Quick Charge",
+"desc": "EC is charged to 100 at the start of battle."
+},
+"29": {
+"name": "EMAX300",
+"desc": "Make maximum charge 300."
+},
+"30": {
+"name": "Auto Recover",
+"desc": "Recover 50% HP when incapacitated (once)."
+}
+}
