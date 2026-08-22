@@ -252,14 +252,16 @@ Record layout (0x5C), verified/inferred via range + HP-correlation across 97 ene
 ISO 0x2000000 + id*0x5C + field. ~30 more boss names (Albedo/Orgulla/Dark Erde Kaiser/ZU)
 exist past the 97 — likely a second stat block, TODO.
 
-### Character-growth & shop tables (located region, not yet labeled)
+### Character-growth & shop tables (BLOCKED — need runtime)
 The gap between the enemy name table and the skills strings (ISO ~0x2002900-0x2009B58)
-is **pure binary** — data tables with no embedded name anchors. Character growth/base
-stats and shop stock/price tables are almost certainly here (or in the ELF data seg),
-but without a name anchor they need ELF disassembly of the stat-growth / shop code (or a
-ground-truth diff) to label safely — a bigger dig than the enemy table, which had the
-adjacent name table to anchor it. Character names aren't a clean null-terminated table in
-either the ELF or XENOSAGA.01 (menu/portrait-driven).
+is **pure binary** — data tables with no embedded name anchors. Char growth/base stats
+and shop stock/price tables are almost certainly here (or in the ELF data seg), but:
+- No name anchor (unlike the enemy table, whose adjacent name table let us align it).
+- No code anchor: the ELF has no shop/buy/sell/growth strings to disassemble from, and
+  this data is **dynamically loaded from XENOSAGA.01** (not at a static ELF address), so
+  there's no straightforward disassembly entry point.
+Realistically these need the running game (PCSX2 RAM search + write-breakpoints) — the
+same tool gap as the save checksum/party/inventory. Deferred until PCSX2 is available.
 
 ### ISO TODO
 - [ ] Find on-foot accessory storage (candidate record slots were constant in samples).
