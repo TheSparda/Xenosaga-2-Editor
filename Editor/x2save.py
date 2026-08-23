@@ -97,6 +97,51 @@ def _read(path):
         return f.read()
 
 
+# --- slot identity: the save's own name, playtime and screenshot -------------
+# Every save folder carries an icon.sys whose title the console shows on the load
+# screen; Xenosaga II puts the slot name and playtime in it, e.g.
+# "XenosagaEPII-01[30:18]". Layout (PS2 SDK mcIcon): "PS2D" magic, u16 type,
+# u16 offset into the title where line 2 begins, then the 68-byte Shift-JIS
+# title at +0xC0.
+ICON_TITLE_OFF = 0xC0
+ICON_TITLE_LEN = 68
+_PLAYTIME_RE = re.compile(r"\[\s*(\d+)\s*:\s*(\d+)\s*\]")
+
+def parse_icon_sys(blob):
+    """{'title','name','playtime'} from an icon.sys, or None if it isn't one."""
+    if len(blob) < ICON_TITLE_OFF + ICON_TITLE_LEN or blob[:4] != b"PS2D":
+        return None
+    raw = blob[ICON_TITLE_OFF:ICON_TITLE_OFF + ICON_TITLE_LEN].split(b"\x00")[0]
+    nl = struct.unpack_from("<H", blob, 6)[0]
+
+    def dec(b):
+        return b.decode("shift_jis", "replace").strip()
+
+    # the line break is a byte offset into the title, not a character in it
+    title = dec(raw[:nl]) + " " + dec(raw[nl:]) if 0 < nl < len(raw) else dec(raw)
+    title = " ".join(title.split())
+    m = _PLAYTIME_RE.search(title)
+    return {
+        "title": title,
+        "name": _PLAYTIME_RE.sub("", title).strip(" -–—") or title,
+        "playtime": f"{int(m.group(1))}:{m.group(2).zfill(2)}" if m else "",
+    }
+
+
+def thumbnail(gd):
+    """The JPEG screenshot embedded in a gamedata payload, or None.
+
+    Trimmed to the actual end-of-image marker so the trailing padding inside the
+    fixed-size region isn't handed to an image decoder."""
+    if len(gd) < F.GD_THUMB_END:
+        return None
+    blob = bytes(gd[F.GD_THUMB_OFF:F.GD_THUMB_END])
+    if not blob.startswith(b"\xff\xd8"):
+        return None
+    end = blob.rfind(b"\xff\xd9")
+    return blob[:end + 2] if end > 0 else blob
+
+
 def _pick_gamedata(files):
     """Given {name: bytes}, return the Xenosaga II gamedata payload (by size)."""
     for name, data in files.items():
@@ -214,6 +259,22 @@ def _pick_slot(slots, slot, what):
     return slots[slot]
 
 
+def _slot(index, folder, filename, size, icon=None):
+    """One entry for list_slots, with whatever identity the icon.sys gave us."""
+    info = parse_icon_sys(icon) if icon else None
+    return {
+        "slot": index,
+        "folder": folder,
+        "file": filename,
+        "size": size,
+        "title": (info or {}).get("title", ""),
+        "name": (info or {}).get("name", ""),
+        "playtime": (info or {}).get("playtime", ""),
+        # what to show in a picker: the in-game name beats the folder id
+        "label": (info or {}).get("name") or folder,
+    }
+
+
 def list_slots(path, fmt=None):
     """Describe every Xenosaga II save inside a container.
 
@@ -230,15 +291,26 @@ def list_slots(path, fmt=None):
             card = MC.Ps2Card(data)
         except ValueError:
             return []
-        return [{"slot": i, "folder": d.name, "file": f.name, "size": f.length}
-                for i, (d, f) in enumerate(_card_slots(card))]
+        out = []
+        for i, (folder, gd_ent) in enumerate(_card_slots(card)):
+            icon = None
+            for e in card.listdir(folder):
+                if e.name.lower() == "icon.sys":
+                    icon = card.read_file(e)
+                    break
+            out.append(_slot(i, folder.name, gd_ent.name, gd_ent.length, icon))
+        return out
     if fmt == "psu":
         try:
             root = MC.psu_root(data)
             off, ln = _psu_gd_span(data)
+            icon = next((data[o:o + l] for n, o, l in MC.psu_files(data)
+                         if n.lower() == "icon.sys"), None)
         except ValueError:
             return []
-        return [{"slot": 0, "folder": root.name, "file": "", "size": ln, "offset": off}]
+        s = _slot(0, root.name, "", ln, icon)
+        s["offset"] = off
+        return [s]
     # Single-save containers. Report the payload file's name as the "folder" too,
     # since on the card it is named after its folder — that is what identifies
     # which in-game slot an export came from.
@@ -257,7 +329,8 @@ def list_slots(path, fmt=None):
     name = next((n for n, b in files.items() if len(b) == F.GAMEDATA_SIZE), None)
     if name is None:
         return []
-    return [{"slot": 0, "folder": name, "file": name, "size": F.GAMEDATA_SIZE}]
+    icon = next((b for n, b in files.items() if n.lower() == "icon.sys"), None)
+    return [_slot(0, name, name, F.GAMEDATA_SIZE, icon)]
 
 
 def _region_of(folders):
@@ -509,13 +582,21 @@ def _print_decode(d):
             continue
         print(f"{i:>2} {c['name']:<14} {c['Level']:>3} {c['HP']:>6}  0x{c['Character id']:04X}")
 
+def _slot_line(s):
+    bits = [s["folder"]]
+    if s.get("name") and s["name"] != s["folder"]:
+        bits.append(s["name"])
+    if s.get("playtime"):
+        bits.append(s["playtime"])
+    return "  ".join(bits)
+
 def _print_slots(path, fmt=None):
     slots = list_slots(path, fmt)
     if len(slots) <= 1:
         return
     print(f"{len(slots)} Xenosaga II saves on this card — pass --slot N to pick one:")
     for s in slots:
-        print(f"  [{s['slot']}] {s['folder']}")
+        print(f"  [{s['slot']}] {_slot_line(s)}")
     print()
 
 def main():
@@ -553,9 +634,10 @@ def main():
         if not slots:
             print(f"No Xenosaga II save found in {path!r}")
             return
-        print(f"{'slot':>4}  {'folder':<28} {'file':<24} {'bytes':>8}")
+        print(f"{'slot':>4}  {'folder':<24} {'save name':<20} {'played':>7} {'bytes':>8}")
         for s in slots:
-            print(f"{s['slot']:>4}  {s['folder']:<28} {s['file']:<24} {s['size']:>8,}")
+            print(f"{s['slot']:>4}  {s['folder']:<24} {s['name'] or '?':<20} "
+                  f"{s['playtime'] or '?':>7} {s['size']:>8,}")
         return
 
     args = [a for a in sys.argv[1:] if not a.startswith("--")]

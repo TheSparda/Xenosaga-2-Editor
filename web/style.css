@@ -82,6 +82,18 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast.err{border-color:var(--err)}
 .blocked{border:1px solid var(--warnbd);background:var(--changed);border-radius:12px;padding:14px}
+/* save identity strip: the game's own screenshot + slot name */
+.ident{display:flex;gap:12px;align-items:center;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:12px}
+.ident .thumb{width:104px;height:auto;border-radius:6px;border:1px solid var(--line);
+  display:block;flex:none;background:var(--bg)}
+.identname{font-weight:600;font-size:15px}
+.identtext{min-width:0}
+/* unverified-field disclosure (enemy affinity slots) */
+.unverified{border:1px dashed var(--warnbd);border-radius:10px;padding:10px 12px;margin-top:10px}
+.unverified summary{cursor:pointer;color:var(--warn);font-size:13px;font-weight:600}
+.unverified .note{margin-top:8px}
+.unverified table{margin-top:8px}
 /* reference browser */
 .refrow{display:flex;align-items:baseline;gap:9px;padding:7px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .refrow:hover{background:var(--panel2)}

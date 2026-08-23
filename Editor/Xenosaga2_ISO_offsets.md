@@ -391,6 +391,38 @@ says HP 1200 not 1000; Ai Apaec matched on name/position anyway).
   - `+0x00` u32 EXP · `+0x04` u16 SP · `+0x06` u16 CP (16/16 anchors each)
   - `+0x08..0x0F` drop rates/categories/item ids (partially decoded)
 
+#### Affinity slots at `+0x04` — exposed, NOT verified
+Eight u8 percentages, `0x64` in ordinary records. That there are eight of them and
+that they hold 100 is solid; **which element each slot is has not been confirmed**.
+The game's element set is known from elsewhere (the E.S. Anti-Fire/Ice/Thunder/Beam
+accessories, plus the physical attack types in the status labels) but nothing on
+disc ties a slot to a name, and pairing a name to a byte on vibes is exactly the
+mistake the B12 retraction above came from. So they are exposed as `Aff1..Aff8`:
+numbered, gated behind an explicit opt-in in the UI, and flagged on the CLI. They
+also have no entry in `x2_enemies.json`, so they cannot be diffed against retail —
+patch export handles them separately (see below).
+
+Next step to actually verify them: a PCSX2 battle with a known element-resistant
+enemy, or the damage-calculation routine in the battle overlay.
+
+### Patch files (`x2-enemy-patch`, version 1)
+Because `x2_enemies.json` holds the verified retail values, a disc can be diffed
+against retail without a pristine copy — which makes edits exportable as a small
+JSON document others can apply to their own disc:
+
+```json
+{"format":"x2-enemy-patch","version":1,"game":"SLUS-20892","note":"half HP",
+ "edits":{"6":{"HP":11200,"EXP":45000}}}
+```
+
+`x2patch.py export-patch / apply-patch / diff / restore` and the web ISO editor
+read and write the same file. Parsing is deliberately strict (unknown field,
+out-of-range record, or non-integer value is an error, not something to skip) and
+validation happens before anything is written, so a bad patch cannot half-apply.
+The CLI exports verified fields against the retail catalog; the web editor also
+exports affinity slots, measured against the disc it opened, since retail has no
+baseline for those.
+
 Sanity anchors: Perun rec 6 HP 22,400 / EXP 30,000 / SP 1,200; Proto Ω 999,999;
 Mikumari 200,000; Baal Zebul 99,999; Phobos Rigas 55,555; Patriarch 21,600;
 Dark Erde Kaiser 192,000 (rec 124 — this was the record previously mislabelled

@@ -55,7 +55,15 @@ function openPicker(title, items, current){
     q.addEventListener("input",draw);draw();setTimeout(()=>q.focus(),50);
     m.cancel.onclick=()=>done(null);m.el.onclick=e=>{if(e.target===m.el)done(null);};});
 }
-window.openReview=openReview; window.openPicker=openPicker;
+// read-only variant: no Confirm button, just something to look at
+function openInfo(title, bodyHtml){
+  return new Promise(res=>{const m=_modalEls();m.title.textContent=title;m.body.innerHTML=bodyHtml;
+    m.ok.style.display="none";m.cancel.textContent="Close";
+    m.el.classList.remove("hidden");
+    const done=()=>{m.el.classList.add("hidden");m.cancel.onclick=m.el.onclick=null;res();};
+    m.cancel.onclick=done;m.el.onclick=e=>{if(e.target===m.el)done();};});
+}
+window.openReview=openReview; window.openPicker=openPicker; window.openInfo=openInfo;
 
 // ---- theme ----
 (function(){try{if(localStorage.getItem("x2theme")==="light")document.body.classList.add("light");}catch(e){}
@@ -86,7 +94,7 @@ async function bootPyodide(){
     py.FS.writeFile(f, await grab("../Editor/"+f));
   bootProgress(80,"Wiring adapters…");
   py.runPython(`
-import json, x2save, x2fields as F
+import base64, json, x2save, x2fields as F
 def load_reference():
     cat = F.es_equip_catalog()
     return json.dumps({
@@ -109,7 +117,13 @@ def load_save(path, slot=0):
     fmt = x2save.sniff_format(path)
     if not fmt: return json.dumps({"error":"Unrecognized save format."})
     try:
-        d = x2save.decode_save(path, fmt, slot); d["format"]=fmt; return json.dumps(d)
+        gd = x2save.extract_gamedata(path, fmt, slot)
+        d = x2save.decode_gamedata(gd)
+        d["format"] = fmt
+        # the save's own screenshot, so you can see which slot you opened
+        thumb = x2save.thumbnail(gd)
+        d["thumb"] = base64.b64encode(thumb).decode() if thumb else ""
+        return json.dumps(d)
     except Exception as e:
         return json.dumps({"error": str(e)})
 def apply_edits(path, payload, slot=0):
@@ -181,16 +195,29 @@ function renderSheet(d){
         '<td></td>'.repeat(pad)+'</tr>';
     }
   });
+  const slotOpt = s=>esc(s.label||s.folder)+(s.playtime?"  ·  "+esc(s.playtime):"");
   const slotBar = curSlots.length>1
     ? '<div class="toolbar"><label>Card slot</label> <select id="slotSel">'+
         curSlots.map(s=>'<option value="'+s.slot+'"'+(s.slot===curSlot?' selected':'')+'>'+
-          esc(s.folder)+'</option>').join("")+'</select>'+
+          slotOpt(s)+'</option>').join("")+'</select>'+
         '<span class="muted small">'+curSlots.length+' Xenosaga II saves on this card — '+
         'each is a separate in-game slot</span></div>'
     : '';
+  // identity strip: the save's own screenshot, name and playtime
+  const si = curSlots[curSlot] || {};
+  const ident = (d.thumb || si.name || si.playtime)
+    ? '<div class="ident">'+
+        (d.thumb?'<img class="thumb" alt="save screenshot" src="data:image/jpeg;base64,'+d.thumb+'">':'')+
+        '<div class="identtext"><div class="identname">'+esc(si.name||si.folder||origName)+'</div>'+
+        '<div class="muted small">'+
+          (si.playtime?'played '+esc(si.playtime)+' · ':'')+
+          'gold '+Number(d.gold).toLocaleString()+' · '+
+          d.characters.filter(c=>c.active).length+' units'+
+        '</div></div></div>'
+    : '';
   $("#editor").innerHTML =
     '<div class="card"><h2>2 · Edit ('+esc(origName)+' · '+esc((d.format||"").toUpperCase())+')</h2>'+
-    slotBar+
+    slotBar+ident+
     '<div class="toolbar"><label>Gold</label> <input id="gold" type="number" min="0" max="4294967295" '+
       'autocomplete="off" data-def="'+d.gold+'" value="'+d.gold+'">'+
       '<span style="flex:1"></span>'+
