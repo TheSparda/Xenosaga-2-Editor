@@ -153,30 +153,20 @@ def es_equip_catalog():
     return {int(k): v for k, v in res_json("x2_es_equip.json").items()}
 
 # ---------------------------------------------------------------------------
-# ISO ENEMY table (VERIFIED — disc 1). 97 enemy stat records at raw offset
-# 0x2000000, stride 0x5C, followed by the name table at 0x2002342. HP verified
-# aligned to names (Perun 860 ... Margulis 32000 ... Patriarch 192000).
+# ISO ENEMY data (disc 1). The NAME table at ~0x2002342 is verified (Perun ..
+# Patriarch, matches the game + xenoserieswiki). The 0x2000000/stride-0x5C
+# records we first read as stats turned out NOT to be the battle-stat table:
+# both the wiki and a strategy guide give Perun 22,400 HP, a value that does
+# not appear anywhere on the disc, so the real balance stats are packed inside
+# the large XENOSAGA.* archives (still being reverse-engineered). Only names
+# are exposed until the packed table is located and edits can be verified.
 # ---------------------------------------------------------------------------
-ENEMY_TABLE_OFF = 0x2000000    # disc-1 raw byte offset of record 0
-ENEMY_STRIDE    = 0x5C          # 92 bytes/record
-ENEMY_COUNT     = 97
-ENEMY_FIELDS = [
-    ("HP",   0x36, 4, "num"),   # verified (Perun 860 .. Patriarch 192000)
-    ("Atk",  0x3E, 2, "num"),   # stat, 1-999, +0.77 HP-correlation
-    ("Def",  0x42, 2, "num"),   # stat, 1-999
-    ("Cash", 0x4E, 2, "num"),   # battle cash reward
-    ("EXP",  0x50, 2, "num"),   # battle EXP reward (+0.80 HP-correlation)
-]
-# +0x00: 4 param bytes; +0x04: 8x element affinity (0x64=100%); +0x36 u32 HP;
-# +0x3A: 99 (const, level cap?). Atk/Def/Cash/EXP inferred by range+HP-correlation.
-
-def enemy_catalog():
-    """{int id: {name, hp, atk, def, cash, exp}} for the 97 enemies (from the ISO)."""
-    return {int(k): v for k, v in res_json("x2_enemies.json").items()}
+ENEMY_COUNT  = 97
+ENEMY_FIELDS = []   # no verified editable stat fields yet (see note above)
 
 def enemy_names():
-    """{int id: name} for the 97 enemies (Perun..Patriarch)."""
-    return {i: v["name"] for i, v in enemy_catalog().items()}
+    """{int id: name} for the 97 enemies (Perun..Patriarch). Names are verified."""
+    return {int(k): v for k, v in res_json("x2_enemies.json").items()}
 
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
 TECH_FIELDS = []      # Tech / Ether effect table (names @ISO ~0x2009B58)

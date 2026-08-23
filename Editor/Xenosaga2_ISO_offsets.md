@@ -277,3 +277,31 @@ same tool gap as the save checksum/party/inventory. Deferred until PCSX2 is avai
 - `../Cheats/` — the disc-1 pnach.
 - Reference: Xenosaga 1 has a third-party editor (`../../Xenosaga 1/OG Editor/`, by Tony H)
   — different game, but a structural reference for what's editable.
+
+## 2026-08-23 — Enemy stat table is NOT on-disc raw (B12 correction)
+
+Retracted an earlier claim. We had read 97 records at `0x2000000` (stride `0x5C`,
+name table right after at `0x2002342`) as enemy battle stats, labelling `+0x36`
+u32 as HP and inferring Atk/Def/Cash/EXP by range + HP-correlation. **Wrong.**
+
+Ground truth (two independent sources) says record-0 "Perun" should be a
+22,400-HP boss:
+- xenoserieswiki `Perun_(XS2)`: HP 22400, EXP 30000, S.Pts 1200, STR 85, VIT 20,
+  EATK 70, EDEF 45, DEX 70, EVA 22, AGL 12.
+- Strategy guide (`enemy data`): identical HP/EXP/stat block.
+
+Our record-0 reads `+0x36` = 860, and **22,400/30,000 as a u16/u32 pair does not
+occur anywhere on Disc 1** (whole-disc byte scan). The consecutive HP|EXP pairs for
+other guide enemies (Stole Marine 1500/700, Kfuga Lily 600/420) also don't form a
+table. Conclusion: the real **balance** tables (enemy stats, and by extension skill
+power/target, cast times, boost/break rules) are **packed inside the large
+`XENOSAGA.*` archives**, not the uncompressed text region.
+
+What the `0x2000000` records *are* is still unknown — the `+0x04` block of 8×`0x64`
+does resemble element-affinity (100%) fields, so they may be a partial/derived
+display structure, but their numbers are not the battle stats. **Do not ship a
+writer over them.** Enemy stat editing, skill editing, and cast/combo tuning are all
+blocked on cracking the `XENOSAGA.*` archive format (or a PCSX2 RAM anchor).
+
+Verified & still-good: the enemy **name** table (Perun..Patriarch), and all the
+**text** catalogs (items / key items / skills / E.S. gear). Those match the game.

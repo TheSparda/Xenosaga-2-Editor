@@ -1,6 +1,7 @@
 // Xenosaga II — Reference browser (read-only). Surfaces the data extracted from the
-// disc: items + key items + E.S. equipment (name + description) and the enemy bestiary
-// (HP/Atk/Def/Cash/EXP). Pure client-side; fetches the committed JSON catalogs.
+// disc: items + key items + E.S. equipment (name + description) and the enemy name list.
+// (Enemy battle stats are not shown — the on-disc stat table is packed/unverified.)
+// Pure client-side; fetches the committed JSON catalogs.
 (function(){
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -8,7 +9,7 @@
     {key:"consumables", label:"Items", file:"x2_consumables.json", kind:"item"},
     {key:"keyitems",    label:"Key Items", file:"x2_keyitems.json", kind:"item"},
     {key:"es_equip",    label:"E.S. Gear", file:"x2_es_equip.json", kind:"item"},
-    {key:"enemies",     label:"Bestiary", file:"x2_enemies.json", kind:"enemy"},
+    {key:"enemies",     label:"Enemies", file:"x2_enemies.json", kind:"enemy"},
   ];
   const cache={}; let active="consumables", query="";
 
@@ -45,10 +46,7 @@
       shown++;
       if(sec.kind==="enemy"){
         html+='<div class="refrow"><span class="rid">'+id+'</span>'+
-          '<span class="rname">'+esc(name)+'</span>'+
-          '<span class="rpills">'+
-            pill("HP",v.hp)+pill("ATK",v.atk)+pill("DEF",v.def)+pill("$",v.cash)+pill("EXP",v.exp)+
-          '</span></div>';
+          '<span class="rname">'+esc(name)+'</span></div>';
       } else {
         html+='<div class="refrow"><span class="rid">'+id+'</span>'+
           '<span class="rname">'+esc(name)+'</span>'+
@@ -58,5 +56,4 @@
     $("#refCount").textContent = shown+" of "+ids.length+(query?" (filtered)":"")+" · "+sec.label;
     $("#refList").innerHTML = html || '<div class="note">No matches.</div>';
   }
-  function pill(l,v){return v===undefined?"":'<span class="stpill">'+l+' '+Number(v).toLocaleString()+'</span>';}
 })();

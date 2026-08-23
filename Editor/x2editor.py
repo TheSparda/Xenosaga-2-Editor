@@ -415,24 +415,16 @@ def render():
                    for i, s in enumerate(decodable_saves()))
     head = ""   # fields are self-labeled per cell (2-row layout)
 
-    # Enemy editor UI (only if the disc-1 ISO is present)
-    if disc1_iso():
-        enames = F.enemy_names()
-        eopts = "".join(f"<option value='{i}'>{i:02d} · {html.escape(enames[i])}</option>"
-                        for i in sorted(enames))
-        enemy_ui = (
-            "<div class='toolbar'>"
-            "<label>Enemy</label> <select id='enemysel'>" + eopts + "</select>"
-            "<label style='margin-left:8px'><input type='checkbox' id='enemybak'> back up ISO first (4.6 GB)</label>"
-            "<span class='spacer' style='flex:1'></span>"
-            "<button id='enemyrevert' class='btn' disabled>Revert</button>"
-            "<button id='enemysave' class='btn primary' disabled>Save to ISO <span id='ebadge'></span></button>"
-            "<span id='estatus'></span></div>"
-            "<table id='enemytbl'><tbody><tr id='enemyrow'></tr></tbody></table>"
-            "<p class='note'>Edits write <b>directly to the disc image</b> (new-game values) — "
-            "work on a copy or tick the backup box. HP is verified; Atk/Def/Cash/EXP are inferred.</p>")
-    else:
-        enemy_ui = "<p class='note'>Disc 1 ISO not found under the project folder — enemy editing needs it.</p>"
+    # Enemy editor UI — disabled: the real battle-stat table is packed in the
+    # XENOSAGA.* archives (still being reverse-engineered). Names are verified,
+    # but there are no confirmed editable stat fields yet, so we show a note
+    # instead of a writer that would edit the wrong bytes.
+    enemy_ui = ("<p class='note'>Enemy stat editing is <b>under research</b>. The disc's "
+                "uncompressed area holds enemy <b>names</b> (verified), but the numeric "
+                "battle stats are packed inside the <code>XENOSAGA.*</code> archives — "
+                "cross-checked against the xenoserieswiki and a strategy guide, the values "
+                "we first found were not the real stats, so no writer ships until the packed "
+                "table is located and edits can be verified.</p>")
 
     return (PAGE
             .replace("%%GAME%%", html.escape(F.GAME_NAME))

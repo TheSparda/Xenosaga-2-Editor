@@ -1,7 +1,7 @@
 // Xenosaga II Editor — service worker. Offline app shell (network-first so deploys
 // update on next online launch), cache-first for the large immutable Pyodide CDN, and
 // a Web Share target hand-off.
-const CACHE = "x2editor-v1";
+const CACHE = "x2editor-v1.0.1";
 const SHARE_CACHE = "x2editor-share";
 const SHELL = ["./","index.html","style.css","app.js","iso.js","manifest.webmanifest",
   "../Editor/x2save.py","../Editor/x2fields.py","../Editor/x2_consumables.json",
