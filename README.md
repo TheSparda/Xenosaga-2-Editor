@@ -11,8 +11,10 @@ Runs entirely **in your browser** — desktop or Android. Your files **never lea
 device** (no server, no upload). It's a PWA, so you can **Install** it and use it offline.
 
 - **Save Editor** (works everywhere, incl. phones) — edit gold and every character's level,
-  HP, stats, and E.S. mech gear. Opens **`.psv`** (PS3), **`.sps`/`.xps`** (SharkPort), and
-  **`.cbs`** (CodeBreaker). Powered by the real Python engine compiled to WebAssembly (Pyodide).
+  HP, stats, and E.S. mech gear. Opens **PCSX2 memory-card images** (`.ps2`/`.mcd`) and lets
+  you pick which in-game slot to edit, plus **`.psu`** (EMS), **`.psv`** (PS3),
+  **`.sps`/`.xps`** (SharkPort), and **`.cbs`** (CodeBreaker). Powered by the real Python
+  engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — edit every enemy's **stats** (HP, STR,
   VIT, EATK, EDEF, DEX, EVA, AGL) and **battle rewards** (EXP, SP, CP) for all 125 enemy
   records, written **in place** into your disc image — plus a one-click **global HP
@@ -48,8 +50,16 @@ CLI bits:
 ```bash
 cd Editor
 python3 x2patch.py verify "../ISO/....(Disc 1).iso"          # identify a disc
-python3 x2save.py "…/BASLUS-….PSV"                            # decode a save
+python3 x2patch.py enemies "../ISO/...iso" --csv             # dump the bestiary
+python3 x2patch.py rebalance "../ISO/...iso" --hp 50 --dry-run
+python3 x2save.py slots "…/Mcd001.ps2"                       # list a card's saves
+python3 x2save.py "…/Mcd001.ps2" --slot 2                    # decode one of them
 python3 x2save.py set "…/BASLUS-….PSV" --gold 9999999 --char 0 --level 99 --hp 9999
+```
+
+Tests (stdlib `unittest`, no game data needed):
+```bash
+cd tests && python3 -m unittest discover
 ```
 
 ## Layout
@@ -58,11 +68,13 @@ python3 x2save.py set "…/BASLUS-….PSV" --gold 9999999 --char 0 --level 99 --
 web/            hosted browser PWA (Pyodide save editor + ISO enemy editor + reference)
 Editor/
   x2editor.py   local web app (desktop)
-  x2save.py     save engine (psv/sps/cbs containers, decode + edit)
-  x2patch.py    ISO engine + CLI (verify / extract / enemy read-write)
+  x2save.py     save engine (container decode + edit, gamedata layout)
+  x2mc.py       PS2 memory-card filesystem (PS2MFS + ECC) and .psu containers
+  x2patch.py    ISO engine + CLI (verify / extract / enemy read-write / rebalance)
   x2fields.py   verified offsets + schema
   x2_*.json     reference data (items / key items / E.S. gear / verified bestiary)
   Xenosaga2_ISO_offsets.md   reverse-engineering notes
+tests/          synthetic-fixture test suite (no game data)
 ```
 
 ## Privacy & scope

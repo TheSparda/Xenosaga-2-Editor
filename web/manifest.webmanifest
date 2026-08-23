@@ -20,7 +20,8 @@
     "params": {
       "files": [{
         "name": "save",
-        "accept": ["application/octet-stream", ".psv", ".sps", ".xps", ".cbs", ".bin", ".max"]
+        "accept": ["application/octet-stream", ".ps2", ".mcd", ".psu", ".psv",
+                   ".sps", ".xps", ".cbs", ".bin", ".max"]
       }]
     }
   }

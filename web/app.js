@@ -11,6 +11,9 @@ const CAPS = {Level:99,HP:9999,"Current HP":9999,EP:99,Str:999,Vit:999,Eatk:999,
 
 let pyReady = null, PY = null, REF = null, curSave = null, origName = "save.bin";
 let fileHandle = null;
+// A memory-card image holds one folder per in-game save slot, so one opened file
+// can contain several editable saves; every other container holds exactly one.
+let curSlot = 0, curSlots = [];
 const SUPPORTS_FS = typeof window !== "undefined" && "showOpenFilePicker" in window;
 
 const $ = (s,r=document)=>r.querySelector(s);
@@ -80,7 +83,7 @@ async function bootPyodide(){
   const py = await loadPyodide();
   bootProgress(55,"Loading save engine…");
   const grab = async u=>{const r=await fetch(u);if(!r.ok)throw new Error("fetch "+u+" ("+r.status+")");return r.text();};
-  for(const f of ["x2fields.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json"])
+  for(const f of ["x2fields.py","x2mc.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json"])
     py.FS.writeFile(f, await grab("../Editor/"+f));
   bootProgress(80,"Wiring adapters…");
   py.runPython(`
@@ -92,18 +95,26 @@ def load_reference():
       "esEquip": {str(i): v["name"] for i, v in cat.items()},
       "esEquipList": [{"id": i, "name": v["name"], "desc": v.get("desc","")} for i, v in sorted(cat.items())],
     })
-def load_save(path):
+def load_slots(path):
+    """Container format + every Xenosaga II save inside it (cards hold several)."""
+    fmt = x2save.sniff_format(path)
+    if not fmt: return json.dumps({"format": "", "slots": []})
+    try:
+        return json.dumps({"format": fmt, "slots": x2save.list_slots(path, fmt)})
+    except Exception as e:
+        return json.dumps({"format": fmt, "slots": [], "error": str(e)})
+def load_save(path, slot=0):
     fmt = x2save.sniff_format(path)
     if not fmt: return json.dumps({"error":"Unrecognized save format."})
     try:
-        d = x2save.decode_save(path, fmt); d["format"]=fmt; return json.dumps(d)
+        d = x2save.decode_save(path, fmt, slot); d["format"]=fmt; return json.dumps(d)
     except Exception as e:
         return json.dumps({"error": str(e)})
-def apply_edits(path, payload):
+def apply_edits(path, payload, slot=0):
     p = json.loads(payload)
     edits = {"characters": {int(k): v for k, v in (p.get("characters") or {}).items()}}
     if p.get("gold") is not None: edits["gold"] = p["gold"]
-    return json.dumps(x2save.write_save(path, edits, make_backup=False))
+    return json.dumps(x2save.write_save(path, edits, make_backup=False, slot=slot))
 `);
   REF = JSON.parse(py.runPython("load_reference()"));
   PY = py; bootProgress(100,"Ready — load a save");
@@ -112,15 +123,31 @@ def apply_edits(path, payload):
 }
 
 // ---- load a save ----
+const fail = (msg)=>{ $("#editor").innerHTML='<div class="card blocked">'+msg+'</div>'; };
+
 async function handleFile(file, handle){
   await pyReady;
   origName = file.name || "save.bin"; fileHandle = handle || null;
   const buf = new Uint8Array(await file.arrayBuffer());
   PY.FS.writeFile(SAVE_PATH, buf);
-  const d = JSON.parse(PY.runPython(`load_save(${JSON.stringify(SAVE_PATH)})`));
-  if(d.error){ $("#editor").innerHTML = '<div class="card blocked">Could not open '+esc(origName)+' — '+esc(d.error)+'</div>'; return; }
-  curSave = d;
+  const info = JSON.parse(PY.runPython(`load_slots(${JSON.stringify(SAVE_PATH)})`));
+  curSlots = info.slots || []; curSlot = 0;
+  if(!curSlots.length){
+    fail('No Xenosaga II save found in <b>'+esc(origName)+'</b>'+
+      (info.format ? ' — it looks like a '+esc(info.format)+' container, but nothing inside it is a '+
+        'Xenosaga II save.' : ' — the container format was not recognized.')+
+      (info.error ? '<div class="note">'+esc(info.error)+'</div>' : ''));
+    return;
+  }
   try{ await idbSet("last",{bytes:buf,name:origName}); refreshRecent(); }catch(e){}
+  await openSlot(0);
+}
+
+async function openSlot(slot){
+  curSlot = slot|0;
+  const d = JSON.parse(PY.runPython(`load_save(${JSON.stringify(SAVE_PATH)}, ${curSlot})`));
+  if(d.error){ fail('Could not open '+esc(origName)+' — '+esc(d.error)); return; }
+  curSave = d;
   renderSheet(d);
 }
 
@@ -149,8 +176,16 @@ function renderSheet(d){
       rows+='<tr class="u2 es gearrow">'+gear.map(k=>cell(c,idx,k)).join("")+'<td></td><td></td>'+'</tr>';
     }
   });
+  const slotBar = curSlots.length>1
+    ? '<div class="toolbar"><label>Card slot</label> <select id="slotSel">'+
+        curSlots.map(s=>'<option value="'+s.slot+'"'+(s.slot===curSlot?' selected':'')+'>'+
+          esc(s.folder)+'</option>').join("")+'</select>'+
+        '<span class="muted small">'+curSlots.length+' Xenosaga II saves on this card — '+
+        'each is a separate in-game slot</span></div>'
+    : '';
   $("#editor").innerHTML =
     '<div class="card"><h2>2 · Edit ('+esc(origName)+' · '+esc((d.format||"").toUpperCase())+')</h2>'+
+    slotBar+
     '<div class="toolbar"><label>Gold</label> <input id="gold" type="number" min="0" max="4294967295" '+
       'autocomplete="off" data-def="'+d.gold+'" value="'+d.gold+'">'+
       '<span style="flex:1"></span>'+
@@ -183,6 +218,14 @@ function renderSheet(d){
   $("#revBtn").onclick=()=>{document.querySelectorAll("#sheet input, #gold").forEach(i=>{i.value=i.getAttribute("data-def");
     i.classList.remove("changed");const b=i.nextElementSibling;if(b&&b.classList.contains("restore"))b.classList.remove("show");});updatePending();};
   $("#saveBtn").onclick=applyAndSave;
+  const ss=$("#slotSel");
+  if(ss) ss.onchange=async()=>{
+    if(changed().length && !(await openReview("Switch slot — discard staged edits?",
+        '<div class="note">You have '+changed().length+' unsaved change(s) on <b>'+
+        esc(curSlots[curSlot].folder)+'</b>. Switching slots discards them.</div>',
+        "Discard & switch"))){ ss.value=curSlot; return; }
+    await openSlot(+ss.value);
+  };
   updatePending();
 }
 
@@ -210,11 +253,13 @@ async function applyAndSave(){
   changed().forEach(i=>{if(i.id==="gold")return;const idx=i.dataset.idx,f=i.dataset.field;
     (edits.characters[idx]=edits.characters[idx]||{})[f]=+i.value;});
   const dest = (fileHandle&&SUPPORTS_FS)?("Apply & save to "+origName):("Apply & download");
-  if(!(await openReview("Review changes — "+origName, reviewHtml(), dest))) return;
+  const title = "Review changes — "+origName+
+    (curSlots.length>1?(" · "+curSlots[curSlot].folder):"");
+  if(!(await openReview(title, reviewHtml(), dest))) return;
   const st=$("#sstatus");st.textContent="saving…";st.className="status";$("#saveBtn").disabled=true;
   let ok=false;
   try{
-    PY.runPython(`apply_edits(${JSON.stringify(SAVE_PATH)}, ${JSON.stringify(JSON.stringify(edits))})`);
+    PY.runPython(`apply_edits(${JSON.stringify(SAVE_PATH)}, ${JSON.stringify(JSON.stringify(edits))}, ${curSlot})`);
     const bytes=PY.FS.readFile(SAVE_PATH);
     ok=true;
     // commit baseline

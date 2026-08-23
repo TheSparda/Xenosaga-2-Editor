@@ -29,8 +29,9 @@
 
   <section id="mode-save" class="mode">
     <p class="sub">Full save editor — gold and every character's level, HP, stats, and E.S. gear.
-      Everything runs in your browser via Python (Pyodide); your save <b>never leaves the
-      device</b>. Works on desktop and Android. Back up first.</p>
+      Opens PCSX2 memory-card images directly (and picks the slot), plus every common
+      single-save export. Everything runs in your browser via Python (Pyodide); your save
+      <b>never leaves the device</b>. Works on desktop and Android. Back up first.</p>
 
     <div class="card" id="loaderCard">
       <h2>1 · Load save</h2>
@@ -39,7 +40,8 @@
         <label class="file"><button type="button" id="pickBtn" disabled>Choose file…</button>
           <input type="file" id="file" hidden></label>
         <div class="muted" id="engineStatus"><span class="spinner"></span>Starting Python engine…</div>
-        <div class="muted small">Supports .psv (PS3), .sps/.xps (SharkPort), and .cbs (CodeBreaker).</div>
+        <div class="muted small">Supports <b>.ps2/.mcd</b> memory-card images (PCSX2), .psu (EMS),
+          .psv (PS3), .sps/.xps (SharkPort), and .cbs (CodeBreaker).</div>
       </div>
       <div id="recent"></div>
     </div>
