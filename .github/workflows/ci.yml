@@ -58,42 +58,21 @@ jobs:
             python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" || exit 1
           done
 
-      - name: Everything the service worker precaches exists
+      - name: Local script tags resolve
         run: |
           python3 - <<'PY'
-          import re, os, sys
-          src = open("web/sw.js").read()
-          block = re.search(r"const SHELL = \[(.*?)\];", src, re.S).group(1)
-          missing = []
-          for url in re.findall(r'"([^"]+)"', block):
-              if url == "./":
-                  continue
-              p = os.path.normpath(os.path.join("web", url))
-              if not os.path.exists(p):
-                  missing.append(url)
+          import os, re, sys
+          html = open("web/index.html").read()
+          missing = [t for t in re.findall(r'<script src="([^"]+)"', html)
+                     if not t.startswith("http")
+                     and not os.path.exists(os.path.join("web", t))]
           if missing:
-              print("::error::service worker precaches missing files: " + ", ".join(missing))
+              print("::error::index.html loads missing scripts: " + ", ".join(missing))
               sys.exit(1)
-          print("all precached URLs exist")
+          print("all local script tags resolve")
           PY
 
-      - name: Script tags and the version string agree
-        run: |
-          python3 - <<'PY'
-          import re, sys
-          html = open("web/index.html").read()
-          app = open("web/app.js").read()
-          sw = open("web/sw.js").read()
-          page = re.search(r'id="appver">([^<]+)<', html).group(1).strip()
-          in_app = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', app).group(1)
-          in_sw = re.search(r'CACHE\s*=\s*"x2editor-v([^"]+)"', sw).group(1)
-          bad = [f"index.html={page}", f"app.js={in_app}", f"sw.js={in_sw}"]
-          if len({page, in_app, in_sw}) != 1:
-              print("::error::version strings disagree: " + ", ".join(bad))
-              sys.exit(1)
-          for tag in re.findall(r'<script src="([^"]+)"', html):
-              if not tag.startswith("http"):
-                  import os
-                  assert os.path.exists(os.path.join("web", tag)), tag
-          print("version " + page + " consistent")
-          PY
+    # The rest of the front-end's invariants — precache completeness, version
+    # agreement across index.html/app.js/sw.js, every queried DOM id existing,
+    # and the Pyodide glue actually running — live in tests/test_web.py, which
+    # the `test` job above runs.
