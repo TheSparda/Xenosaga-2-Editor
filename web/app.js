@@ -28,6 +28,33 @@ let toastT;
 function toast(msg,err){const t=$("#toast");if(!t)return;t.textContent=msg;t.className="show"+(err?" err":"");
   clearTimeout(toastT);toastT=setTimeout(()=>t.className=t.className.replace("show",""),2600);}
 
+// ---- shared modal: review-changes + searchable picker ----
+function _modalEls(){return{el:$("#modal"),title:$("#modalTitle"),body:$("#modalBody"),ok:$("#modalOk"),cancel:$("#modalCancel")};}
+function openReview(title, bodyHtml, okLabel){
+  return new Promise(res=>{const m=_modalEls();m.title.textContent=title;m.body.innerHTML=bodyHtml;
+    m.ok.style.display="";m.ok.textContent=okLabel||"Confirm";m.cancel.textContent="Cancel";
+    m.el.classList.remove("hidden");
+    const done=v=>{m.el.classList.add("hidden");m.ok.onclick=m.cancel.onclick=m.el.onclick=null;res(v);};
+    m.ok.onclick=()=>done(true);m.cancel.onclick=()=>done(false);
+    m.el.onclick=e=>{if(e.target===m.el)done(false);};});
+}
+function openPicker(title, items, current){
+  return new Promise(res=>{const m=_modalEls();m.title.textContent=title;m.ok.style.display="none";m.cancel.textContent="Close";
+    m.body.innerHTML='<input class="picksearch" id="pkq" type="text" placeholder="Search by id or name…" autocomplete="off"><div id="pklist"></div>';
+    m.el.classList.remove("hidden");
+    const list=$("#pklist"),q=$("#pkq");
+    const done=v=>{m.el.classList.add("hidden");m.cancel.onclick=m.el.onclick=null;res(v);};
+    const draw=()=>{const s=(q.value||"").toLowerCase();
+      list.innerHTML=items.filter(it=>!s||(it.id+" "+it.name+" "+(it.desc||"")).toLowerCase().includes(s)).slice(0,300)
+        .map(it=>'<div class="pickrow'+(String(it.id)===String(current)?" sel":"")+'" data-id="'+it.id+'">'+
+          '<span class="pid">'+it.id+'</span><span class="pn">'+esc(it.name)+'</span>'+
+          (it.desc?'<span class="pd">'+esc(it.desc)+'</span>':'')+'</div>').join("")||'<div class="note">No matches.</div>';
+      list.querySelectorAll(".pickrow").forEach(r=>r.onclick=()=>done(+r.dataset.id));};
+    q.addEventListener("input",draw);draw();setTimeout(()=>q.focus(),50);
+    m.cancel.onclick=()=>done(null);m.el.onclick=e=>{if(e.target===m.el)done(null);};});
+}
+window.openReview=openReview; window.openPicker=openPicker;
+
 // ---- theme ----
 (function(){try{if(localStorage.getItem("x2theme")==="light")document.body.classList.add("light");}catch(e){}
   const b=$("#themeBtn");if(b)b.onclick=()=>{document.body.classList.toggle("light");
@@ -37,9 +64,10 @@ function toast(msg,err){const t=$("#toast");if(!t)return;t.textContent=msg;t.cla
 document.querySelectorAll(".mtab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".mtab").forEach(x=>x.classList.toggle("on",x===t));
   const m=t.dataset.mode;
-  $("#mode-save").classList.toggle("hidden",m!=="save");
-  $("#mode-iso").classList.toggle("hidden",m!=="iso");
+  document.querySelectorAll(".mode").forEach(s=>s.classList.add("hidden"));
+  const sec=document.getElementById("mode-"+m); if(sec)sec.classList.remove("hidden");
   if(m==="iso"&&window.initISO)window.initISO();
+  if(m==="ref"&&window.initRef)window.initRef();
 });
 
 function bootProgress(pct,msg){const s=$("#engineStatus");if(!s)return;
@@ -58,9 +86,11 @@ async function bootPyodide(){
   py.runPython(`
 import json, x2save, x2fields as F
 def load_reference():
+    cat = F.es_equip_catalog()
     return json.dumps({
       "roster": F.ROSTER,
-      "esEquip": {str(i): v["name"] for i, v in F.es_equip_catalog().items()},
+      "esEquip": {str(i): v["name"] for i, v in cat.items()},
+      "esEquipList": [{"id": i, "name": v["name"], "desc": v.get("desc","")} for i, v in sorted(cat.items())],
     })
 def load_save(path):
     fmt = x2save.sniff_format(path)
@@ -137,10 +167,16 @@ function renderSheet(d){
   const gearNames = REF.esEquip || {};
   document.querySelectorAll("#sheet input").forEach(i=>decorate(i,updatePending));
   decorate($("#gold"),updatePending);
+  const gearList = REF.esEquipList || [];
   document.querySelectorAll("#sheet tr.gearrow input").forEach(inp=>{
-    const lab=document.createElement("div");lab.className="gname";inp.parentElement.appendChild(lab);
-    const upd=()=>{const n=gearNames[inp.value];lab.textContent=n||("id "+inp.value);inp.title=n||("unknown id "+inp.value);};
+    const lab=document.createElement("div");lab.className="gname gpick";lab.title="Pick from list";
+    inp.parentElement.appendChild(lab);
+    const upd=()=>{const n=gearNames[inp.value];lab.textContent=(n||("id "+inp.value))+" ▾";
+      inp.title=n||("unknown id "+inp.value);};
     inp.addEventListener("input",upd);upd();
+    lab.onclick=async()=>{ if(!gearList.length)return;
+      const id=await openPicker("E.S. gear", gearList, inp.value);
+      if(id!==null){inp.value=id;inp.dispatchEvent(new Event("input",{bubbles:true}));} };
   });
   $("#maxBtn").onclick=()=>{document.querySelectorAll("#sheet input").forEach(i=>{const c=CAPS[i.dataset.field];
     if(c!==undefined){i.value=c;i.dispatchEvent(new Event("input",{bubbles:true}));}});toast("Maxed stats — review, then Save");};
@@ -154,11 +190,27 @@ function changed(){return[...document.querySelectorAll("#sheet input.changed, #g
 function updatePending(){const n=changed().length;const b=$("#badge");if(b)b.textContent=n?"("+n+")":"";
   const s=$("#saveBtn"),r=$("#revBtn");if(s)s.disabled=!n;if(r)r.disabled=!n;}
 
+function reviewHtml(){
+  const g=$("#gold"); let html="";
+  if(g.classList.contains("changed"))
+    html+='<div class="revrow"><span class="rl">Gold</span><span class="ro">'+g.getAttribute("data-def")+'</span>→ <span class="rn">'+g.value+'</span></div>';
+  const byChar={};
+  changed().forEach(i=>{if(i.id==="gold")return;(byChar[i.dataset.idx]=byChar[i.dataset.idx]||[]).push(i);});
+  Object.keys(byChar).forEach(idx=>{
+    const nm=(curSave.characters[idx]||{}).name||("rec"+idx);
+    html+='<div class="revgrp">'+esc(nm)+'</div>';
+    byChar[idx].forEach(i=>html+='<div class="revrow"><span class="rl">'+esc(i.dataset.field)+
+      '</span><span class="ro">'+i.getAttribute("data-def")+'</span>→ <span class="rn">'+i.value+'</span></div>');
+  });
+  return html;
+}
 async function applyAndSave(){
   const edits={characters:{}};
   const g=$("#gold");if(g.classList.contains("changed"))edits.gold=+g.value;
   changed().forEach(i=>{if(i.id==="gold")return;const idx=i.dataset.idx,f=i.dataset.field;
     (edits.characters[idx]=edits.characters[idx]||{})[f]=+i.value;});
+  const dest = (fileHandle&&SUPPORTS_FS)?("Apply & save to "+origName):("Apply & download");
+  if(!(await openReview("Review changes — "+origName, reviewHtml(), dest))) return;
   const st=$("#sstatus");st.textContent="saving…";st.className="status";$("#saveBtn").disabled=true;
   let ok=false;
   try{
@@ -231,7 +283,28 @@ async function pickupShared(){
       history.replaceState(null,"",location.pathname);}}catch(e){}
 }
 
+// ---- PWA staleness self-heal (B17) ----
+const APP_VERSION = "1.0.0";
+$("#forceRefresh")?.addEventListener("click", async ()=>{
+  try{ if("serviceWorker" in navigator)
+    for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+    if(window.caches) for(const k of await caches.keys()) await caches.delete(k);
+  }catch(e){}
+  location.reload(true);
+});
+async function checkForUpdate(){
+  try{
+    const html=await (await fetch("index.html?cb="+Date.now(),{cache:"no-store"})).text();
+    const m=html.match(/id="appver">([^<]+)</);
+    if(m && m[1].trim() && m[1].trim()!==APP_VERSION){
+      const b=$("#updateBanner"); if(b){b.classList.remove("hidden");
+        $("#reloadNew").onclick=()=>$("#forceRefresh").click();}
+    }
+  }catch(e){}
+}
+
 // boot
 pyReady = bootPyodide().catch(e=>{bootProgress(100,"Engine failed: "+e);});
 refreshRecent();
 pickupShared();
+checkForUpdate();

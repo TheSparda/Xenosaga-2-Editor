@@ -37,3 +37,6 @@ dist/
 # editor/session config — not part of the project
 .claude/
 Editor/.x2editor.json
+
+# Local reference guides (copyrighted; used to derive reference JSON, not distributed)
+Guides/

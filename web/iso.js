@@ -56,7 +56,7 @@
   }
 
   function renderEnemy(){
-    const opts=Object.keys(names).map(i=>'<option value="'+i+'">'+String(i).padStart(2,"0")+' · '+esc(names[i])+'</option>').join("")
+    const opts=Object.keys(names).map(i=>'<option value="'+i+'">'+String(i).padStart(2,"0")+' · '+esc(names[i].name||names[i])+'</option>').join("")
       || Array.from({length:COUNT},(_,i)=>'<option value="'+i+'">'+i+'</option>').join("");
     $("#isoEdit").innerHTML='<div class="card"><h2>2 · Enemy</h2>'+
       '<div class="toolbar"><label>Enemy</label> <select id="esel">'+opts+'</select>'+
@@ -102,6 +102,14 @@
     while(j<BUF.length&&BUF[j]!==ORIG[j])j++;runs.push([i,j]);i=j;}else i++;}return runs;}
 
   async function saveISO(){
+    const i=+$("#esel").value;
+    // review-changes confirm (old -> new)
+    let rows="";
+    document.querySelectorAll("#erow input").forEach(inp=>{if(inp.classList.contains("changed"))
+      rows+='<div class="revrow"><span class="rl">'+inp.dataset.f+'</span><span class="ro">'+
+        inp.getAttribute("data-def")+'</span>→ <span class="rn">'+inp.value+'</span></div>';});
+    const nm=(names[i]&&names[i].name)||("enemy "+i);
+    if(window.openReview && !(await window.openReview("Write to ISO — "+nm, rows, "Apply & write to disc"))) return;
     const st=$("#estat");st.textContent="writing…";st.className="status";$("#esave").disabled=true;
     try{
       if((await handle.queryPermission({mode:"readwrite"}))!=="granted")

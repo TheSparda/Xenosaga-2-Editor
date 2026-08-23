@@ -170,9 +170,13 @@ ENEMY_FIELDS = [
 # +0x00: 4 param bytes; +0x04: 8x element affinity (0x64=100%); +0x36 u32 HP;
 # +0x3A: 99 (const, level cap?). Atk/Def/Cash/EXP inferred by range+HP-correlation.
 
+def enemy_catalog():
+    """{int id: {name, hp, atk, def, cash, exp}} for the 97 enemies (from the ISO)."""
+    return {int(k): v for k, v in res_json("x2_enemies.json").items()}
+
 def enemy_names():
     """{int id: name} for the 97 enemies (Perun..Patriarch)."""
-    return {int(k): v for k, v in res_json("x2_enemies.json").items()}
+    return {i: v["name"] for i, v in enemy_catalog().items()}
 
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
 TECH_FIELDS = []      # Tech / Ether effect table (names @ISO ~0x2009B58)

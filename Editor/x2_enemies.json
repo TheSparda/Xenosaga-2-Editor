@@ -1,99 +1,778 @@
 {
-"0": "Perun",
-"1": "Stribog",
-"2": "Azazel",
-"3": "Armaros",
-"4": "Zwerg Kape",
-"5": "Ashmed Bapuz",
-"6": "Arvakv",
-"7": "Rod Blondel",
-"8": "Wraith Virus",
-"9": "Grips Sister",
-"10": "Grips Sister",
-"11": "Wraith Feeler",
-"12": "Expression",
-"13": "Necessity",
-"14": "Vacillation",
-"15": "Information Type",
-"16": "Infected U.R.T.V.",
-"17": "Glare",
-"18": "Catharsis",
-"19": "Piercing Scream",
-"20": "Creation Type",
-"21": "Vive II Prototype",
-"22": "Calx II Prototype",
-"23": "Vive II Revised",
-"24": "Calx II Revised",
-"25": "Ortu Ria Kufli",
-"26": "Ortu Ria Lukia",
-"27": "Ortu Ria Hins",
-"28": "Kfuga Lily",
-"29": "E2 Hauser",
-"30": "O-78 Grisly",
-"31": "Ratus TI Mk II",
-"32": "Carnicos I",
-"33": "Testud",
-"34": "Yacud Cannon",
-"35": "Revised Testud",
-"36": "Auto Intercept Pod",
-"37": "Kfuga Valy",
-"38": "Carnicos II",
-"39": "O-78 Grisly 2",
-"40": "Stole Marine",
-"41": "Executus Sagitta",
-"42": "Cera 7 F",
-"43": "Cera 6 F",
-"44": "Executus Arma",
-"45": "Cera 7 S",
-"46": "Cera 6 S",
-"47": "Leviat",
-"48": "Leviat Officer",
-"49": "O-88 Delphinus",
-"50": "Anathema",
-"51": "Maranatha",
-"52": "Anathema Officer",
-"53": "Nova",
-"54": "Crescens",
-"55": "U-TIC Soldier A",
-"56": "U-TIC Soldier B",
-"57": "P.S.S. - P",
-"58": "P.S.S. - B",
-"59": "P.S.S. - P2",
-"60": "P.S.S. - B2",
-"61": "P.S.S. - C",
-"62": "P.S.S. - A",
-"63": "P.S.S. - S",
-"64": "P.S.S. - F",
-"65": "Ormus Knight A",
-"66": "Ormus Knight B",
-"67": "VSS Emissive",
-"68": "VSS Rayleigh",
-"69": "VSS Fresnel",
-"70": "U-TIC Soldier A",
-"71": "U-TIC Soldier B",
-"72": "Revised E2 Hauser",
-"73": "Infected U.R.T.V.",
-"74": "Revised Carnicos I",
-"75": "P.S.S. - P2",
-"76": "P.S.S. - B2",
-"77": "P.S.S. - C",
-"78": "Testud II",
-"79": "O-78 Grisly 2",
-"80": "Margulis",
-"81": "O-88 Libra",
-"82": "Scutum",
-"83": "Pilum",
-"84": "Level 4",
-"85": "Albedo",
-"86": "Margulis",
-"87": "Scutum",
-"88": "Pilum",
-"89": "Orgulla",
-"90": "E.S. Issachar",
-"91": "Naglfar Cannons",
-"92": "Margulis",
-"93": "Inversion",
-"94": "Cathedral ",
-"95": "Proto ",
-"96": "Patriarch"
+"0": {
+"name": "Perun",
+"hp": 860,
+"atk": 10,
+"def": 24,
+"cash": 38,
+"exp": 609
+},
+"1": {
+"name": "Stribog",
+"hp": 2560,
+"atk": 20,
+"def": 40,
+"cash": 18,
+"exp": 544
+},
+"2": {
+"name": "Azazel",
+"hp": 3360,
+"atk": 25,
+"def": 20,
+"cash": 74,
+"exp": 96
+},
+"3": {
+"name": "Armaros",
+"hp": 4160,
+"atk": 22,
+"def": 43,
+"cash": 18,
+"exp": 544
+},
+"4": {
+"name": "Zwerg Kape",
+"hp": 4960,
+"atk": 30,
+"def": 25,
+"cash": 74,
+"exp": 96
+},
+"5": {
+"name": "Ashmed Bapuz",
+"hp": 12000,
+"atk": 30,
+"def": 25,
+"cash": 126,
+"exp": 66
+},
+"6": {
+"name": "Arvakv",
+"hp": 9600,
+"atk": 25,
+"def": 40,
+"cash": 26,
+"exp": 578
+},
+"7": {
+"name": "Rod Blondel",
+"hp": 14400,
+"atk": 40,
+"def": 15,
+"cash": 149,
+"exp": 1122
+},
+"8": {
+"name": "Wraith Virus",
+"hp": 8000,
+"atk": 50,
+"def": 10,
+"cash": 0,
+"exp": 0
+},
+"9": {
+"name": "Grips Sister",
+"hp": 600,
+"atk": 50,
+"def": 30,
+"cash": 200,
+"exp": 2082
+},
+"10": {
+"name": "Grips Sister",
+"hp": 320,
+"atk": 6,
+"def": 2,
+"cash": 168,
+"exp": 1122
+},
+"11": {
+"name": "Wraith Feeler",
+"hp": 480,
+"atk": 10,
+"def": 4,
+"cash": 100,
+"exp": 1122
+},
+"12": {
+"name": "Expression",
+"hp": 880,
+"atk": 12,
+"def": 5,
+"cash": 389,
+"exp": 5218
+},
+"13": {
+"name": "Necessity",
+"hp": 700,
+"atk": 22,
+"def": 10,
+"cash": 97,
+"exp": 1122
+},
+"14": {
+"name": "Vacillation",
+"hp": 450,
+"atk": 15,
+"def": 10,
+"cash": 90,
+"exp": 98
+},
+"15": {
+"name": "Information Type",
+"hp": 2000,
+"atk": 90,
+"def": 50,
+"cash": 194,
+"exp": 2146
+},
+"16": {
+"name": "Infected U.R.T.V.",
+"hp": 2640,
+"atk": 25,
+"def": 15,
+"cash": 90,
+"exp": 1122
+},
+"17": {
+"name": "Glare",
+"hp": 1440,
+"atk": 100,
+"def": 100,
+"cash": 59,
+"exp": 2146
+},
+"18": {
+"name": "Catharsis",
+"hp": 2240,
+"atk": 120,
+"def": 300,
+"cash": 200,
+"exp": 2594
+},
+"19": {
+"name": "Piercing Scream",
+"hp": 5120,
+"atk": 25,
+"def": 15,
+"cash": 97,
+"exp": 1122
+},
+"20": {
+"name": "Creation Type",
+"hp": 3520,
+"atk": 28,
+"def": 15,
+"cash": 100,
+"exp": 1122
+},
+"21": {
+"name": "Vive II Prototype",
+"hp": 8000,
+"atk": 50,
+"def": 10,
+"cash": 0,
+"exp": 34
+},
+"22": {
+"name": "Calx II Prototype",
+"hp": 1500,
+"atk": 120,
+"def": 45,
+"cash": 275,
+"exp": 3170
+},
+"23": {
+"name": "Vive II Revised",
+"hp": 1760,
+"atk": 10,
+"def": 5,
+"cash": 205,
+"exp": 1126
+},
+"24": {
+"name": "Calx II Revised",
+"hp": 3520,
+"atk": 140,
+"def": 250,
+"cash": 289,
+"exp": 2658
+},
+"25": {
+"name": "Ortu Ria Kufli",
+"hp": 3040,
+"atk": 130,
+"def": 200,
+"cash": 141,
+"exp": 2146
+},
+"26": {
+"name": "Ortu Ria Lukia",
+"hp": 4160,
+"atk": 180,
+"def": 120,
+"cash": 205,
+"exp": 3170
+},
+"27": {
+"name": "Ortu Ria Hins",
+"hp": 4640,
+"atk": 140,
+"def": 250,
+"cash": 256,
+"exp": 2658
+},
+"28": {
+"name": "Kfuga Lily",
+"hp": 4160,
+"atk": 150,
+"def": 200,
+"cash": 132,
+"exp": 2146
+},
+"29": {
+"name": "E2 Hauser",
+"hp": 4800,
+"atk": 280,
+"def": 180,
+"cash": 338,
+"exp": 3138
+},
+"30": {
+"name": "O-78 Grisly",
+"hp": 4800,
+"atk": 220,
+"def": 220,
+"cash": 338,
+"exp": 2114
+},
+"31": {
+"name": "Ratus TI Mk II",
+"hp": 17600,
+"atk": 220,
+"def": 320,
+"cash": 200,
+"exp": 2658
+},
+"32": {
+"name": "Carnicos I",
+"hp": 9600,
+"atk": 200,
+"def": 320,
+"cash": 102,
+"exp": 2050
+},
+"33": {
+"name": "Testud",
+"hp": 8160,
+"atk": 260,
+"def": 200,
+"cash": 98,
+"exp": 2114
+},
+"34": {
+"name": "Yacud Cannon",
+"hp": 9600,
+"atk": 200,
+"def": 320,
+"cash": 102,
+"exp": 2562
+},
+"35": {
+"name": "Revised Testud",
+"hp": 14400,
+"atk": 300,
+"def": 220,
+"cash": 100,
+"exp": 3138
+},
+"36": {
+"name": "Auto Intercept Pod",
+"hp": 10400,
+"atk": 220,
+"def": 350,
+"cash": 153,
+"exp": 2562
+},
+"37": {
+"name": "Kfuga Valy",
+"hp": 110,
+"atk": 2,
+"def": 4,
+"cash": 17,
+"exp": 96
+},
+"38": {
+"name": "Carnicos II",
+"hp": 140,
+"atk": 2,
+"def": 4,
+"cash": 30,
+"exp": 96
+},
+"39": {
+"name": "O-78 Grisly 2",
+"hp": 260,
+"atk": 5,
+"def": 14,
+"cash": 17,
+"exp": 64
+},
+"40": {
+"name": "Stole Marine",
+"hp": 320,
+"atk": 7,
+"def": 14,
+"cash": 28,
+"exp": 64
+},
+"41": {
+"name": "Executus Sagitta",
+"hp": 1420,
+"atk": 20,
+"def": 30,
+"cash": 17,
+"exp": 64
+},
+"42": {
+"name": "Cera 7 F",
+"hp": 1800,
+"atk": 22,
+"def": 30,
+"cash": 28,
+"exp": 64
+},
+"43": {
+"name": "Cera 6 F",
+"hp": 1580,
+"atk": 20,
+"def": 30,
+"cash": 21,
+"exp": 64
+},
+"44": {
+"name": "Executus Arma",
+"hp": 2880,
+"atk": 35,
+"def": 10,
+"cash": 48,
+"exp": 32
+},
+"45": {
+"name": "Cera 7 S",
+"hp": 2400,
+"atk": 20,
+"def": 30,
+"cash": 33,
+"exp": 96
+},
+"46": {
+"name": "Cera 6 S",
+"hp": 2400,
+"atk": 25,
+"def": 25,
+"cash": 28,
+"exp": 32
+},
+"47": {
+"name": "Leviat",
+"hp": 3600,
+"atk": 24,
+"def": 35,
+"cash": 15,
+"exp": 32
+},
+"48": {
+"name": "Leviat Officer",
+"hp": 3840,
+"atk": 24,
+"def": 35,
+"cash": 23,
+"exp": 64
+},
+"49": {
+"name": "O-88 Delphinus",
+"hp": 1840,
+"atk": 24,
+"def": 10,
+"cash": 63,
+"exp": 1122
+},
+"50": {
+"name": "Anathema",
+"hp": 960,
+"atk": 20,
+"def": 10,
+"cash": 50,
+"exp": 1122
+},
+"51": {
+"name": "Maranatha",
+"hp": 2720,
+"atk": 32,
+"def": 10,
+"cash": 82,
+"exp": 1122
+},
+"52": {
+"name": "Anathema Officer",
+"hp": 170,
+"atk": 5,
+"def": 10,
+"cash": 82,
+"exp": 96
+},
+"53": {
+"name": "Nova",
+"hp": 200,
+"atk": 5,
+"def": 10,
+"cash": 82,
+"exp": 96
+},
+"54": {
+"name": "Crescens",
+"hp": 440,
+"atk": 6,
+"def": 4,
+"cash": 82,
+"exp": 1122
+},
+"55": {
+"name": "U-TIC Soldier A",
+"hp": 600,
+"atk": 10,
+"def": 20,
+"cash": 82,
+"exp": 32
+},
+"56": {
+"name": "U-TIC Soldier B",
+"hp": 3840,
+"atk": 35,
+"def": 15,
+"cash": 82,
+"exp": 1122
+},
+"57": {
+"name": "P.S.S. - P",
+"hp": 2080,
+"atk": 20,
+"def": 30,
+"cash": 82,
+"exp": 64
+},
+"58": {
+"name": "P.S.S. - B",
+"hp": 2720,
+"atk": 22,
+"def": 30,
+"cash": 82,
+"exp": 64
+},
+"59": {
+"name": "P.S.S. - P2",
+"hp": 3120,
+"atk": 20,
+"def": 30,
+"cash": 82,
+"exp": 64
+},
+"60": {
+"name": "P.S.S. - B2",
+"hp": 8000,
+"atk": 50,
+"def": 10,
+"cash": 82,
+"exp": 98
+},
+"61": {
+"name": "P.S.S. - C",
+"hp": 4400,
+"atk": 20,
+"def": 15,
+"cash": 82,
+"exp": 1058
+},
+"62": {
+"name": "P.S.S. - A",
+"hp": 8000,
+"atk": 50,
+"def": 10,
+"cash": 82,
+"exp": 66
+},
+"63": {
+"name": "P.S.S. - S",
+"hp": 8000,
+"atk": 50,
+"def": 10,
+"cash": 82,
+"exp": 66
+},
+"64": {
+"name": "P.S.S. - F",
+"hp": 8000,
+"atk": 50,
+"def": 10,
+"cash": 82,
+"exp": 66
+},
+"65": {
+"name": "Ormus Knight A",
+"hp": 8000,
+"atk": 50,
+"def": 10,
+"cash": 82,
+"exp": 66
+},
+"66": {
+"name": "Ormus Knight B",
+"hp": 1200,
+"atk": 11,
+"def": 18,
+"cash": 0,
+"exp": 736
+},
+"67": {
+"name": "VSS Emissive",
+"hp": 3360,
+"atk": 24,
+"def": 10,
+"cash": 200,
+"exp": 1062
+},
+"68": {
+"name": "VSS Rayleigh",
+"hp": 4800,
+"atk": 24,
+"def": 5,
+"cash": 500,
+"exp": 1134
+},
+"69": {
+"name": "VSS Fresnel",
+"hp": 3360,
+"atk": 16,
+"def": 22,
+"cash": 370,
+"exp": 622
+},
+"70": {
+"name": "U-TIC Soldier A",
+"hp": 5760,
+"atk": 12,
+"def": 38,
+"cash": 80,
+"exp": 608
+},
+"71": {
+"name": "U-TIC Soldier B",
+"hp": 7680,
+"atk": 50,
+"def": 48,
+"cash": 36,
+"exp": 208
+},
+"72": {
+"name": "Revised E2 Hauser",
+"hp": 800,
+"atk": 50,
+"def": 10,
+"cash": 70,
+"exp": 0
+},
+"73": {
+"name": "Infected U.R.T.V.",
+"hp": 19200,
+"atk": 300,
+"def": 220,
+"cash": 500,
+"exp": 3138
+},
+"74": {
+"name": "Revised Carnicos I",
+"hp": 17700,
+"atk": 180,
+"def": 320,
+"cash": 370,
+"exp": 2594
+},
+"75": {
+"name": "P.S.S. - P2",
+"hp": 18000,
+"atk": 35,
+"def": 25,
+"cash": 70,
+"exp": 1026
+},
+"76": {
+"name": "P.S.S. - B2",
+"hp": 30400,
+"atk": 250,
+"def": 320,
+"cash": 650,
+"exp": 2242
+},
+"77": {
+"name": "P.S.S. - C",
+"hp": 35200,
+"atk": 50,
+"def": 50,
+"cash": 2700,
+"exp": 2146
+},
+"78": {
+"name": "Testud II",
+"hp": 20800,
+"atk": 27,
+"def": 38,
+"cash": 70,
+"exp": 1152
+},
+"79": {
+"name": "O-78 Grisly 2",
+"hp": 49600,
+"atk": 220,
+"def": 350,
+"cash": 760,
+"exp": 2626
+},
+"80": {
+"name": "Margulis",
+"hp": 32000,
+"atk": 40,
+"def": 30,
+"cash": 0,
+"exp": 102
+},
+"81": {
+"name": "O-88 Libra",
+"hp": 999999,
+"atk": 999,
+"def": 999,
+"cash": 1400,
+"exp": 16610
+},
+"82": {
+"name": "Scutum",
+"hp": 21600,
+"atk": 20,
+"def": 50,
+"cash": 30,
+"exp": 640
+},
+"83": {
+"name": "Pilum",
+"hp": 5300,
+"atk": 20,
+"def": 34,
+"cash": 160,
+"exp": 576
+},
+"84": {
+"name": "Level 4",
+"hp": 96000,
+"atk": 300,
+"def": 150,
+"cash": 0,
+"exp": 3106
+},
+"85": {
+"name": "Albedo",
+"hp": 57600,
+"atk": 20,
+"def": 40,
+"cash": 260,
+"exp": 49
+},
+"86": {
+"name": "Margulis",
+"hp": 59000,
+"atk": 40,
+"def": 32,
+"cash": 240,
+"exp": 1057
+},
+"87": {
+"name": "Scutum",
+"hp": 60800,
+"atk": 1,
+"def": 1,
+"cash": 0,
+"exp": 33
+},
+"88": {
+"name": "Pilum",
+"hp": 200000,
+"atk": 200,
+"def": 200,
+"cash": 1200,
+"exp": 2114
+},
+"89": {
+"name": "Orgulla",
+"hp": 99999,
+"atk": 50,
+"def": 75,
+"cash": 100,
+"exp": 16
+},
+"90": {
+"name": "E.S. Issachar",
+"hp": 55555,
+"atk": 60,
+"def": 80,
+"cash": 240,
+"exp": 1057
+},
+"91": {
+"name": "Naglfar Cannons",
+"hp": 800,
+"atk": 50,
+"def": 10,
+"cash": 0,
+"exp": 0
+},
+"92": {
+"name": "Margulis",
+"hp": 800,
+"atk": 50,
+"def": 10,
+"cash": 0,
+"exp": 0
+},
+"93": {
+"name": "Inversion",
+"hp": 800,
+"atk": 50,
+"def": 10,
+"cash": 0,
+"exp": 0
+},
+"94": {
+"name": "Cathedral ",
+"hp": 800,
+"atk": 50,
+"def": 10,
+"cash": 0,
+"exp": 0
+},
+"95": {
+"name": "Proto ",
+"hp": 18000,
+"atk": 25,
+"def": 35,
+"cash": 50,
+"exp": 578
+},
+"96": {
+"name": "Patriarch",
+"hp": 192000,
+"atk": 50,
+"def": 22,
+"cash": 250,
+"exp": 1126
+}
 }

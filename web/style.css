@@ -70,6 +70,7 @@ tr.gearrow .fl{color:var(--acc2)} tr.gearrow .fl::before{content:"⚙ "}
 .gname{font-size:9px;color:var(--acc2);margin-top:2px;max-width:9ch;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;margin-left:auto;margin-right:auto}
 .es td.name{color:var(--mut)}
+.gpick{cursor:pointer;text-decoration:underline dotted}
 .note{color:var(--mut);font-size:12.5px;margin:10px 0 0}
 .recent{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
 footer{margin-top:20px;color:var(--mut);font-size:12px;display:flex;flex-direction:column;gap:5px}
@@ -81,3 +82,34 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast.err{border-color:var(--err)}
 .blocked{border:1px solid var(--warnbd);background:var(--changed);border-radius:12px;padding:14px}
+/* reference browser */
+.refrow{display:flex;align-items:baseline;gap:9px;padding:7px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.refrow:hover{background:var(--panel2)}
+.rid{color:var(--mut);font:12px ui-monospace,monospace;min-width:2.5ch;text-align:right}
+.rname{font-weight:600;min-width:9ch}
+.rdesc{color:var(--mut);font-size:13px;flex:1;min-width:12ch}
+.rpills{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto}
+.stpill{font-size:11px;padding:1px 7px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--acc2);white-space:nowrap}
+#refSearch{background:var(--input);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+#refTabs{gap:6px}
+.linkbtn{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit;padding:0;text-decoration:underline}
+.updbanner{background:var(--acc);color:var(--accink);border-radius:8px;padding:8px 12px;font-weight:600;align-self:flex-start}
+.updbanner .chip{margin-left:8px}
+/* modal (review + picker) */
+.modal{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:60;padding:12px}
+.modal .sheet{background:var(--panel);border:1px solid var(--acc);border-radius:14px;box-shadow:var(--shadow);
+  width:100%;max-width:600px;max-height:85vh;display:flex;flex-direction:column;padding:16px}
+@media(max-width:600px){.modal .sheet{max-width:100%;height:92vh;max-height:92vh}}
+.modal h3{margin:0 0 10px;color:var(--acc2);font-size:15px}
+#modalBody{overflow:auto;flex:1}
+.modalbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.revrow{display:flex;gap:10px;align-items:baseline;padding:4px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.revrow .rl{color:var(--mut);min-width:12ch}
+.revrow .ro{color:var(--err);text-decoration:line-through}
+.revrow .rn{color:var(--ok);font-weight:600}
+.revgrp{margin:8px 0 3px;font-weight:600;color:var(--acc2);font-size:13px}
+.picksearch{width:100%;margin-bottom:8px}
+.pickrow{display:flex;gap:9px;padding:7px 6px;border-bottom:1px solid var(--line);cursor:pointer;align-items:baseline}
+.pickrow:hover,.pickrow.sel{background:var(--panel2)}
+.pickrow .pid{color:var(--mut);font:12px ui-monospace,monospace;min-width:2.5ch;text-align:right}
+.pickrow .pn{font-weight:600}.pickrow .pd{color:var(--mut);font-size:12px;margin-left:auto;max-width:50%;text-align:right}
