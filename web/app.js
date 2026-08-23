@@ -284,7 +284,7 @@ async function pickupShared(){
 }
 
 // ---- PWA staleness self-heal (B17) ----
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.1.0";
 $("#forceRefresh")?.addEventListener("click", async ()=>{
   try{ if("serviceWorker" in navigator)
     for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();

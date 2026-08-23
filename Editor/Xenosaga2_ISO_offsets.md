@@ -331,3 +331,42 @@ them offline now needs battle-code disassembly (ELF/overlay) to find the loader
 or the packed blob — the same class of wall as the save checksum. The practical
 unblock is a PCSX2 RAM search during a battle to anchor the live values, then map
 back to a disc offset (if raw) or a formula (if computed).
+
+## 2026-08-23 (later) — RETRACTION OF THE RETRACTION: enemy table SOLVED
+
+The "stats are packed/not raw" conclusion above was wrong. The tell was hiding in
+the negative scan itself: the HP-22400 hits at `0x1FFF7F2/84E/8AA/BE6/C42` are
+exactly stride-0x5C apart and fall *precisely on the record lattice* (offset +0x36
+within stride-0x5C records) — the table simply starts BEFORE 0x2000000, and the
+original error was (a) wrong base and (b) blindly zipping name[0] with record 0.
+
+Winning method: 8-field relative signature per guide enemy — HP u32 at p, then
+STR u16@p+6, VIT@p+8, EATK@p+0xA, EDEF@p+0xC, DEX u8@p+0xE, EVA@p+0xF, AGL@p+0x10.
+Whole-disc scan → exactly ONE hit per enemy; **74/76 guide enemies matched
+uniquely** with all 8 fields agreeing (misses: Margulis-1st = guide errata, disc
+says HP 1200 not 1000; Ai Apaec matched on name/position anyway).
+
+### VERIFIED enemy tables (disc 1, raw byte offsets)
+
+- **Stat table**: base `0x1FFF5F0`, stride `0x5C`, **125 records** (index 0..124).
+  - `+0x04` u8×8 element affinities (0x64 = 100%)
+  - `+0x36` u32 HP
+  - `+0x3C` u16 STR/POW · `+0x3E` u16 VIT/ARM · `+0x40` u16 EATK · `+0x42` u16 EDEF
+  - `+0x44` u8 DEX · `+0x45` u8 EVA · `+0x46` u8 AGL
+  - `+0x52` u16 enemy ID (501+ field, 561+ boss, 701+ E.S./special; "2nd version"
+    encounters are separate records sharing the ID)
+- **Name table**: `0x2002310`, 125 null-terminated strings (ASCII + some EUC-JP
+  debug names like ＧＮＯ０１３), **parallel to stat records** (same index).
+- **Rewards table**: base `0x201094C`, stride `0x10`, row = record index.
+  - `+0x00` u32 EXP · `+0x04` u16 SP · `+0x06` u16 CP (16/16 anchors each)
+  - `+0x08..0x0F` drop rates/categories/item ids (partially decoded)
+
+Sanity anchors: Perun rec 6 HP 22,400 / EXP 30,000 / SP 1,200; Proto Ω 999,999;
+Mikumari 200,000; Baal Zebul 99,999; Phobos Rigas 55,555; Patriarch 21,600;
+Dark Erde Kaiser 192,000 (rec 124 — this was the record previously mislabelled
+"Patriarch"). Guide EVA for Perun (72) matches the disc; the wiki's 22 is a typo.
+
+**Lesson (B12 addendum):** a failed value-search isn't proof data is packed — first
+check whether partial hits are lattice-consistent with a known stride. Use
+relative-offset multi-field signatures, never contiguous byte runs, and never pair
+a name table with a record table by index without an independent anchor.

@@ -153,16 +153,31 @@ def backup(path):
 
 
 # ---------------------------------------------------------------------------
-# ENEMY read/write — disabled. The real battle-stat table is packed inside the
-# XENOSAGA.* archives (the on-disc records we first read were not the true
-# stats; see x2fields for the note). Only enemy names are exposed for now, so
-# there are no verified editable fields (F.ENEMY_FIELDS is empty).
+# ENEMY read/write (disc 1, VERIFIED). Stat records at F.ENEMY_TABLE_OFF and a
+# parallel rewards table at F.REWARD_TABLE_OFF — both indexed by record number.
 # ---------------------------------------------------------------------------
+def _enemy_tables(i):
+    return ((F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE, F.ENEMY_FIELDS),
+            (F.REWARD_TABLE_OFF + i * F.REWARD_STRIDE, F.REWARD_FIELDS))
+
 def read_enemy(iso, i):
-    return {}
+    out = {}
+    for base, fields in _enemy_tables(i):
+        for (lbl, off, w, _k) in fields:
+            out[lbl] = int.from_bytes(iso.read(base + off, w), "little")
+    return out
 
 def write_enemy(iso, i, edits):
-    return 0
+    """Write edited fields for enemy record `i` (stats and/or rewards).
+    edits = {field_label: value}, clamped to field width. Returns fields written."""
+    n = 0
+    for base, fields in _enemy_tables(i):
+        for (lbl, off, w, _k) in fields:
+            if lbl in edits and edits[lbl] is not None:
+                v = max(0, min(int(edits[lbl]), (1 << (8 * w)) - 1))
+                iso.write(base + off, v.to_bytes(w, "little"))
+                n += 1
+    return n
 
 
 # ---------------------------------------------------------------------------

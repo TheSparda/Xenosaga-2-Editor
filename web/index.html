@@ -48,14 +48,15 @@
   </section>
 
   <section id="mode-iso" class="mode hidden">
-    <p class="sub">Direct ISO / balance editing (enemy HP, skill power &amp; targeting, cast-time
-      &amp; combo tuning) is under active reverse-engineering — see below.</p>
+    <p class="sub">Edit the disc directly — every enemy's stats (HP, STR, VIT, EATK, EDEF, DEX,
+      EVA, AGL) and battle rewards (EXP, SP, CP), plus a one-click <b>global HP rebalance</b>.
+      Changes write <b>in place</b>; nothing is uploaded. Desktop Chromium only. Back up first.</p>
     <div id="isoRoot"></div>
   </section>
 
   <section id="mode-ref" class="mode hidden">
-    <p class="sub">Browse the game's data — items, key items, E.S. equipment, and enemy
-      names — extracted from the disc. Read-only reference; search by name.</p>
+    <p class="sub">Browse the game's data — items, key items, E.S. equipment, and the full
+      bestiary (verified stats &amp; rewards) — extracted from the disc. Read-only; search by name.</p>
     <div id="refRoot"></div>
   </section>
 
@@ -64,10 +65,10 @@
       <button id="reloadNew" class="chip">↻ Update now</button></div>
     <span class="credit">Made by <b>Sparda</b> ·
       <a href="https://github.com/TheSparda/Xenosaga-2-Editor" target="_blank" rel="noopener noreferrer">GitHub</a>
-      · v<span id="appver">1.0.1</span> ·
+      · v<span id="appver">1.1.0</span> ·
       <button id="forceRefresh" class="linkbtn" title="Unregister the service worker, clear caches, reload">↻ Force refresh</button></span>
     <span class="note">Save editor: in-browser Pyodide port of <code>x2save.py</code> (works everywhere).
-      Reference: on-disc item / skill / enemy text. ISO balance editing: in progress.</span>
+      ISO editor: in-place enemy stat/reward edits + global rebalance on desktop Chromium.</span>
   </footer>
 </div>
 

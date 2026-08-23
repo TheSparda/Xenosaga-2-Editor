@@ -153,20 +153,43 @@ def es_equip_catalog():
     return {int(k): v for k, v in res_json("x2_es_equip.json").items()}
 
 # ---------------------------------------------------------------------------
-# ISO ENEMY data (disc 1). The NAME table at ~0x2002342 is verified (Perun ..
-# Patriarch, matches the game + xenoserieswiki). The 0x2000000/stride-0x5C
-# records we first read as stats turned out NOT to be the battle-stat table:
-# both the wiki and a strategy guide give Perun 22,400 HP, a value that does
-# not appear anywhere on the disc, so the real balance stats are packed inside
-# the large XENOSAGA.* archives (still being reverse-engineered). Only names
-# are exposed until the packed table is located and edits can be verified.
+# ISO ENEMY tables (VERIFIED — disc 1). 125 stat records + parallel name table
+# + parallel rewards table. Verified against a strategy guide + xenoserieswiki:
+# 74/76 guide enemies matched on an 8-field signature with exactly one hit each
+# (anchors: Perun rec 6 HP 22,400; Proto Omega 999,999; Dark Erde Kaiser
+# 192,000). See Xenosaga2_ISO_offsets.md for the derivation.
 # ---------------------------------------------------------------------------
-ENEMY_COUNT  = 97
-ENEMY_FIELDS = []   # no verified editable stat fields yet (see note above)
+ENEMY_TABLE_OFF  = 0x1FFF5F0   # stat records, stride 0x5C, index 0..124
+ENEMY_STRIDE     = 0x5C
+ENEMY_COUNT      = 125
+ENEMY_NAMES_OFF  = 0x2002310   # 125 null-terminated names, parallel to records
+ENEMY_FIELDS = [               # (label, offset, width, kind) — stat record
+    ("HP",   0x36, 4, "num"),  # Perun 22,400 .. Proto Omega 999,999
+    ("STR",  0x3C, 2, "num"),  # physical attack (POW in guides)
+    ("VIT",  0x3E, 2, "num"),  # physical defense (ARM in guides)
+    ("EATK", 0x40, 2, "num"),  # ether attack
+    ("EDEF", 0x42, 2, "num"),  # ether defense
+    ("DEX",  0x44, 1, "num"),  # accuracy
+    ("EVA",  0x45, 1, "num"),  # evasion
+    ("AGL",  0x46, 1, "num"),  # agility / turn speed
+]
+# also in the record: +0x04 u8*8 element affinities (0x64=100%), +0x52 u16 enemy ID
+REWARD_TABLE_OFF = 0x201094C   # rewards, stride 0x10, row = record index
+REWARD_STRIDE    = 0x10
+REWARD_FIELDS = [
+    ("EXP", 0x00, 4, "num"),
+    ("SP",  0x04, 2, "num"),
+    ("CP",  0x06, 2, "num"),
+]
+# rewards +0x08..0x0F: drop rates/categories/item ids (partially decoded)
+
+def enemy_catalog():
+    """{int idx: {name,id,hp,str,vit,eatk,edef,dex,eva,agl,exp,sp,cp}} — verified."""
+    return {int(k): v for k, v in res_json("x2_enemies.json").items()}
 
 def enemy_names():
-    """{int id: name} for the 97 enemies (Perun..Patriarch). Names are verified."""
-    return {int(k): v for k, v in res_json("x2_enemies.json").items()}
+    """{int idx: name} for the 125 enemy records (Ai Apaec .. Dark Erde Kaiser)."""
+    return {i: v["name"] for i, v in enemy_catalog().items()}
 
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
 TECH_FIELDS = []      # Tech / Ether effect table (names @ISO ~0x2009B58)
