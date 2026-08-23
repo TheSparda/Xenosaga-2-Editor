@@ -414,18 +414,27 @@ def disc1_iso():
 
 
 def _decodable_saves():
+    """One entry per *editable save*, not per file — a memory-card image holds a
+    folder per in-game slot, so it expands into several selectable entries."""
     out = []
     for s in SV.scan_saves(os.path.join(SCAN_ROOT, "Saves")):
-        try:
-            SV.extract_gamedata(s["path"], s["format"])
-        except Exception:
-            continue
-        out.append(s)
+        slots = SV.list_slots(s["path"], s["format"])
+        for sl in slots:
+            try:
+                SV.extract_gamedata(s["path"], s["format"], sl["slot"])
+            except Exception:
+                continue
+            entry = dict(s)
+            entry["slot"] = sl["slot"]
+            entry["folder"] = sl["folder"]
+            entry["label"] = s["name"] + (
+                f" · {sl['folder']}" if len(slots) > 1 else f" ({s['format']})")
+            out.append(entry)
     return out
 
 
 def decodable_saves():
-    """Saves under Saves/ that currently decode, in scan order (memoized)."""
+    """Editable saves under Saves/, in scan order (memoized)."""
     return cached("saves", _decodable_saves)
 
 
@@ -456,7 +465,7 @@ def render():
     else:
         save_table = "<p>No saves found under <code>Saves/</code>.</p>"
 
-    opts = "".join(f"<option value='{i}'>{html.escape(s['name'])} ({s['format']})</option>"
+    opts = "".join(f"<option value='{i}'>{html.escape(s['label'])}</option>"
                    for i, s in enumerate(decodable_saves()))
     head = ""   # fields are self-labeled per cell (2-row layout)
 
@@ -537,7 +546,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 i = int(q.get("i", ["0"])[0])
                 s = decodable_saves()[i]
-                data = SV.decode_save(s["path"], s["format"])
+                data = SV.decode_save(s["path"], s["format"], s["slot"])
             except Exception as e:
                 self.send_error(500, str(e)); return
             body = json.dumps(data).encode("utf-8")
@@ -613,7 +622,7 @@ class Handler(BaseHTTPRequestHandler):
             if "gold" in edits:
                 norm["gold"] = edits["gold"]
             count = (1 if "gold" in edits else 0) + sum(len(v) for v in chars.values())
-            SV.write_save(s["path"], norm, fmt=s["format"])
+            SV.write_save(s["path"], norm, fmt=s["format"], slot=s["slot"])
             invalidate()
             self._json({"ok": True, "count": count})
         except Exception as e:
