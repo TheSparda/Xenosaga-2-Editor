@@ -23,6 +23,25 @@ function _idb(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB,1);
 async function idbSet(k,v){const db=await _idb();return new Promise((res,rej)=>{const t=db.transaction(STORE,"readwrite");t.objectStore(STORE).put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
 async function idbGet(k){const db=await _idb();return new Promise((res,rej)=>{const t=db.transaction(STORE,"readonly");const q=t.objectStore(STORE).get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
 async function idbDel(k){const db=await _idb();return new Promise((res,rej)=>{const t=db.transaction(STORE,"readwrite");t.objectStore(STORE).delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
+// Re-grant write permission on a stored handle (Chromium drops it between visits).
+async function ensureWritable(h){
+  try{
+    const o={mode:"readwrite"};
+    if((await h.queryPermission(o))==="granted") return true;
+    return (await h.requestPermission(o))==="granted";
+  }catch(e){ return false; }
+}
+const fmtSize=(n)=>n>=1<<20?(n/(1<<20)).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB";
+function fmtWhen(ts){
+  if(!ts) return "";
+  const m=Math.floor((Date.now()-ts)/60000);
+  if(m<1) return "just now";
+  if(m<60) return m+"m ago";
+  const h=Math.floor(m/60); if(h<24) return h+"h ago";
+  const d=Math.floor(h/24); return d===1?"yesterday":d+"d ago";
+}
+// shared with iso.js (recent-ISO uses the same store)
+window.x2idb={get:idbGet,set:idbSet,del:idbDel,ensureWritable,fmtSize,fmtWhen};
 
 let toastT;
 function toast(msg,err){const t=$("#toast");if(!t)return;t.textContent=msg;t.className="show"+(err?" err":"");
@@ -120,7 +139,9 @@ async function handleFile(file, handle){
   const d = JSON.parse(PY.runPython(`load_save(${JSON.stringify(SAVE_PATH)})`));
   if(d.error){ $("#editor").innerHTML = '<div class="card blocked">Could not open '+esc(origName)+' — '+esc(d.error)+'</div>'; return; }
   curSave = d;
-  try{ await idbSet("last",{bytes:buf,name:origName}); refreshRecent(); }catch(e){}
+  // Persist bytes for one-tap reopen anywhere, plus the writable handle (desktop) so a
+  // reopened save can still be written back IN PLACE instead of downloading a copy.
+  try{ await idbSet("last",{bytes:buf,name:origName,handle:fileHandle||null,size:buf.length,at:Date.now()}); refreshRecent(); }catch(e){}
   renderSheet(d);
 }
 
@@ -256,14 +277,37 @@ $("#file").onchange=e=>{const f=e.target.files[0];if(f)handleFile(f);};
 const drop=$("#drop");
 ["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
-drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+drop.addEventListener("drop",async e=>{
+  // Chromium hands out a writable handle on drop — take it so save-in-place works.
+  const item=e.dataTransfer.items&&e.dataTransfer.items[0];
+  if(SUPPORTS_FS&&item&&item.getAsFileSystemHandle){
+    try{const h=await item.getAsFileSystemHandle();
+      if(h&&h.kind==="file") return handleFile(await h.getFile(),h);}catch(_){}
+  }
+  const f=e.dataTransfer.files[0];if(f)handleFile(f);
+});
 
 async function refreshRecent(){
   const last=await idbGet("last").catch(()=>null);const el=$("#recent");if(!el)return;
-  el.innerHTML = last ? '<div class="recent"><button class="chip" id="reopen">↻ '+esc(last.name)+
-    '</button><button class="chip" id="forget">✕</button></div>' : "";
-  if(last){$("#reopen").onclick=()=>handleFile(new File([last.bytes],last.name));
-    $("#forget").onclick=async()=>{await idbDel("last");refreshRecent();};}
+  if(!last){ el.innerHTML=""; return; }
+  const meta=[last.size?fmtSize(last.size):"", fmtWhen(last.at)].filter(Boolean).join(" · ");
+  const inplace=SUPPORTS_FS&&last.handle;
+  el.innerHTML='<div class="recent"><span class="muted small">Last opened:</span>'+
+    '<button class="chip" id="reopen" title="'+(inplace?"Reopen (keeps save-in-place)":"Reopen from the stored copy")+'">↻ '+
+    esc(last.name)+(meta?' <span class="muted">('+esc(meta)+')</span>':'')+'</button>'+
+    '<button class="chip mini" id="forget" title="Forget this file" aria-label="Forget this file">✕</button></div>';
+  $("#reopen").onclick=()=>reopenLast(last);
+  $("#forget").onclick=async()=>{await idbDel("last").catch(()=>{});refreshRecent();};
+}
+async function reopenLast(rec){
+  // Prefer the stored handle so save-in-place survives a reload; fall back to the bytes copy.
+  if(SUPPORTS_FS&&rec.handle){
+    try{
+      if(await ensureWritable(rec.handle)) return handleFile(await rec.handle.getFile(),rec.handle);
+      toast("Reopened read-only — write permission denied");
+    }catch(e){ toast("File moved or unavailable — reopened the stored copy"); }
+  }
+  return handleFile(new File([rec.bytes],rec.name));
 }
 
 // unsaved guard
@@ -284,7 +328,7 @@ async function pickupShared(){
 }
 
 // ---- PWA staleness self-heal (B17) ----
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 $("#forceRefresh")?.addEventListener("click", async ()=>{
   try{ if("serviceWorker" in navigator)
     for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();

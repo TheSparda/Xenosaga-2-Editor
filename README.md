@@ -19,6 +19,10 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   rebalance** to fix the game's infamous HP bloat.
 - **Reference** — searchable bestiary (verified stats & rewards) + item / key-item /
   E.S.-gear catalogs extracted from the disc.
+- **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
+  tap. On desktop the writable file handle is kept too, so a reopened file still saves **in
+  place**. Stored locally in your browser (IndexedDB); the ISO entry keeps only a file
+  reference, never disc contents.
 
 > Supply your own legally-obtained saves/ISOs. The repo ships **no game data**.
 
@@ -72,4 +76,4 @@ ROM/ISO, saves, or audio** — only small reverse-engineered reference data (ser
 id→name maps, item descriptions) the editor needs to show meaningful labels. That's
 interoperability data, not the game.
 
-Made by **Sparda**. · **v1.1.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
+Made by **Sparda**. · **v1.2.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
