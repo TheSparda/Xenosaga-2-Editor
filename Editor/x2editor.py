@@ -71,12 +71,7 @@ def scan_isos(root):
     return found
 
 
-# Character-sheet columns shown in the save viewer: (header, decoded-field key).
-SHEET_COLS = [("Lvl", "Level"), ("HP", "HP"), ("Cur HP", "Current HP"), ("EP", "EP"),
-              ("Str", "Str"), ("Vit", "Vit"), ("EAtk", "Eatk"), ("EDef", "Edef"),
-              ("Dex", "Dex"), ("Eva", "Eva"), ("Agl", "Agl")]
-
-PAGE = """<!doctype html><html><head><meta charset="utf-8">
+PAGE ="""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Xenosaga II Editor</title>
 <style>
@@ -207,9 +202,7 @@ PAGE = """<!doctype html><html><head><meta charset="utf-8">
 const COLS = %%COLS%%;
 const ES_COLS = %%ESCOLS%%;   // E.S. mech gear slots (experimental, raw ids)
 const ES_EQUIP = %%ESEQUIP%%; // id -> E.S. accessory name (ISO catalog, ids 0-30)
-// per-field caps for the "Max all stats" convenience button
-const CAPS = {Level:99, HP:9999, "Current HP":9999, EP:99, Str:999, Vit:999,
-  Eatk:999, Edef:999, Dex:99, Eva:99, Agl:99};
+const CAPS = %%CAPS%%;        // per-field caps, from x2fields.CHAR_CAPS
 const $ = s => document.querySelector(s);
 let CUR = -1;   // index of the loaded save
 
@@ -497,7 +490,8 @@ def render():
             .replace("%%SAVES%%", save_table)
             .replace("%%SAVEOPTS%%", opts or "<option>none</option>")
             .replace("%%SHEETHEAD%%", head)
-            .replace("%%COLS%%", json.dumps(SHEET_COLS))
+            .replace("%%COLS%%", json.dumps(F.SHEET_COLS))
+            .replace("%%CAPS%%", json.dumps(F.CHAR_CAPS))
             .replace("%%ESCOLS%%", json.dumps([[l, l] for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS]))
             .replace("%%ESEQUIP%%", json.dumps({str(i): v["name"]
                      for i, v in F.es_equip_catalog().items()}))
