@@ -27,16 +27,28 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
 
 ## Status
 
-Working today: **save editing** (gold + full character sheet, all containers), **ISO enemy
-stat/reward editing + global rebalance**, and the **Reference** bestiary. The enemy tables
-are verified against two independent sources — 74/76 enemies from a strategy guide match the
-disc **exactly** on an 8-field signature (see
-[`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md) for the derivation).
+Working today:
 
-One caveat — the in-game **save checksum isn't cracked yet**, so an edited *save* may be
-rejected by the game until it is (ISO edits are unaffected). Skill/tech editing (power,
-targeting, cast times), party, and inventory editing are the next reverse-engineering
-targets.
+- **Save editing** — gold + the full character sheet, across every common container
+  including PCSX2 memory-card images (one entry per in-game slot).
+- **ISO enemy editing** — stats and rewards for all 125 records, rebalance presets, patch
+  files, and comparison against the retail values (with restore). The enemy tables are
+  verified against two independent sources: 74/76 enemies from a strategy guide match the
+  disc **exactly** on an 8-field signature (see
+  [`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md) for the derivation).
+- **Reference** — bestiary + item / key-item / E.S.-gear catalogs.
+
+Two caveats worth stating plainly:
+
+- The in-game **save checksum isn't cracked yet**, so an edited *save* may be rejected by
+  the game until it is. ISO edits are unaffected. A `.bak` is always kept.
+- The eight enemy **damage-affinity slots** are editable but **unverified** — we know there
+  are eight percentages and that they read 100 in ordinary records, but not which element
+  each slot is, so they're numbered rather than named and kept behind an opt-in.
+
+Next reverse-engineering targets: the save checksum, skill/tech editing (power, targeting,
+cast times), party, and inventory — all of which need a PCSX2 session to anchor. `.max`
+(AR Max / LZARI) is the one container still unsupported.
 
 ## Desktop app (optional)
 
@@ -89,4 +101,4 @@ ROM/ISO, saves, or audio** — only small reverse-engineered reference data (ser
 id→name maps, item descriptions) the editor needs to show meaningful labels. That's
 interoperability data, not the game.
 
-Made by **Sparda**. · **v1.1.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
+Made by **Sparda**. · **v1.2.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).

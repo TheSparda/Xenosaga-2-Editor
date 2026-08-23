@@ -29,6 +29,7 @@ async function idbDel(k){const db=await _idb();return new Promise((res,rej)=>{co
 let toastT;
 function toast(msg,err){const t=$("#toast");if(!t)return;t.textContent=msg;t.className="show"+(err?" err":"");
   clearTimeout(toastT);toastT=setTimeout(()=>t.className=t.className.replace("show",""),2600);}
+window.toast=toast;   // iso.js and ref.js call this; don't leave it to implicit globals
 
 // ---- shared modal: review-changes + searchable picker ----
 function _modalEls(){return{el:$("#modal"),title:$("#modalTitle"),body:$("#modalBody"),ok:$("#modalOk"),cancel:$("#modalCancel")};}
@@ -361,7 +362,7 @@ async function pickupShared(){
 }
 
 // ---- PWA staleness self-heal (B17) ----
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 $("#forceRefresh")?.addEventListener("click", async ()=>{
   try{ if("serviceWorker" in navigator)
     for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
