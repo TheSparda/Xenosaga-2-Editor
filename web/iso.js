@@ -105,15 +105,19 @@
     loadEnemy();
   }
 
-  function cellHtml(lbl,off,w,val){
+  // `val` is the staged (current) value shown in the box; `def` is the value on
+  // disc. They differ after a staged rebalance or when revisiting an edited enemy —
+  // keeping them separate is what makes the amber highlight and per-field ↺ mean
+  // "differs from the disc" rather than "differs from whatever was last rendered".
+  function cellHtml(lbl,off,w,val,def){
     return '<td><div class="fl">'+lbl+'</div><span><input type="number" min="0" autocomplete="off" '+
-      'data-f="'+lbl+'" data-o="'+off+'" data-w="'+w+'" data-def="'+val+'" value="'+val+'"></span></td>';
+      'data-f="'+lbl+'" data-o="'+off+'" data-w="'+w+'" data-def="'+def+'" value="'+val+'"></span></td>';
   }
   function loadEnemy(){
     const i=+$("#esel").value;
-    $("#erow").innerHTML=SFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(S,i,o,w))).join("");
+    $("#erow").innerHTML=SFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
     $("#erow2").innerHTML='<td><div class="fl">rewards</div></td>'+
-      RFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(R,i,o,w))).join("")+
+      RFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("")+
       '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+(cat[i]?cat[i].id:"?")+'</span></td>';
     document.querySelectorAll("#erow input, #erow2 input").forEach(inp=>{
       let btn=inp.nextElementSibling;

@@ -231,6 +231,105 @@ def cmd_strings(a):
     for m in _re.finditer(rb"[\x20-\x7e]{%d,}" % a.min, data):
         print(f"{a.off + m.start():08X}: {m.group().decode()}")
 
+def _enemy_field_names():
+    return [f[0] for f in F.ENEMY_FIELDS + F.REWARD_FIELDS]
+
+def cmd_enemy_list(a):
+    """Print the whole bestiary straight from the disc (optionally as CSV)."""
+    names = F.enemy_names()
+    cols = _enemy_field_names()
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        rows = [(i, names.get(i, "?"), read_enemy(iso, i)) for i in range(F.ENEMY_COUNT)]
+    if a.csv:
+        print(",".join(["idx", "name"] + cols))
+        for i, name, rec in rows:
+            print(",".join([str(i), '"' + name.replace('"', '""') + '"']
+                           + [str(rec[c]) for c in cols]))
+        return
+    print(f"{'idx':>3}  {'name':<24} " + " ".join(f"{c:>8}" for c in cols))
+    for i, name, rec in rows:
+        print(f"{i:>3}  {name:<24} " + " ".join(f"{rec[c]:>8}" for c in cols))
+
+def cmd_enemy_get(a):
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        rec = read_enemy(iso, a.index)
+    name = F.enemy_names().get(a.index, "?")
+    print(f"{a.index:03d} · {name}")
+    for c in _enemy_field_names():
+        print(f"  {c:<5} {rec[c]:>10,}")
+
+def cmd_enemy_set(a):
+    """Write named fields of one enemy record: --set HP=5000 --set EXP=1200."""
+    edits = {}
+    for pair in a.set or []:
+        if "=" not in pair:
+            raise SystemExit(f"--set expects FIELD=VALUE, got {pair!r}")
+        k, v = pair.split("=", 1)
+        k = k.strip().upper()
+        if k not in _enemy_field_names():
+            raise SystemExit(f"unknown field {k!r}; known: {', '.join(_enemy_field_names())}")
+        edits[k] = int(v, 0)
+    if not edits:
+        raise SystemExit("nothing to do — pass at least one --set FIELD=VALUE")
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        before = read_enemy(iso, a.index)
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        n = write_enemy(iso, a.index, edits)
+    with Iso(a.iso) as iso:
+        after = read_enemy(iso, a.index)
+    name = F.enemy_names().get(a.index, "?")
+    print(f"wrote {n} field(s) to {a.index:03d} · {name}")
+    for k in edits:
+        print(f"  {k:<5} {before[k]:>10,} -> {after[k]:>10,}")
+        if after[k] != max(0, min(edits[k], 0xFFFFFFFF)):
+            print(f"  ! {k} did not read back as requested (clamped to field width?)")
+
+def cmd_enemy_rebalance(a):
+    """Scale HP and/or rewards across the whole bestiary — the disc-wide fix for
+    the game's HP bloat. Bosses (enemy id >= 561) are skipped unless --bosses."""
+    cat = F.enemy_catalog()
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        base = {i: read_enemy(iso, i) for i in range(F.ENEMY_COUNT)}
+    plan = {}
+    for i, rec in base.items():
+        if not a.bosses and (cat.get(i, {}).get("id") or 0) >= 561:
+            continue
+        edits = {}
+        if a.hp != 100:
+            edits["HP"] = max(1, round(rec["HP"] * a.hp / 100))
+        if a.rewards != 100:
+            for k in ("EXP", "SP", "CP"):
+                edits[k] = round(rec[k] * a.rewards / 100)
+        if edits:
+            plan[i] = edits
+    if not plan:
+        print("nothing to change (both scales are 100%)")
+        return
+    print(f"{len(plan)} record(s) to change  (HP {a.hp}% · rewards {a.rewards}%"
+          f"{' · incl. bosses' if a.bosses else ''})")
+    if a.dry_run:
+        names = F.enemy_names()
+        for i, e in list(plan.items())[:a.show]:
+            deltas = ", ".join(f"{k} {base[i][k]:,}->{v:,}" for k, v in e.items())
+            print(f"  {i:03d} {names.get(i,'?'):<22} {deltas}")
+        if len(plan) > a.show:
+            print(f"  … {len(plan) - a.show} more (raise --show to see them)")
+        print("dry run — nothing written. Re-run without --dry-run to apply.")
+        return
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    n = 0
+    with Iso(a.iso, write=True) as iso:
+        for i, e in plan.items():
+            n += write_enemy(iso, i, e)
+    print(f"wrote {n} field(s) across {len(plan)} record(s)")
+
 def cmd_dump_region(a):
     with Iso(a.iso) as iso:
         data = iso.read(a.off, a.len)
@@ -269,6 +368,30 @@ def main():
     sp.add_argument("--len", type=lambda x: int(x, 0), default=0x2000)
     sp.add_argument("--min", type=int, default=2, help="min run length")
     sp.set_defaults(fn=cmd_strings)
+
+    sp = sub.add_parser("enemies", help="list every enemy's stats + rewards from the disc")
+    sp.add_argument("iso"); sp.add_argument("--csv", action="store_true")
+    sp.set_defaults(fn=cmd_enemy_list)
+
+    sp = sub.add_parser("enemy", help="show one enemy record")
+    sp.add_argument("iso"); sp.add_argument("index", type=lambda x: int(x, 0))
+    sp.set_defaults(fn=cmd_enemy_get)
+
+    sp = sub.add_parser("enemy-set", help="write fields of one enemy (e.g. --set HP=5000)")
+    sp.add_argument("iso"); sp.add_argument("index", type=lambda x: int(x, 0))
+    sp.add_argument("--set", action="append", metavar="FIELD=VALUE")
+    sp.add_argument("--backup", action="store_true", help="copy the ISO to .bak first")
+    sp.set_defaults(fn=cmd_enemy_set)
+
+    sp = sub.add_parser("rebalance", help="scale HP / rewards across all enemies")
+    sp.add_argument("iso")
+    sp.add_argument("--hp", type=float, default=100, help="HP percent (50 = halve)")
+    sp.add_argument("--rewards", type=float, default=100, help="EXP/SP/CP percent")
+    sp.add_argument("--bosses", action="store_true", help="include bosses (enemy id 561+)")
+    sp.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
+    sp.add_argument("--show", type=int, default=20, help="rows to print in a dry run")
+    sp.add_argument("--backup", action="store_true", help="copy the ISO to .bak first")
+    sp.set_defaults(fn=cmd_enemy_rebalance)
 
     sp = sub.add_parser("dump-region", help="hex-dump a byte range")
     sp.add_argument("iso")
