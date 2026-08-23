@@ -9,7 +9,7 @@ Then open the printed http://127.0.0.1:PORT URL in any browser.
 This is the scaffold: it identifies discs, inventories saves, and shows the
 reverse-engineering roadmap. Editable tables land here as x2patch / x2save grow.
 """
-import json, os, sys, webbrowser, html
+import json, os, sys, time, webbrowser, html
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -19,25 +19,55 @@ import x2fields as F
 
 DEFAULT_PORT = 8748          # S3 uses 8747; keep X2 on its own port
 SCAN_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-ISO_PATH = None
+ISO_PATH = None              # explicit disc image from argv (overrides discovery)
+
+# Scanning means opening every disc image under the project folder and decoding
+# every save; the page and both APIs need it, so memoize with a short TTL instead
+# of redoing multi-GB file opens on each request.
+_CACHE_TTL = 10.0
+_cache = {}
+
+def cached(key, produce):
+    hit = _cache.get(key)
+    now = time.monotonic()
+    if hit and now - hit[0] < _CACHE_TTL:
+        return hit[1]
+    val = produce()
+    _cache[key] = (now, val)
+    return val
+
+def invalidate():
+    """Drop memoized scans — call after any write so the UI re-reads from disk."""
+    _cache.clear()
 
 
 def scan_isos(root):
     found = []
+    seen = set()
+    candidates = []
+    if ISO_PATH:
+        candidates.append(os.path.abspath(ISO_PATH))
     for dirpath, _dirs, files in os.walk(root):
         if os.sep + ".git" in dirpath:
             continue
         for name in files:
             if name.lower().endswith((".iso", ".bin", ".img")):
-                p = os.path.join(dirpath, name)
-                try:
-                    with X.Iso(p) as iso:
-                        ok, serial, disc, vol = X.check_version(iso)
-                    found.append({"path": p, "name": name, "ok": ok,
-                                  "serial": serial, "disc": disc, "volume": vol})
-                except OSError:
-                    pass
-    found.sort(key=lambda d: (d["disc"] or 9, d["name"]))
+                candidates.append(os.path.join(dirpath, name))
+    for p in candidates:
+        key = os.path.abspath(p)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            with X.Iso(p) as iso:
+                ok, serial, disc, vol = X.check_version(iso)
+            found.append({"path": p, "name": os.path.basename(p), "ok": ok,
+                          "serial": serial, "disc": disc, "volume": vol,
+                          "explicit": key == os.path.abspath(ISO_PATH) if ISO_PATH else False})
+        except OSError:
+            pass
+    # explicit disc first, then by disc number
+    found.sort(key=lambda d: (not d["explicit"], d["disc"] or 9, d["name"]))
     return found
 
 
@@ -369,16 +399,21 @@ if($('#enemysel')){
 </body></html>"""
 
 
+def all_isos():
+    return cached("isos", lambda: scan_isos(SCAN_ROOT))
+
+
 def disc1_iso():
-    """Path of the recognized disc-1 ISO under the project folder, or None."""
-    for d in scan_isos(SCAN_ROOT):
+    """Path of the disc-1 image to edit: the one passed on the command line if it
+    is a valid disc 1, else the first recognized disc 1 found under the project
+    folder. Returns None if neither is available."""
+    for d in all_isos():
         if d["ok"] and d["disc"] == 1:
             return d["path"]
     return None
 
 
-def decodable_saves():
-    """Saves under Saves/ that currently decode, in scan order."""
+def _decodable_saves():
     out = []
     for s in SV.scan_saves(os.path.join(SCAN_ROOT, "Saves")):
         try:
@@ -389,8 +424,18 @@ def decodable_saves():
     return out
 
 
+def decodable_saves():
+    """Saves under Saves/ that currently decode, in scan order (memoized)."""
+    return cached("saves", _decodable_saves)
+
+
+def all_saves():
+    return cached("allsaves",
+                  lambda: SV.scan_saves(os.path.join(SCAN_ROOT, "Saves")))
+
+
 def render():
-    isos = scan_isos(SCAN_ROOT)
+    isos = all_isos()
     if isos:
         rows = "".join(
             f"<tr><td>{'<span class=ok>OK</span>' if d['ok'] else '<span class=bad>?</span>'}</td>"
@@ -400,7 +445,7 @@ def render():
     else:
         iso_table = "<p class='bad'>No disc images found under the project folder.</p>"
 
-    saves = SV.scan_saves(os.path.join(SCAN_ROOT, "Saves"))
+    saves = all_saves()
     if saves:
         rows = "".join(
             f"<tr><td><span class=pill>{s['format']}</span></td>"
@@ -455,7 +500,29 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass  # quiet
 
+    # The server binds loopback, but a hostile web page can still reach a
+    # loopback port by pointing a DNS name at 127.0.0.1 (DNS rebinding) — and
+    # these endpoints write to the user's saves and disc image. Requiring a
+    # literal-loopback Host closes that: browsers send the name they resolved.
+    def _host_ok(self):
+        host = (self.headers.get("Host") or "").strip()
+        if not host:
+            return False
+        if host.startswith("["):                      # [::1]:port
+            name = host[1:host.find("]")] if "]" in host else ""
+        else:
+            name = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+        return name in ("127.0.0.1", "localhost", "::1")
+
+    def _guard(self):
+        if self._host_ok():
+            return True
+        self.send_error(403, "Host not allowed (use http://127.0.0.1)")
+        return False
+
     def do_GET(self):
+        if not self._guard():
+            return
         route = self.path.split("?", 1)[0]
         if route in ("/", "/index.html"):
             body = render().encode("utf-8")
@@ -493,8 +560,8 @@ class Handler(BaseHTTPRequestHandler):
             data = {
                 "game": F.GAME_NAME,
                 "serials": F.SERIALS,
-                "isos": scan_isos(SCAN_ROOT),
-                "saves": SV.scan_saves(os.path.join(SCAN_ROOT, "Saves")),
+                "isos": all_isos(),
+                "saves": all_saves(),
             }
             body = json.dumps(data).encode("utf-8")
             self.send_response(200)
@@ -514,6 +581,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
+        if not self._guard():
+            return
         if self.path == "/api/enemy_write":
             try:
                 n = int(self.headers.get("Content-Length", 0))
@@ -526,6 +595,7 @@ class Handler(BaseHTTPRequestHandler):
                     X.backup(path); did_bak = True
                 with X.Iso(path, write=True) as iso:
                     count = X.write_enemy(iso, int(req["i"]), req.get("edits", {}) or {})
+                invalidate()
                 self._json({"ok": True, "count": count, "backup": did_bak})
             except Exception as e:
                 self._json({"ok": False, "error": str(e)})
@@ -544,6 +614,7 @@ class Handler(BaseHTTPRequestHandler):
                 norm["gold"] = edits["gold"]
             count = (1 if "gold" in edits else 0) + sum(len(v) for v in chars.values())
             SV.write_save(s["path"], norm, fmt=s["format"])
+            invalidate()
             self._json({"ok": True, "count": count})
         except Exception as e:
             self._json({"ok": False, "error": str(e)}, code=200)
@@ -557,6 +628,9 @@ def main():
         port = int(args.pop())
     if args:
         ISO_PATH = args[0]
+        if not os.path.exists(ISO_PATH):
+            print(f"! {ISO_PATH!r} does not exist — falling back to disc discovery.")
+            ISO_PATH = None
 
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
