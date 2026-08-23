@@ -4,10 +4,9 @@
 // every byte layout + container handling comes from one engine. Nothing is uploaded.
 
 const SAVE_PATH = "/save.bin";
-// character-sheet columns: [header, decoded-field key]
-const SHEET = [["Lvl","Level"],["HP","HP"],["Cur HP","Current HP"],["EP","EP"],
-  ["Str","Str"],["Vit","Vit"],["EAtk","Eatk"],["EDef","Edef"],["Dex","Dex"],["Eva","Eva"],["Agl","Agl"]];
-const CAPS = {Level:99,HP:9999,"Current HP":9999,EP:99,Str:999,Vit:999,Eatk:999,Edef:999,Dex:99,Eva:99,Agl:99};
+// Character-sheet columns ([header, field key]) and per-field caps both come from
+// the engine at boot — x2fields.py is the only place they are written down.
+let SHEET = [], CAPS = {};
 
 let pyReady = null, PY = null, REF = null, curSave = null, origName = "save.bin";
 let fileHandle = null;
@@ -92,6 +91,9 @@ def load_reference():
     cat = F.es_equip_catalog()
     return json.dumps({
       "roster": F.ROSTER,
+      "sheetCols": F.SHEET_COLS,
+      "caps": F.CHAR_CAPS,
+      "esFields": [l for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS],
       "esEquip": {str(i): v["name"] for i, v in cat.items()},
       "esEquipList": [{"id": i, "name": v["name"], "desc": v.get("desc","")} for i, v in sorted(cat.items())],
     })
@@ -117,6 +119,7 @@ def apply_edits(path, payload, slot=0):
     return json.dumps(x2save.write_save(path, edits, make_backup=False, slot=slot))
 `);
   REF = JSON.parse(py.runPython("load_reference()"));
+  SHEET = REF.sheetCols; CAPS = REF.caps;
   PY = py; bootProgress(100,"Ready — load a save");
   $("#pickBtn").disabled = false;
   return py;
@@ -172,8 +175,10 @@ function renderSheet(d){
     rows+='<tr class="u1'+es+'"><td class="name" rowspan="'+(c.is_es?3:2)+'">'+esc(c.name)+'</td>'+GA.map(k=>cell(c,idx,k)).join("")+'</tr>';
     rows+='<tr class="u'+(c.is_es?"2m":"2")+es+'">'+GB.map(k=>cell(c,idx,k)).join("")+'<td></td>'+'</tr>';
     if(c.is_es){
-      const gear=[["Gear 1","Gear 1"],["Gear 2","Gear 2"],["Gear 3","Gear 3"],["Gear 4","Gear 4"]];
-      rows+='<tr class="u2 es gearrow">'+gear.map(k=>cell(c,idx,k)).join("")+'<td></td><td></td>'+'</tr>';
+      const gear=(REF.esFields||[]).map(l=>[l,l]);
+      const pad=Math.max(0,GA.length-gear.length);
+      rows+='<tr class="u2 es gearrow">'+gear.map(k=>cell(c,idx,k)).join("")+
+        '<td></td>'.repeat(pad)+'</tr>';
     }
   });
   const slotBar = curSlots.length>1

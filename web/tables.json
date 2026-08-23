@@ -1,0 +1,88 @@
+{
+  "_comment": "GENERATED from Editor/x2fields.py by Editor/gen_web_tables.py \u2014 do not edit by hand; run the generator instead.",
+  "bossIdMin": 561,
+  "character": {
+    "base": 4468,
+    "caps": {
+      "Agl": 99,
+      "Current HP": 9999,
+      "Dex": 99,
+      "EP": 99,
+      "Eatk": 999,
+      "Edef": 999,
+      "Eva": 99,
+      "HP": 9999,
+      "Level": 99,
+      "Str": 999,
+      "Vit": 999
+    },
+    "count": 15,
+    "esFields": [
+      ["Gear 1", 134, 2],
+      ["Gear 2", 136, 2],
+      ["Gear 3", 138, 2],
+      ["Gear 4", 144, 2]
+    ],
+    "fields": [
+      ["Character id", 0, 2],
+      ["HP", 2, 2],
+      ["EP", 6, 2],
+      ["Str", 8, 2],
+      ["Vit", 10, 2],
+      ["Eatk", 12, 2],
+      ["Edef", 14, 2],
+      ["Dex", 16, 1],
+      ["Eva", 17, 1],
+      ["Agl", 18, 1],
+      ["Level", 19, 1],
+      ["Current HP", 92, 2]
+    ],
+    "sheetCols": [
+      ["Lvl", "Level"],
+      ["HP", "HP"],
+      ["Cur HP", "Current HP"],
+      ["EP", "EP"],
+      ["Str", "Str"],
+      ["Vit", "Vit"],
+      ["EAtk", "Eatk"],
+      ["EDef", "Edef"],
+      ["Dex", "Dex"],
+      ["Eva", "Eva"],
+      ["Agl", "Agl"]
+    ],
+    "stride": 264
+  },
+  "enemy": {
+    "base": 33551856,
+    "count": 125,
+    "fields": [
+      ["HP", 54, 4],
+      ["STR", 60, 2],
+      ["VIT", 62, 2],
+      ["EATK", 64, 2],
+      ["EDEF", 66, 2],
+      ["DEX", 68, 1],
+      ["EVA", 69, 1],
+      ["AGL", 70, 1]
+    ],
+    "idOff": 82,
+    "namesOff": 33563408,
+    "stride": 92
+  },
+  "game": "Xenosaga Episode II - Jenseits von Gut und Boese",
+  "gamedataSize": 20832,
+  "reward": {
+    "base": 33622348,
+    "fields": [
+      ["EXP", 0, 4],
+      ["SP", 4, 2],
+      ["CP", 6, 2]
+    ],
+    "stride": 16
+  },
+  "serials": {
+    "SLUS-20892": 1,
+    "SLUS-21133": 2
+  },
+  "volumeId": "XENOSAGA_II"
+}

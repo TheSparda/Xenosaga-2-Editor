@@ -167,6 +167,15 @@ def read_enemy(iso, i):
             out[lbl] = int.from_bytes(iso.read(base + off, w), "little")
     return out
 
+def read_enemy_id(iso, i):
+    """The record's own enemy id (+0x52). Read from the disc rather than taken
+    from the shipped catalog so a partly-modified disc still classifies right."""
+    off = F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE + F.ENEMY_ID_OFF
+    return int.from_bytes(iso.read(off, 2), "little")
+
+def is_boss(enemy_id):
+    return enemy_id >= F.BOSS_ID_MIN
+
 def write_enemy(iso, i, edits):
     """Write edited fields for enemy record `i` (stats and/or rewards).
     edits = {field_label: value}, clamped to field width. Returns fields written."""
@@ -240,23 +249,26 @@ def cmd_enemy_list(a):
     cols = _enemy_field_names()
     with Iso(a.iso) as iso:
         require_version(iso)
-        rows = [(i, names.get(i, "?"), read_enemy(iso, i)) for i in range(F.ENEMY_COUNT)]
+        rows = [(i, names.get(i, "?"), read_enemy_id(iso, i), read_enemy(iso, i))
+                for i in range(F.ENEMY_COUNT)]
     if a.csv:
-        print(",".join(["idx", "name"] + cols))
-        for i, name, rec in rows:
-            print(",".join([str(i), '"' + name.replace('"', '""') + '"']
+        print(",".join(["idx", "name", "id"] + cols))
+        for i, name, eid, rec in rows:
+            print(",".join([str(i), '"' + name.replace('"', '""') + '"', str(eid)]
                            + [str(rec[c]) for c in cols]))
         return
-    print(f"{'idx':>3}  {'name':<24} " + " ".join(f"{c:>8}" for c in cols))
-    for i, name, rec in rows:
-        print(f"{i:>3}  {name:<24} " + " ".join(f"{rec[c]:>8}" for c in cols))
+    print(f"{'idx':>3}  {'name':<24} {'id':>4} " + " ".join(f"{c:>8}" for c in cols))
+    for i, name, eid, rec in rows:
+        print(f"{i:>3}  {name:<24} {eid:>4} " + " ".join(f"{rec[c]:>8}" for c in cols))
 
 def cmd_enemy_get(a):
     with Iso(a.iso) as iso:
         require_version(iso)
         rec = read_enemy(iso, a.index)
+        eid = read_enemy_id(iso, a.index)
     name = F.enemy_names().get(a.index, "?")
-    print(f"{a.index:03d} · {name}")
+    print(f"{a.index:03d} · {name}   (enemy id {eid}"
+          f"{', boss' if is_boss(eid) else ''})")
     for c in _enemy_field_names():
         print(f"  {c:<5} {rec[c]:>10,}")
 
@@ -292,13 +304,13 @@ def cmd_enemy_set(a):
 def cmd_enemy_rebalance(a):
     """Scale HP and/or rewards across the whole bestiary — the disc-wide fix for
     the game's HP bloat. Bosses (enemy id >= 561) are skipped unless --bosses."""
-    cat = F.enemy_catalog()
     with Iso(a.iso) as iso:
         require_version(iso)
         base = {i: read_enemy(iso, i) for i in range(F.ENEMY_COUNT)}
+        ids = {i: read_enemy_id(iso, i) for i in range(F.ENEMY_COUNT)}
     plan = {}
     for i, rec in base.items():
-        if not a.bosses and (cat.get(i, {}).get("id") or 0) >= 561:
+        if not a.bosses and is_boss(ids[i]):
             continue
         edits = {}
         if a.hp != 100:

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # the engines are stdlib-only on purpose; prove that across the range
+        # of interpreters people actually have installed
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: No third-party imports (stdlib only)
+        run: |
+          if grep -rnE '^\s*(import|from)\s+(numpy|pandas|requests|capstone|pytest)' Editor tests; then
+            echo "::error::the engines must stay stdlib-only"; exit 1
+          fi
+
+      - name: Compile every module
+        run: python -m compileall -q Editor tests make_release.py
+
+      - name: web/tables.json is in sync with x2fields.py
+        run: python Editor/gen_web_tables.py --check
+
+      - name: Test suite
+        run: python -m unittest discover -s tests -t tests -v
+
+      - name: Release bundle builds
+        run: python make_release.py ci-test
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Front-end parses
+        run: for f in web/*.js; do node --check "$f" || exit 1; done
+
+      - name: JSON is well formed
+        run: |
+          for f in web/*.json web/*.webmanifest Editor/*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" || exit 1
+          done
+
+      - name: Everything the service worker precaches exists
+        run: |
+          python3 - <<'PY'
+          import re, os, sys
+          src = open("web/sw.js").read()
+          block = re.search(r"const SHELL = \[(.*?)\];", src, re.S).group(1)
+          missing = []
+          for url in re.findall(r'"([^"]+)"', block):
+              if url == "./":
+                  continue
+              p = os.path.normpath(os.path.join("web", url))
+              if not os.path.exists(p):
+                  missing.append(url)
+          if missing:
+              print("::error::service worker precaches missing files: " + ", ".join(missing))
+              sys.exit(1)
+          print("all precached URLs exist")
+          PY
+
+      - name: Script tags and the version string agree
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          html = open("web/index.html").read()
+          app = open("web/app.js").read()
+          sw = open("web/sw.js").read()
+          page = re.search(r'id="appver">([^<]+)<', html).group(1).strip()
+          in_app = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', app).group(1)
+          in_sw = re.search(r'CACHE\s*=\s*"x2editor-v([^"]+)"', sw).group(1)
+          bad = [f"index.html={page}", f"app.js={in_app}", f"sw.js={in_sw}"]
+          if len({page, in_app, in_sw}) != 1:
+              print("::error::version strings disagree: " + ", ".join(bad))
+              sys.exit(1)
+          for tag in re.findall(r'<script src="([^"]+)"', html):
+              if not tag.startswith("http"):
+                  import os
+                  assert os.path.exists(os.path.join("web", tag)), tag
+          print("version " + page + " consistent")
+          PY

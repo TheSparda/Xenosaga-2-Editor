@@ -5,13 +5,25 @@
 // Table derivation: Editor/Xenosaga2_ISO_offsets.md (74/76 exact guide matches).
 (function(){
   const FS = "showOpenFilePicker" in window;
-  // verified tables (disc 1) — keep in sync with x2fields
-  const SBASE=0x1FFF5F0, STRIDE=0x5C, COUNT=125;          // stat records
-  const RBASE=0x201094C, RSTRIDE=0x10;                    // rewards rows
-  const SFIELDS=[["HP",0x36,4],["STR",0x3C,2],["VIT",0x3E,2],["EATK",0x40,2],
-                 ["EDEF",0x42,2],["DEX",0x44,1],["EVA",0x45,1],["AGL",0x46,1]];
-  const RFIELDS=[["EXP",0x00,4],["SP",0x04,2],["CP",0x06,2]];
-  const SEND=SBASE+COUNT*STRIDE, REND=RBASE+COUNT*RSTRIDE;
+  // Verified disc-1 tables. These are byte offsets we write into a 4.6 GB image,
+  // so they are NOT duplicated here: tables.json is generated from
+  // Editor/x2fields.py (and CI fails if it drifts). If the fetch fails we refuse
+  // to open a disc rather than fall back to a possibly-stale copy.
+  let SBASE, STRIDE, COUNT, RBASE, RSTRIDE, SFIELDS, RFIELDS, SEND, REND, BOSS_ID_MIN, ID_OFF;
+  let TABLES=null;
+
+  async function loadTables(){
+    if(TABLES) return TABLES;
+    const r=await fetch("tables.json",{cache:"no-cache"});
+    if(!r.ok) throw new Error("tables.json ("+r.status+")");
+    const t=await r.json();
+    SBASE=t.enemy.base; STRIDE=t.enemy.stride; COUNT=t.enemy.count;
+    SFIELDS=t.enemy.fields; ID_OFF=t.enemy.idOff;
+    RBASE=t.reward.base; RSTRIDE=t.reward.stride; RFIELDS=t.reward.fields;
+    SEND=SBASE+COUNT*STRIDE; REND=RBASE+COUNT*RSTRIDE;
+    BOSS_ID_MIN=t.bossIdMin;
+    return (TABLES=t);
+  }
 
   let handle=null, cat=null, backedUp=false;
   // two independent slices: {buf, orig, dv, base}
@@ -39,6 +51,9 @@
     const root=$("#isoRoot"); if(root.dataset.init) return; root.dataset.init="1";
     if(!FS){ root.innerHTML='<div class="card blocked"><b>ISO editing needs desktop Chrome / Edge / Brave / Opera</b>'+
       ' (File System Access API). The Save editor works everywhere, including mobile.</div>'; return; }
+    try{ await loadTables(); }
+    catch(e){ root.innerHTML='<div class="card blocked"><b>Could not load the disc table definitions</b>'+
+      ' — '+esc(String(e))+'. Try ↻ Force refresh in the footer.</div>'; root.dataset.init=""; return; }
     await loadCat();
     root.innerHTML='<div class="card"><h2>1 · Open disc 1 ISO</h2>'+
       '<button id="isoPick" class="btn primary">Choose ISO…</button> '+
@@ -93,7 +108,7 @@
       '<div class="toolbar">'+
       '<label>HP</label> <input type="number" id="sclHP" value="100" min="1" max="1000" style="width:8ch">%'+
       '<label style="margin-left:10px">EXP/SP/CP</label> <input type="number" id="sclRW" value="100" min="1" max="1000" style="width:8ch">%'+
-      '<label style="margin-left:10px"><input type="checkbox" id="sclBoss"> bosses too (IDs 561+)</label>'+
+      '<label style="margin-left:10px"><input type="checkbox" id="sclBoss"> bosses too (IDs '+BOSS_ID_MIN+'+)</label>'+
       '<span style="flex:1"></span>'+
       '<button id="sclApply" class="btn primary">Stage rebalance</button></div>'+
       '<p class="note">Staged into the same pending-changes set above — review everything before writing. '+
@@ -118,7 +133,7 @@
     $("#erow").innerHTML=SFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
     $("#erow2").innerHTML='<td><div class="fl">rewards</div></td>'+
       RFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("")+
-      '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+(cat[i]?cat[i].id:"?")+'</span></td>';
+      '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+get(S,i,ID_OFF,2)+'</span></td>';
     document.querySelectorAll("#erow input, #erow2 input").forEach(inp=>{
       let btn=inp.nextElementSibling;
       if(!btn||!btn.classList.contains("restore")){btn=document.createElement("button");btn.type="button";
@@ -137,15 +152,16 @@
     const hpP=+$("#sclHP").value/100, rwP=+$("#sclRW").value/100;
     const bosses=$("#sclBoss").checked;
     if(!(hpP>0)||!(rwP>0)) return;
+    const hpf=SFIELDS.find(f=>f[0]==="HP");
     let n=0;
     for(let i=0;i<COUNT;i++){
-      const id=cat[i]?cat[i].id:0;
-      if(!bosses && id>=561) continue;          // fields+grunts only unless opted in
-      if(hpP!==1){const hp=getOrig(S,i,0x36,4);put(S,i,0x36,4,Math.max(1,Math.round(hp*hpP)));n++;}
+      // read the id off the disc, not the vanilla catalog, so a partly-modified
+      // disc still classifies correctly
+      if(!bosses && get(S,i,ID_OFF,2)>=BOSS_ID_MIN) continue;
+      if(hpP!==1&&hpf){const [,o,w]=hpf;
+        put(S,i,o,w,Math.max(1,Math.round(getOrig(S,i,o,w)*hpP)));n++;}
       if(rwP!==1){
-        put(R,i,0x00,4,Math.round(getOrig(R,i,0x00,4)*rwP));
-        put(R,i,0x04,2,Math.round(getOrig(R,i,0x04,2)*rwP));
-        put(R,i,0x06,2,Math.round(getOrig(R,i,0x06,2)*rwP));n++;
+        RFIELDS.forEach(([,o,w])=>put(R,i,o,w,Math.round(getOrig(R,i,o,w)*rwP)));n++;
       }
     }
     loadEnemy();epending();
