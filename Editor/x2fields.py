@@ -191,7 +191,102 @@ def enemy_names():
     """{int idx: name} for the 125 enemy records (Ai Apaec .. Dark Erde Kaiser)."""
     return {i: v["name"] for i, v in enemy_catalog().items()}
 
+# Per-field write caps. Widths allow more, but nothing on the disc exceeds these
+# (HP tops out at Proto Omega's 999,999; the u8 stats are 1..255 by width), and
+# writing past the game's own range risks display/overflow bugs.
+ENEMY_FIELD_CAPS = {
+    "HP": 999999, "STR": 999, "VIT": 999, "EATK": 999, "EDEF": 999,
+    "DEX": 255, "EVA": 255, "AGL": 255,
+    "EXP": 999999, "SP": 9999, "CP": 9999,
+}
+
+# Byte ranges inside the 0x5C stat record that are NOT decoded yet — 65 bytes.
+# This is where the break/zone data most likely lives (see the combo-system
+# section of Xenosaga2_ISO_offsets.md); `x2patch.py enemy-columns` profiles them.
+ENEMY_UNMAPPED = [(0x00, 0x04), (0x0C, 0x36), (0x47, 0x52), (0x54, 0x5C)]
+
+def enemy_unmapped_offsets():
+    """Every still-unknown byte offset within a stat record, ascending."""
+    return [o for a, b in ENEMY_UNMAPPED for o in range(a, b)]
+
+_DEBUG_NAME = None
+
+def is_dummy_record(rec):
+    """True for placeholder/debug records that no rebalance should touch.
+
+    Two signatures, both visible in the verified catalog: the disc's internal
+    debug names (GNO013, CRE006, UMA013, MON001-4, BOS026-29 — EUC-JP full-width
+    on disc, ASCII once decoded), and unused rows carrying a token EXP value with
+    no SP/CP at all (e.g. Testud II: 8,000 HP but 79 EXP). Real scripted fights
+    award 0 EXP, so the token-EXP rule deliberately requires 0 < EXP < 100."""
+    global _DEBUG_NAME
+    if _DEBUG_NAME is None:
+        import re
+        _DEBUG_NAME = re.compile(r"^[A-Z]{3}\d{3}$")
+    if _DEBUG_NAME.match(str(rec.get("name", "")).strip()):
+        return True
+    return 0 < rec.get("exp", 0) < 100 and not rec.get("sp") and not rec.get("cp")
+
+# ---------------------------------------------------------------------------
+# BATTLE-PACING PROFILES (combo-system tuning over the verified tables).
+#
+# Ep. II's stock -> break -> boost loop is the only efficient way to fight, and
+# the loop costs turns before it pays out: bank stocks (up to 3), hit the enemy's
+# exact weak-zone sequence to Break (~x1.5 damage, AIR/DOWN doubles), then spend
+# the shared Boost gauge to chain the rest of the party in before the Break
+# expires at end of turn. The mechanics themselves are code (not located yet —
+# tier 2 in the notes), but the *cost* of the ritual is almost entirely enemy
+# tuning: HP decides how many stocked chains a kill takes, VIT/EDEF decide
+# whether off-loop attacks do anything, AGL decides how often enemies interrupt
+# a setup, and SP/CP gate how fast the skill system opens up.
+#
+# Each profile scales verified fields by a percentage, per group. Groups are
+# split on the record's own HP (MAJOR_HP_THRESHOLD) because that is the one
+# boss-ness signal we can actually read off the disc — the enemy ID band mixes
+# late-game field Gnosis in with bosses, so it is not usable for this.
+# ---------------------------------------------------------------------------
+MAJOR_HP_THRESHOLD = 20000        # records at/above this scale as "major"
+
+PROFILES = {
+    "faster": {
+        "label": "Faster fights",
+        "note": "Keeps the combo loop, cuts the tax: fewer stocked chains per "
+                "kill and quicker skill unlocks. The safe default.",
+        "regular": {"HP": 45, "EXP": 150, "SP": 150, "CP": 150},
+        "major":   {"HP": 70, "EXP": 150, "SP": 150, "CP": 150},
+    },
+    "freer": {
+        "label": "Freer play",
+        "note": "Makes off-combo attacks viable — softer defenses so unbroken "
+                "damage lands, on top of a lighter HP cut.",
+        "regular": {"HP": 55, "VIT": 70, "EDEF": 70, "EXP": 150, "SP": 150, "CP": 150},
+        "major":   {"HP": 75, "VIT": 80, "EDEF": 80, "EXP": 150, "SP": 150, "CP": 150},
+    },
+    "deeper": {
+        "label": "Deeper challenge",
+        "note": "For players who like the loop: enemies hit harder and last "
+                "longer, but pay out much more.",
+        "regular": {"HP": 110, "STR": 115, "EATK": 115, "EXP": 200, "SP": 200, "CP": 200},
+        "major":   {"HP": 130, "STR": 115, "EATK": 115, "EXP": 200, "SP": 200, "CP": 200},
+    },
+    "grindcut": {
+        "label": "Reward-only",
+        "note": "Leaves every fight exactly as designed and only removes the "
+                "grind between them.",
+        "regular": {"EXP": 250, "SP": 250, "CP": 250},
+        "major":   {"EXP": 250, "SP": 250, "CP": 250},
+    },
+}
+
+def profile(name):
+    """Look up a battle-pacing profile by key. Raises KeyError with the valid list."""
+    try:
+        return PROFILES[name]
+    except KeyError:
+        raise KeyError(f"unknown profile {name!r} — choose from {', '.join(PROFILES)}")
+
 # --- ISO schema stubs (still to be reverse-engineered) ---------------------
 TECH_FIELDS = []      # Tech / Ether effect table (names @ISO ~0x2009B58)
 GEAR_FIELDS = []      # Weapon / armor / accessory table
 SHOP_FIELDS = []      # Shop stock / price tables
+ZONE_FIELDS = []      # Break / weak-zone data — hunt in ENEMY_UNMAPPED first

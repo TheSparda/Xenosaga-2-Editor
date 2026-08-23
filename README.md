@@ -15,8 +15,8 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   **`.cbs`** (CodeBreaker). Powered by the real Python engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — edit every enemy's **stats** (HP, STR,
   VIT, EATK, EDEF, DEX, EVA, AGL) and **battle rewards** (EXP, SP, CP) for all 125 enemy
-  records, written **in place** into your disc image — plus a one-click **global HP
-  rebalance** to fix the game's infamous HP bloat.
+  records, written **in place** into your disc image — plus one-click **battle-pacing
+  profiles** that retune what the stock→break→boost combo loop costs.
 - **Reference** — searchable bestiary (verified stats & rewards) + item / key-item /
   E.S.-gear catalogs extracted from the disc.
 - **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
@@ -29,15 +29,34 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
 ## Status
 
 Working today: **save editing** (gold + full character sheet, all containers), **ISO enemy
-stat/reward editing + global rebalance**, and the **Reference** bestiary. The enemy tables
-are verified against two independent sources — 74/76 enemies from a strategy guide match the
-disc **exactly** on an 8-field signature (see
+stat/reward editing + battle-pacing profiles**, and the **Reference** bestiary. The enemy
+tables are verified against two independent sources — 74/76 enemies from a strategy guide
+match the disc **exactly** on an 8-field signature (see
 [`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md) for the derivation).
 
 One caveat — the in-game **save checksum isn't cracked yet**, so an edited *save* may be
 rejected by the game until it is (ISO edits are unaffected). Skill/tech editing (power,
 targeting, cast times), party, and inventory editing are the next reverse-engineering
 targets.
+
+### Battle pacing (the combo system)
+
+Ep. II's stock→break→boost loop is the only efficient way to fight, and running the whole
+ritual for every enemy is what makes battles drag. The loop's *rules* live in code we
+haven't located yet, but what it **costs** is enemy tuning we can write, so the editor
+ships four profiles over the verified tables:
+
+| Profile | What it does |
+|---|---|
+| **Faster fights** | Keeps the loop, cuts the tax — fewer stocked chains per kill, quicker skill unlocks. The safe default. |
+| **Freer play** | Softer enemy defenses so off-combo attacks actually land. |
+| **Deeper challenge** | Enemies hit harder and last longer, but pay out much more. |
+| **Reward-only** | Fights exactly as designed; only the grind between them goes. |
+
+Records are grouped by their own HP (20,000+ = "major"), because the enemy ID band mixes
+late-game field enemies in with bosses. Debug/unused records are never touched. Next up:
+the per-enemy **weak-zone/break data** — the scanner for it is written and waiting on a
+disc (`x2patch.py enemy-columns` / `find-zones`, see the notes).
 
 ## Desktop app (optional)
 
@@ -52,8 +71,11 @@ CLI bits:
 ```bash
 cd Editor
 python3 x2patch.py verify "../ISO/....(Disc 1).iso"          # identify a disc
+python3 x2patch.py verify-tables "../ISO/....(Disc 1).iso"   # confirm/locate the enemy table
+python3 x2patch.py rebalance "../ISO/....(Disc 1).iso" --profile faster --dry-run
 python3 x2save.py "…/BASLUS-….PSV"                            # decode a save
 python3 x2save.py set "…/BASLUS-….PSV" --gold 9999999 --char 0 --level 99 --hp 9999
+python3 x2selftest.py                                         # engine self-test, no game data
 ```
 
 ## Layout
@@ -63,9 +85,11 @@ web/            hosted browser PWA (Pyodide save editor + ISO enemy editor + ref
 Editor/
   x2editor.py   local web app (desktop)
   x2save.py     save engine (psv/sps/cbs containers, decode + edit)
-  x2patch.py    ISO engine + CLI (verify / extract / enemy read-write)
-  x2fields.py   verified offsets + schema
+  x2patch.py    ISO engine + CLI (verify / extract / enemy read-write / rebalance / zone hunt)
+  x2fields.py   verified offsets + schema + battle-pacing profiles
+  x2selftest.py engine self-test against a synthetic disc (needs no game data)
   x2_*.json     reference data (items / key items / E.S. gear / verified bestiary)
+  x2_zones_template.csv      ground-truth template for the weak-zone hunt
   Xenosaga2_ISO_offsets.md   reverse-engineering notes
 ```
 
@@ -76,4 +100,4 @@ ROM/ISO, saves, or audio** — only small reverse-engineered reference data (ser
 id→name maps, item descriptions) the editor needs to show meaningful labels. That's
 interoperability data, not the game.
 
-Made by **Sparda**. · **v1.2.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
+Made by **Sparda**. · **v1.3.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).

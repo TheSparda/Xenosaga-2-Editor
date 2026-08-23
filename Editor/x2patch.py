@@ -62,6 +62,36 @@ class Iso:
             pos += chunk
         return -1
 
+    def find_multi(self, needles, start=0, end=None, chunk=1 << 22, stop_after=None):
+        """Locate several byte strings in ONE pass over the image (a 4.6 GB disc
+        costs ~a minute per pass, so multi-anchor searches must share one).
+        Yields (offset, needle) in chunk order. `stop_after` ends the scan once
+        that many hits have been yielded — callers that confirm a table early
+        (disc 1's tables sit ~33 MB in) should use it."""
+        end = self.size if end is None else min(end, self.size)
+        overlap = max(len(n) for n in needles) - 1
+        pos, carry, hits = start, b"", 0
+        self.f.seek(pos)
+        while pos < end:
+            buf = carry + self.f.read(min(chunk, end - pos))
+            origin = pos - len(carry)
+            found = []
+            for n in needles:
+                i = buf.find(n)
+                while i != -1:
+                    # a match lying entirely inside the carried-over tail was
+                    # already reported for the previous chunk — don't re-yield it
+                    if i + len(n) > len(carry):
+                        found.append((origin + i, n))
+                    i = buf.find(n, i + 1)
+            for off, n in sorted(found):
+                yield off, n
+                hits += 1
+                if stop_after and hits >= stop_after:
+                    return
+            carry = buf[-overlap:] if overlap else b""
+            pos += chunk
+
     def close(self):
         self.f.close()
 
@@ -179,6 +209,342 @@ def write_enemy(iso, i, edits):
                 n += 1
     return n
 
+def read_enemy_record(iso, i, base=None):
+    """Raw 0x5C stat record bytes for index `i` (research helper — includes the
+    65 bytes we haven't decoded yet)."""
+    base = F.ENEMY_TABLE_OFF if base is None else base
+    return iso.read(base + i * F.ENEMY_STRIDE, F.ENEMY_STRIDE)
+
+
+# ---------------------------------------------------------------------------
+# REBALANCE — battle-pacing profiles over the verified tables (F.PROFILES).
+#
+# Ep. II's combo loop (stock -> break -> boost) is code we haven't located, but
+# what makes it feel like a tax is tuning we CAN write: HP sets how many stocked
+# chains a kill costs, VIT/EDEF set whether off-loop attacks matter, AGL sets how
+# often enemies interrupt a setup, SP/CP gate the skill system. Profiles scale
+# those verified fields; nothing is written blind and nothing is written here at
+# all — plan_rebalance() returns a plan the caller reviews, then applies.
+# ---------------------------------------------------------------------------
+def disc_is_pristine(iso, base=None):
+    """True if the enemy tables still hold their verified retail values — stats
+    *and* rewards. False means the disc was already edited, so scaling again
+    would compound.
+
+    Both tables have to be checked: a reward-only profile leaves every stat byte
+    untouched, so a stats-only anchor would wave the second pass straight
+    through and silently stack the multipliers."""
+    cat = F.enemy_catalog()
+    matched, checked = _confirm_base(iso, cat, base or F.ENEMY_TABLE_OFF)
+    if not checked or matched != checked:
+        return False
+    blob = iso.read(F.REWARD_TABLE_OFF, F.ENEMY_COUNT * F.REWARD_STRIDE)
+    for i, rec in cat.items():
+        p = i * F.REWARD_STRIDE
+        if struct.unpack_from("<IHH", blob, p) != (rec["exp"], rec["sp"], rec["cp"]):
+            return False
+    return True
+
+def _scale(value, pct, cap, floor):
+    return max(floor, min(int(round(value * pct / 100.0)), cap))
+
+def plan_rebalance(iso, prof, threshold=None, include_dummy=False):
+    """Compute the per-record edits a profile implies. Returns
+    [(index, name, group, {field: (old, new)}), ...] — read-only, writes nothing.
+
+    Grouping ("regular" vs "major") is decided on the *catalog* HP, not the
+    disc's current HP, so re-planning against an already-patched disc still
+    classifies each record the same way."""
+    threshold = F.MAJOR_HP_THRESHOLD if threshold is None else threshold
+    cat = F.enemy_catalog()
+    plan = []
+    for i in range(F.ENEMY_COUNT):
+        rec = cat.get(i, {})
+        if not include_dummy and rec and F.is_dummy_record(rec):
+            continue
+        cur = read_enemy(iso, i)
+        group = "major" if rec.get("hp", cur.get("HP", 0)) >= threshold else "regular"
+        scales = prof.get(group, {})
+        edits = {}
+        for lbl, pct in scales.items():
+            if pct == 100 or lbl not in cur:
+                continue
+            cap = F.ENEMY_FIELD_CAPS.get(lbl, 0xFFFFFFFF)
+            old = cur[lbl]
+            if old == 0:                      # 0 means "none" (no CP, no SP) — leave it
+                continue
+            new = _scale(old, pct, cap, 1)
+            if new != old:
+                edits[lbl] = (old, new)
+        if edits:
+            plan.append((i, rec.get("name", str(i)), group, edits))
+    return plan
+
+def apply_rebalance(iso, plan):
+    """Write a plan from plan_rebalance(). Returns (records, fields) written."""
+    fields = 0
+    for i, _name, _group, edits in plan:
+        fields += write_enemy(iso, i, {k: v[1] for k, v in edits.items()})
+    return len(plan), fields
+
+
+# ---------------------------------------------------------------------------
+# TABLE VERIFICATION — find the enemy stat table on *any* disc by signature.
+#
+# Disc 1's table base is verified, but disc 2 (SLUS-21133) has never been
+# checked: if it carries its own copy, a rebalance applied to disc 1 alone
+# silently stops working at the disc swap. The signature is the contiguous
+# 17-byte run at record+0x36 (HP u32, the 0x0063 constant, STR/VIT/EATK/EDEF
+# u16, DEX/EVA/AGL u8) — the same multi-field signature that solved the table.
+# ---------------------------------------------------------------------------
+def enemy_signature(rec):
+    """The 17-byte +0x36..+0x46 run implied by a catalog record."""
+    return (struct.pack("<IH", rec["hp"], 0x0063) +
+            struct.pack("<HHHH", rec["str"], rec["vit"], rec["eatk"], rec["edef"]) +
+            bytes((rec["dex"], rec["eva"], rec["agl"])))
+
+# distinctive HP values make cheap anchors — few false hits across 4.6 GB
+ANCHOR_RECORDS = (6, 124, 109, 117, 116)        # Perun, Dark Erde Kaiser, Proto Omega, Baal Zebul, Mikumari
+
+def locate_enemy_table(iso, anchors=ANCHOR_RECORDS, confirm=8, region=None):
+    """Signature-search the disc for the enemy stat table. Returns
+    {base, stride, matched, anchor, checked} or None.
+
+    One pass, all anchors at once. Each hit implies a table base; a base is
+    accepted once `confirm` further catalog records also match there, which
+    rules out a lone coincidental byte run."""
+    cat = F.enemy_catalog()
+    needles = {}
+    for i in anchors:
+        if i in cat:
+            needles.setdefault(enemy_signature(cat[i]), i)
+    start, end = region or (0, None)
+    for off, needle in iso.find_multi(list(needles), start=start, end=end):
+        i = needles[needle]
+        base = off - 0x36 - i * F.ENEMY_STRIDE
+        if base < 0:
+            continue
+        matched, checked = _confirm_base(iso, cat, base)
+        if matched >= confirm:
+            return {"base": base, "stride": F.ENEMY_STRIDE, "matched": matched,
+                    "checked": checked, "anchor": i}
+    return None
+
+def _confirm_base(iso, cat, base):
+    """How many catalog records match at a candidate base (reads the whole table
+    once). Returns (matched, checked)."""
+    span = F.ENEMY_COUNT * F.ENEMY_STRIDE
+    if base + span > iso.size:
+        return 0, 0
+    blob = iso.read(base, span)
+    matched = checked = 0
+    for i, rec in cat.items():
+        if "hp" not in rec:
+            continue
+        checked += 1
+        p = i * F.ENEMY_STRIDE + 0x36
+        if blob[p:p + 17] == enemy_signature(rec):
+            matched += 1
+    return matched, checked
+
+
+# ---------------------------------------------------------------------------
+# BREAK / WEAK-ZONE HUNT (tier 1) — the combo system's own data.
+#
+# Every enemy has a fixed weak-zone sequence (BB, CB, CC, BCBB...) that you must
+# reproduce with the zone buttons to Break it. Strategy guides publish that
+# sequence per enemy, which is exactly the kind of ground truth that solved the
+# stat table — and the 0x5C record still has 65 undecoded bytes, so the field is
+# very likely already inside data we read.
+#
+# The trick is that we don't need to guess the encoding. If a byte column IS the
+# zone field then enemies sharing a zone string must share its value, so scoring
+# a column by how well its value partition agrees with the zone partition finds
+# it whatever the bit layout turns out to be:
+#   consistency = P(same value | same zone string)   — must be 1.0 for the field
+#   resolution  = P(diff value | diff zone string)   — <1.0 means lossy (a mask
+#                                                      or a length, not the seq)
+# ---------------------------------------------------------------------------
+def read_records(iso, base=None, count=None, stride=None):
+    """All raw stat records as a list of bytes."""
+    base = F.ENEMY_TABLE_OFF if base is None else base
+    count = F.ENEMY_COUNT if count is None else count
+    stride = F.ENEMY_STRIDE if stride is None else stride
+    blob = iso.read(base, count * stride)
+    return [blob[i * stride:(i + 1) * stride] for i in range(count)]
+
+def _packed2_ok(v):
+    """Value decodes as up to four 2-bit zone symbols (1=A,2=B,3=C) with 0
+    padding — the natural way to store a 1-4 symbol sequence in one byte."""
+    syms = [(v >> s) & 3 for s in (0, 2, 4, 6)]
+    while syms and syms[-1] == 0:
+        syms.pop()
+    return bool(syms) and all(s in (1, 2, 3) for s in syms)
+
+def column_profile(records, offsets=None):
+    """Profile each undecoded byte column across every record. Returns a list of
+    {off, distinct, min, max, top, packed2, nibble, mask3} sorted by offset —
+    the survey to run before there's any ground truth to score against."""
+    offsets = F.enemy_unmapped_offsets() if offsets is None else offsets
+    out = []
+    for off in offsets:
+        vals = [r[off] for r in records]
+        hist = {}
+        for v in vals:
+            hist[v] = hist.get(v, 0) + 1
+        uniq = sorted(hist)
+        out.append({
+            "off": off,
+            "distinct": len(uniq),
+            "min": uniq[0], "max": uniq[-1],
+            "top": sorted(hist.items(), key=lambda kv: -kv[1])[:4],
+            "packed2": all(v == 0 or _packed2_ok(v) for v in uniq),
+            "nibble": all((v & 0xF) <= 3 and (v >> 4) <= 3 for v in uniq),
+            "mask3": uniq[-1] <= 7,
+        })
+    return out
+
+def _partition_scores(values, truth):
+    """(consistency, resolution) of a value sequence against {index: zone str}."""
+    items = [(i, z) for i, z in truth.items() if i < len(values)]
+    same = same_ok = diff = diff_ok = 0
+    for a in range(len(items)):
+        ia, za = items[a]
+        for b in range(a + 1, len(items)):
+            ib, zb = items[b]
+            equal = values[ia] == values[ib]
+            if za == zb:
+                same += 1
+                same_ok += equal
+            else:
+                diff += 1
+                diff_ok += not equal
+    return (same_ok / same if same else 1.0,
+            diff_ok / diff if diff else 0.0)
+
+def zone_scan(records, truth, offsets=None, pairs=True):
+    """Score every undecoded column (and every u16 pair) against ground-truth
+    zone strings. Returns candidates sorted best-first; a real hit is
+    consistency 1.0 with high resolution."""
+    offsets = F.enemy_unmapped_offsets() if offsets is None else offsets
+    cands = []
+    for off in offsets:
+        vals = [r[off] for r in records]
+        c, r = _partition_scores(vals, truth)
+        cands.append({"off": off, "width": 1, "consistency": c, "resolution": r,
+                      "distinct": len(set(vals))})
+    if pairs:
+        oset = set(offsets)
+        for off in offsets:
+            if off + 1 not in oset or off + 1 >= len(records[0]):
+                continue
+            # a pair whose other half never varies is just an alias of the
+            # informative byte — it would tie with it and crowd the ranking
+            if len({r[off] for r in records}) == 1 or len({r[off + 1] for r in records}) == 1:
+                continue
+            vals = [r[off] | (r[off + 1] << 8) for r in records]
+            c, r = _partition_scores(vals, truth)
+            cands.append({"off": off, "width": 2, "consistency": c, "resolution": r,
+                          "distinct": len(set(vals))})
+    # ties go to the narrower, earlier field — the simplest explanation of the data
+    cands.sort(key=lambda d: (-d["consistency"], -d["resolution"], d["width"], d["off"]))
+    return cands
+
+def zone_mapping(records, truth, off, width=1):
+    """Tabulate value <-> zone string for a candidate column, so a perfect hit
+    can be read off as an encoding. Returns {value: sorted[zone strings]}."""
+    out = {}
+    for i, z in sorted(truth.items()):
+        if i >= len(records):
+            continue
+        r = records[i]
+        v = r[off] | (r[off + 1] << 8) if width == 2 else r[off]
+        out.setdefault(v, set()).add(z)
+    return {v: sorted(s) for v, s in out.items()}
+
+def scan_region_for_column(iso, truth, start, length, strides, min_resolution=0.5,
+                           count=None):
+    """Fallback for when the zone data is NOT in the stat record: sweep a disc
+    region for any parallel-indexed table (row = enemy record index) with a
+    column that partitions exactly like the zone strings. Returns candidates
+    [{base, stride, consistency, resolution, distinct}].
+
+    Cost is bounded by early exit — most offsets die on the first mismatched
+    pair — but this is still the slow path; run it only after the in-record
+    scan comes up empty."""
+    count = F.ENEMY_COUNT if count is None else count
+    idx = sorted(i for i in truth if i < count)
+    groups = {}
+    for i in idx:
+        groups.setdefault(truth[i], []).append(i)
+    same = [g for g in groups.values() if len(g) > 1]
+    if not same:
+        raise ValueError("ground truth has no two enemies sharing a zone string — "
+                         "consistency can't be tested; add more entries")
+    out = []
+    for stride in strides:
+        need = length + (count - 1) * stride + 1
+        data = iso.read(start, min(need, iso.size - start))
+        limit = len(data) - (count - 1) * stride
+        for b in range(max(0, limit)):
+            ok = True
+            for g in same:                      # consistency, early-exit
+                v = data[b + g[0] * stride]
+                for i in g[1:]:
+                    if data[b + i * stride] != v:
+                        ok = False
+                        break
+                if not ok:
+                    break
+            if not ok:
+                continue
+            vals = [data[b + i * stride] for i in range(count)]
+            c, r = _partition_scores(vals, truth)
+            if r >= min_resolution:
+                out.append({"base": start + b, "stride": stride, "consistency": c,
+                            "resolution": r, "distinct": len(set(vals))})
+    out.sort(key=lambda d: (-d["resolution"], d["base"]))
+    return out
+
+def load_zone_truth(path, catalog=None):
+    """Read ground-truth weak zones. Accepts JSON ({"Perun": "BB", "6": "BB"})
+    or CSV/TSV/text lines `name, zones`. Names resolve against the verified
+    enemy catalog, case- and space-insensitively. Returns (truth, unmatched)
+    where truth is {record index: "BB"}."""
+    catalog = F.enemy_catalog() if catalog is None else catalog
+    by_name = {}
+    for i, rec in catalog.items():
+        by_name.setdefault(str(rec.get("name", "")).strip().lower(), i)
+    with open(path, "r", encoding="utf-8-sig") as f:
+        text = f.read()
+    raw = {}
+    stripped = text.strip()
+    if stripped.startswith("{"):
+        import json as _json
+        raw = _json.loads(stripped)
+    else:
+        for line in stripped.splitlines():
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            parts = [p.strip() for p in (line.split("\t") if "\t" in line else line.split(","))]
+            if len(parts) >= 2 and parts[1]:
+                raw[parts[0]] = parts[1]
+    truth, unmatched = {}, []
+    for key, zones in raw.items():
+        zones = str(zones).strip().upper().replace(" ", "")
+        if not zones or any(c not in "ABC" for c in zones):
+            unmatched.append((key, "not a zone string"))
+            continue
+        key = str(key).strip()
+        if key.isdigit() and int(key) in catalog:
+            truth[int(key)] = zones
+        elif key.lower() in by_name:
+            truth[by_name[key.lower()]] = zones
+        else:
+            unmatched.append((key, "no such enemy"))
+    return truth, unmatched
+
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -231,6 +597,142 @@ def cmd_strings(a):
     for m in _re.finditer(rb"[\x20-\x7e]{%d,}" % a.min, data):
         print(f"{a.off + m.start():08X}: {m.group().decode()}")
 
+def cmd_rebalance(a):
+    """Apply a battle-pacing profile to every enemy record (combo-loop tuning)."""
+    prof = dict(F.profile(a.profile))
+    for grp in ("regular", "major"):            # per-field CLI overrides
+        scales = dict(prof.get(grp, {}))
+        for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL", "EXP", "SP", "CP"):
+            v = getattr(a, lbl.lower(), None)
+            if v is not None:
+                scales[lbl] = v
+        prof[grp] = scales
+    with Iso(a.iso, write=not a.dry_run) as iso:
+        ok, serial, disc, _vol = check_version(iso)
+        if not ok or disc != 1:
+            raise SystemExit(f"need Xenosaga II disc 1 (SLUS-20892); this is {serial}")
+        if not disc_is_pristine(iso):
+            print("! the enemy tables no longer match their verified retail values — this "
+                  "disc was already edited; scaling again compounds the previous pass.")
+            if not (a.force or a.dry_run):
+                raise SystemExit("refusing to compound — pass --force if that's intended")
+        plan = plan_rebalance(iso, prof, threshold=a.threshold, include_dummy=a.include_dummy)
+        print(f"profile: {a.profile} — {F.profile(a.profile)['label']}")
+        print(f"{F.profile(a.profile)['note']}")
+        print(f"records affected: {len(plan)} of {F.ENEMY_COUNT} "
+              f"(major = catalog HP >= {a.threshold or F.MAJOR_HP_THRESHOLD:,})\n")
+        show = plan if a.verbose else plan[:12]
+        for i, name, group, edits in show:
+            body = "  ".join(f"{k} {v[0]:,}→{v[1]:,}" for k, v in edits.items())
+            print(f"  {i:3d} {name:<24} [{group:7}] {body}")
+        if len(show) < len(plan):
+            print(f"  … {len(plan) - len(show)} more (use --verbose)")
+        if a.dry_run:
+            print("\n(dry run — nothing written)")
+            return 0
+        if a.backup:
+            print(f"backup: {backup(a.iso)}")
+        recs, fields = apply_rebalance(iso, plan)
+        print(f"\n✓ wrote {fields} field(s) across {recs} record(s)")
+    return 0
+
+def cmd_verify_tables(a):
+    """Confirm the enemy table on disc 1 — or find out whether disc 2 has one."""
+    with Iso(a.iso) as iso:
+        ok, serial, disc, vol = check_version(iso)
+        print(f"disc    : {serial} (disc {disc}) volume={vol!r}")
+        if not ok:
+            print("✗ not a recognized Xenosaga II image")
+            return 2
+        cat = F.enemy_catalog()
+        matched, checked = _confirm_base(iso, cat, F.ENEMY_TABLE_OFF)
+        print(f"known base 0x{F.ENEMY_TABLE_OFF:X}: {matched}/{checked} catalog records match")
+        if matched >= 8:
+            print("✓ enemy stat table present at the known offset — edits apply here")
+            return 0
+        print("… not at the known offset; signature-scanning the whole image "
+              "(one pass, a few minutes on a 4.6 GB disc)")
+        hit = locate_enemy_table(iso)
+        if not hit:
+            print("✗ no enemy stat table on this disc — nothing here to rebalance.\n"
+                  "  If this is disc 2, the disc-1 edits are the whole story: record "
+                  "that result in Xenosaga2_ISO_offsets.md.")
+            return 1
+        print(f"✓ FOUND at base 0x{hit['base']:X} (stride 0x{hit['stride']:X}, "
+              f"anchor rec {hit['anchor']}, {hit['matched']}/{hit['checked']} records match)")
+        if hit["base"] != F.ENEMY_TABLE_OFF:
+            print(f"  → different base from disc 1 (0x{F.ENEMY_TABLE_OFF:X}). This disc needs "
+                  f"its own ENEMY_TABLE_OFF before the editor can patch it.")
+        return 0
+
+def cmd_enemy_columns(a):
+    """Survey the 65 undecoded bytes of the stat record — the break/zone hunt."""
+    with Iso(a.iso) as iso:
+        recs = read_records(iso, base=a.base)
+    names = F.enemy_names()
+    prof = column_profile(recs)
+    print(f"{'off':>5} {'distinct':>8} {'min':>4} {'max':>5}  flags      top values")
+    for c in prof:
+        if a.interesting and (c["distinct"] < 2 or c["distinct"] > a.max_distinct):
+            continue
+        flags = "".join(k[0].upper() if c[k] else "·" for k in ("packed2", "nibble", "mask3"))
+        top = " ".join(f"{v}×{n}" for v, n in c["top"])
+        print(f"+0x{c['off']:02X} {c['distinct']:>8} {c['min']:>4} {c['max']:>5}  {flags:<10} {top}")
+    print("\nflags: P=values decode as packed 2-bit zone symbols (1=A,2=B,3=C, 0=pad), "
+          "N=every nibble <=3, M=all values <=7 (3-bit mask)")
+    if a.show:
+        i = a.show
+        print(f"\nrecord {i} ({names.get(i, '?')}) raw:")
+        rec = recs[i]
+        for p in range(0, len(rec), 16):
+            row = rec[p:p + 16]
+            print(f"  +0x{p:02X}  " + " ".join(f"{b:02X}" for b in row))
+    return 0
+
+def cmd_find_zones(a):
+    """Score the undecoded columns against ground-truth weak-zone strings."""
+    truth, unmatched = load_zone_truth(a.truth)
+    print(f"ground truth: {len(truth)} enemies matched to records"
+          + (f", {len(unmatched)} unmatched" if unmatched else ""))
+    for key, why in unmatched[:10]:
+        print(f"  ? {key}: {why}")
+    if len(truth) < 8:
+        print("! fewer than 8 known enemies — the scan will produce coincidences.\n"
+              "  Aim for 30+, including several that share a zone string.")
+    groups = len({z for z in truth.values()})
+    print(f"distinct zone strings: {groups}\n")
+    with Iso(a.iso) as iso:
+        recs = read_records(iso, base=a.base)
+        cands = zone_scan(recs, truth)
+        print(f"{'field':>10} {'consist':>8} {'resolv':>7} {'distinct':>8}")
+        for c in [c for c in cands if c["distinct"] > 1][:a.top]:
+            print(f"  +0x{c['off']:02X} u{c['width'] * 8:<3} {c['consistency']:>8.3f} "
+                  f"{c['resolution']:>7.3f} {c['distinct']:>8}")
+        best = cands[0] if cands else None
+        if best and best["consistency"] == 1.0 and best["resolution"] > 0.5:
+            print(f"\n✓ candidate: +0x{best['off']:02X} (u{best['width'] * 8}) — value ↔ zone map:")
+            for v, zs in sorted(zone_mapping(recs, truth, best["off"], best["width"]).items()):
+                print(f"    {v:>5} (0x{v:02X}, {v:08b}b) → {', '.join(zs)}")
+            print("\n  If one value maps to exactly one zone string throughout, that's the "
+                  "field. Record it in x2fields.ZONE_FIELDS and the offsets notes.")
+        else:
+            print("\n… no column in the record explains the zone strings.")
+            if a.region:
+                s, l = a.region
+                strides = a.strides or [4, 8, 0x10, 0x14, 0x18, 0x20, 0x2C, 0x40, 0x5C]
+                print(f"  sweeping 0x{s:X}..0x{s + l:X} for a parallel table "
+                      f"(strides {', '.join(hex(x) for x in strides)})…")
+                hits = scan_region_for_column(iso, truth, s, l, strides)
+                for h in hits[:a.top]:
+                    print(f"    base 0x{h['base']:X} stride 0x{h['stride']:X} "
+                          f"resolution {h['resolution']:.3f} distinct {h['distinct']}")
+                if not hits:
+                    print("    nothing — widen --region or the stride set.")
+            else:
+                print("  Next: re-run with --region START,LEN to sweep for a separate "
+                      "parallel table (the rewards table is laid out that way).")
+    return 0
+
 def cmd_dump_region(a):
     with Iso(a.iso) as iso:
         data = iso.read(a.off, a.len)
@@ -269,6 +771,44 @@ def main():
     sp.add_argument("--len", type=lambda x: int(x, 0), default=0x2000)
     sp.add_argument("--min", type=int, default=2, help="min run length")
     sp.set_defaults(fn=cmd_strings)
+
+    sp = sub.add_parser("rebalance", help="apply a battle-pacing profile to every enemy")
+    sp.add_argument("iso")
+    sp.add_argument("--profile", default="faster", choices=sorted(F.PROFILES),
+                    help="; ".join(f"{k}: {v['label']}" for k, v in F.PROFILES.items()))
+    sp.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
+    sp.add_argument("--verbose", action="store_true", help="list every affected record")
+    sp.add_argument("--backup", action="store_true", help="copy the ISO to .bak first")
+    sp.add_argument("--force", action="store_true", help="allow scaling an already-edited disc")
+    sp.add_argument("--include-dummy", action="store_true", help="also scale debug/unused records")
+    sp.add_argument("--threshold", type=int, help=f"HP at/above which a record counts as "
+                    f"'major' (default {F.MAJOR_HP_THRESHOLD:,})")
+    for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL", "EXP", "SP", "CP"):
+        sp.add_argument(f"--{lbl.lower()}", type=int, metavar="PCT",
+                        help=f"override {lbl} scaling for both groups (percent)")
+    sp.set_defaults(fn=cmd_rebalance)
+
+    sp = sub.add_parser("verify-tables", help="confirm/locate the enemy table on a disc")
+    sp.add_argument("iso"); sp.set_defaults(fn=cmd_verify_tables)
+
+    sp = sub.add_parser("enemy-columns", help="profile the undecoded bytes of the stat record")
+    sp.add_argument("iso")
+    sp.add_argument("--base", type=lambda x: int(x, 0), help="override the table base")
+    sp.add_argument("--interesting", action="store_true", help="hide constant/high-entropy columns")
+    sp.add_argument("--max-distinct", type=int, default=32)
+    sp.add_argument("--show", type=int, metavar="IDX", help="also hex-dump one record")
+    sp.set_defaults(fn=cmd_enemy_columns)
+
+    sp = sub.add_parser("find-zones", help="hunt the weak-zone/break field with ground truth")
+    sp.add_argument("iso")
+    sp.add_argument("--truth", required=True, help="JSON or CSV of enemy name -> zone string")
+    sp.add_argument("--base", type=lambda x: int(x, 0), help="override the table base")
+    sp.add_argument("--top", type=int, default=12)
+    sp.add_argument("--region", type=lambda s: tuple(int(x, 0) for x in s.split(",")),
+                    metavar="START,LEN", help="also sweep this range for a parallel table")
+    sp.add_argument("--strides", type=lambda s: [int(x, 0) for x in s.split(",")],
+                    help="strides to try in the region sweep")
+    sp.set_defaults(fn=cmd_find_zones)
 
     sp = sub.add_parser("dump-region", help="hex-dump a byte range")
     sp.add_argument("iso")
