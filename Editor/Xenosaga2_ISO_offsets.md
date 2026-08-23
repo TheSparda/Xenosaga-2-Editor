@@ -305,3 +305,29 @@ blocked on cracking the `XENOSAGA.*` archive format (or a PCSX2 RAM anchor).
 
 Verified & still-good: the enemy **name** table (Perun..Patriarch), and all the
 **text** catalogs (items / key items / skills / E.S. gear). Those match the game.
+
+### Packed-table hunt — enemy stats are not raw integers on disc (6 strategies)
+
+Went looking for the real enemy-stat table. Ground truth = Perun (HP 22400, EXP
+30000, STR 85, VIT 20, EATK 70, EDEF 45, DEX 70, EVA 22, AGL 12). Whole-disc-1
+scans, all negative:
+
+1. HP|EXP as adjacent u16 (`80 57 30 75`) — 0 hits.
+2. HP u32 + EXP u32 co-occurring within 0x60 — 0 hits.
+3. HP u16 + EXP u16 co-occurring within 0x40 — only odd-aligned coincidences at
+   0x2000 stride (not a 97-entry table); the 3 test enemies never share a region.
+4. Stat byte-run `55 14 46 2D 46 16 0C` (STR..AGL as u8) — 0 hits.
+5. Sub-runs (EATK..AGL u8, DEX/EVA/AGL u8) — 0 hits.
+6. Stats as u16 sequences (STR..AGL, EATK..AGL, DEX/EVA/AGL) — 0 hits.
+
+Disc geometry: `XENOSAGA.01` (LBA 3801, >1 GiB) holds the uncompressed TEXT at
+raw 0x2000000; `XENOSAGA.02` (158 MiB), `.11/.12/.13` (>1 GiB each), `.14`; plus
+battle-ish overlays `OV01.OVL` (450 KiB) / `OV02.OVL`.
+
+**Conclusion:** enemy battle stats (and by extension skill power/target, cast
+times, boost/break rules) are NOT stored as plaintext integers. They are either
+LZ-packed in an archive/overlay or computed at runtime from base+level. Locating
+them offline now needs battle-code disassembly (ELF/overlay) to find the loader
+or the packed blob — the same class of wall as the save checksum. The practical
+unblock is a PCSX2 RAM search during a battle to anchor the live values, then map
+back to a disc offset (if raw) or a formula (if computed).
