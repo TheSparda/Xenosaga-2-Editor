@@ -12,6 +12,37 @@
                  ["EDEF",0x42,2],["DEX",0x44,1],["EVA",0x45,1],["AGL",0x46,1]];
   const RFIELDS=[["EXP",0x00,4],["SP",0x04,2],["CP",0x06,2]];
   const SEND=SBASE+COUNT*STRIDE, REND=RBASE+COUNT*RSTRIDE;
+  const CAPS={HP:999999,STR:999,VIT:999,EATK:999,EDEF:999,DEX:255,EVA:255,AGL:255,
+              EXP:999999,SP:9999,CP:9999};
+
+  // Battle-pacing profiles — keep in sync with x2fields.PROFILES.
+  // Ep. II's stock→break→boost loop is the only efficient way to fight, and the
+  // ritual costs turns before it pays out. The mechanics live in code we haven't
+  // located, but what makes the loop feel like a tax is tuning we can write:
+  // HP = stocked chains per kill, VIT/EDEF = whether off-loop attacks matter,
+  // STR/EATK = enemy pressure, SP/CP = how fast the skill system opens up.
+  const MAJOR_HP=20000;                       // catalog HP at/above this = "major"
+  const PROFILES={
+    faster:{label:"Faster fights",
+      note:"Keeps the combo loop, cuts the tax: fewer stocked chains per kill and quicker skill unlocks. The safe default.",
+      regular:{HP:45,EXP:150,SP:150,CP:150}, major:{HP:70,EXP:150,SP:150,CP:150}},
+    freer:{label:"Freer play",
+      note:"Makes off-combo attacks viable — softer defenses so unbroken damage lands, on top of a lighter HP cut.",
+      regular:{HP:55,VIT:70,EDEF:70,EXP:150,SP:150,CP:150},
+      major:{HP:75,VIT:80,EDEF:80,EXP:150,SP:150,CP:150}},
+    deeper:{label:"Deeper challenge",
+      note:"For players who like the loop: enemies hit harder and last longer, but pay out much more.",
+      regular:{HP:110,STR:115,EATK:115,EXP:200,SP:200,CP:200},
+      major:{HP:130,STR:115,EATK:115,EXP:200,SP:200,CP:200}},
+    grindcut:{label:"Reward-only",
+      note:"Leaves every fight exactly as designed and only removes the grind between them.",
+      regular:{EXP:250,SP:250,CP:250}, major:{EXP:250,SP:250,CP:250}},
+  };
+  // Placeholder/debug rows (13 of them: GNO013, CRE006/018, UMA013, MON001-4,
+  // BOS026-29, and unused rows
+  // carrying a token EXP with no SP/CP) are never scaled — mirrors is_dummy_record().
+  const isDummy=(r)=>!!r&&(/^[A-Z]{3}\d{3}$/.test(String(r.name||"").trim())||
+                           (r.exp>0&&r.exp<100&&!r.sp&&!r.cp));
 
   let handle=null, cat=null, backedUp=false;
   // two independent slices: {buf, orig, dv, base}
@@ -123,22 +154,77 @@
       '<table id="etbl"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
       '<p class="note">Stats + battle rewards, verified against guide data (74/76 exact matches). '+
       'Writes only the changed bytes back at their exact offsets.</p></div>'+
-      '<div class="card"><h2>3 · Rebalance (all '+COUNT+' enemies)</h2>'+
-      '<p class="sub" style="margin:0 0 10px">The community\'s #1 complaint is bloated enemy HP. '+
-      'Scale it globally — 50% halves every enemy\'s HP; rewards can be scaled up to keep pace.</p>'+
-      '<div class="toolbar">'+
-      '<label>HP</label> <input type="number" id="sclHP" value="100" min="1" max="1000" style="width:8ch">%'+
-      '<label style="margin-left:10px">EXP/SP/CP</label> <input type="number" id="sclRW" value="100" min="1" max="1000" style="width:8ch">%'+
-      '<label style="margin-left:10px"><input type="checkbox" id="sclBoss"> bosses too (IDs 561+)</label>'+
-      '<span style="flex:1"></span>'+
+      '<div class="card"><h2>3 · Battle pacing (all '+COUNT+' enemies)</h2>'+
+      '<p class="sub" style="margin:0 0 10px">The stock→break→boost loop is the only efficient way to '+
+      'fight, and bloated HP makes you run the whole ritual for every enemy. These profiles retune what '+
+      'the loop <i>costs</i>: HP sets how many stocked chains a kill takes, VIT/EDEF whether off-loop '+
+      'attacks land at all, and SP/CP how fast the skill system opens up.</p>'+
+      '<div class="toolbar" id="profRow">'+
+      Object.keys(PROFILES).map(k=>'<button class="btn prof" data-p="'+k+'" title="'+
+        esc(PROFILES[k].note)+'">'+esc(PROFILES[k].label)+'</button>').join(" ")+'</div>'+
+      '<p class="note" id="profNote">Pick a profile to load its numbers below, then stage it. '+
+      '“Major” means a record whose retail HP is '+MAJOR_HP.toLocaleString()+'+ — the only boss signal '+
+      'the disc actually gives us. Debug/unused records are never touched.</p>'+
+      '<table class="scl"><tbody>'+
+      '<tr><td></td><th>HP</th><th>VIT/EDEF</th><th>STR/EATK</th><th>EXP/SP/CP</th></tr>'+
+      '<tr><th>regular</th>'+
+      '<td><input type="number" id="rHP" value="100" min="1" max="1000" style="width:7ch">%</td>'+
+      '<td><input type="number" id="rDEF" value="100" min="1" max="1000" style="width:7ch">%</td>'+
+      '<td><input type="number" id="rATK" value="100" min="1" max="1000" style="width:7ch">%</td>'+
+      '<td><input type="number" id="rRW" value="100" min="1" max="1000" style="width:7ch">%</td></tr>'+
+      '<tr><th>major</th>'+
+      '<td><input type="number" id="mHP" value="100" min="1" max="1000" style="width:7ch">%</td>'+
+      '<td><input type="number" id="mDEF" value="100" min="1" max="1000" style="width:7ch">%</td>'+
+      '<td><input type="number" id="mATK" value="100" min="1" max="1000" style="width:7ch">%</td>'+
+      '<td><input type="number" id="mRW" value="100" min="1" max="1000" style="width:7ch">%</td></tr>'+
+      '</tbody></table>'+
+      '<div class="toolbar"><span id="sclWarn" class="status"></span><span style="flex:1"></span>'+
       '<button id="sclApply" class="btn primary">Stage rebalance</button></div>'+
       '<p class="note">Staged into the same pending-changes set above — review everything before writing. '+
-      'Values round to whole numbers; HP floors at 1.</p></div>';
+      'Scaling always starts from the values the disc had when it was opened, so re-staging replaces the '+
+      'previous plan instead of compounding it. Values round to whole numbers; HP floors at 1.</p></div>';
     $("#esel").onchange=loadEnemy;
     $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);loadEnemy();epending();};
     $("#esave").onclick=saveISO;
-    $("#sclApply").onclick=stageRebalance;
+    $("#sclApply").onclick=()=>stageRebalance(readScales());
+    document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
+    checkPristine();
     loadEnemy();
+  }
+
+  // Warn if the disc no longer matches the verified retail tables. Stats *and*
+  // rewards, both: a reward-only profile leaves every stat byte untouched, so a
+  // stats-only check would miss it and the multipliers would quietly stack.
+  function checkPristine(){
+    const w=$("#sclWarn"); if(!w) return;
+    let clean=true;
+    for(let i=0;i<COUNT&&clean;i++){
+      const r=cat[i]; if(!r) continue;
+      clean = getOrig(S,i,0x36,4)===r.hp && getOrig(S,i,0x3C,2)===r.str &&
+              getOrig(R,i,0x00,4)===r.exp && getOrig(R,i,0x04,2)===r.sp &&
+              getOrig(R,i,0x06,2)===r.cp;
+    }
+    w.textContent=clean?"":"! this disc was already rebalanced — staging again scales the "+
+      "already-scaled values";
+    w.className=clean?"status":"status err";
+  }
+
+  const PCT=(id)=>Math.max(1,+$("#"+id).value||100);
+  function readScales(){
+    const g=(hp,def,atk,rw)=>({HP:PCT(hp),VIT:PCT(def),EDEF:PCT(def),STR:PCT(atk),
+                               EATK:PCT(atk),EXP:PCT(rw),SP:PCT(rw),CP:PCT(rw)});
+    return {regular:g("rHP","rDEF","rATK","rRW"), major:g("mHP","mDEF","mATK","mRW")};
+  }
+  function applyProfile(key){
+    const p=PROFILES[key]; if(!p) return;
+    const set=(id,v)=>{$("#"+id).value=v==null?100:v;};
+    for(const [grp,pre] of [["regular","r"],["major","m"]]){
+      const s=p[grp]||{};
+      set(pre+"HP",s.HP); set(pre+"DEF",s.VIT); set(pre+"ATK",s.STR); set(pre+"RW",s.EXP);
+    }
+    document.querySelectorAll("#profRow .prof").forEach(b=>b.classList.toggle("on",b.dataset.p===key));
+    $("#profNote").textContent=p.label+" — "+p.note;
+    toastFn("Loaded “"+p.label+"” — review the numbers, then Stage rebalance");
   }
 
   function cellHtml(lbl,off,w,val){
@@ -165,23 +251,29 @@
     epending();
   }
 
-  function stageRebalance(){
-    const hpP=+$("#sclHP").value/100, rwP=+$("#sclRW").value/100;
-    const bosses=$("#sclBoss").checked;
-    if(!(hpP>0)||!(rwP>0)) return;
-    let n=0;
+  // Scale every record per its group. Always reads from `orig` (the disc as
+  // opened) so re-staging replaces the plan rather than compounding it.
+  function stageRebalance(scales){
+    let n=0, skipped=0;
     for(let i=0;i<COUNT;i++){
-      const id=cat[i]?cat[i].id:0;
-      if(!bosses && id>=561) continue;          // fields+grunts only unless opted in
-      if(hpP!==1){const hp=getOrig(S,i,0x36,4);put(S,i,0x36,4,Math.max(1,Math.round(hp*hpP)));n++;}
-      if(rwP!==1){
-        put(R,i,0x00,4,Math.round(getOrig(R,i,0x00,4)*rwP));
-        put(R,i,0x04,2,Math.round(getOrig(R,i,0x04,2)*rwP));
-        put(R,i,0x06,2,Math.round(getOrig(R,i,0x06,2)*rwP));n++;
+      const rec=cat[i];
+      if(isDummy(rec)){ skipped++; continue; }
+      const hp=rec&&rec.hp!=null?rec.hp:getOrig(S,i,0x36,4);
+      const s=scales[hp>=MAJOR_HP?"major":"regular"]||{};
+      let touched=false;
+      for(const [lbl,pct] of Object.entries(s)){
+        const spec=specOf(lbl); if(!spec) continue;
+        const [,off,w]=spec, T=tableOf(lbl), old=getOrig(T,i,off,w);
+        if(old===0) continue;                    // 0 means "none" — never scale it up
+        const val=Math.min(Math.max(1,Math.round(old*pct/100)),CAPS[lbl]||0xFFFFFFFF);
+        put(T,i,off,w,val);                      // write even at 100% — that restores
+        if(val!==old) touched=true;              // the disc value, replacing a prior stage
       }
+      if(touched) n++;
     }
     loadEnemy();epending();
-    toastFn(n?("✓ Rebalance staged for "+n+" record(s) — review & Save to ISO"):"No changes to stage");
+    toastFn(n?("✓ Staged for "+n+" record(s)"+(skipped?" ("+skipped+" debug records skipped)":"")+
+               " — review & Save to ISO"):"No changes to stage");
   }
 
   function diffCount(){let n=0;
