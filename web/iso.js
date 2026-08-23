@@ -10,7 +10,10 @@
   // Editor/x2fields.py (and CI fails if it drifts). If the fetch fails we refuse
   // to open a disc rather than fall back to a possibly-stale copy.
   let SBASE, STRIDE, COUNT, RBASE, RSTRIDE, SFIELDS, RFIELDS, SEND, REND, BOSS_ID_MIN, ID_OFF;
+  let AFIELDS, AFF_NORMAL, CATKEYS, SERIAL;
   let TABLES=null;
+  // Patch files are interchangeable with `x2patch.py export-patch/apply-patch`.
+  const PATCH_FORMAT="x2-enemy-patch", PATCH_VERSION=1;
 
   async function loadTables(){
     if(TABLES) return TABLES;
@@ -19,9 +22,11 @@
     const t=await r.json();
     SBASE=t.enemy.base; STRIDE=t.enemy.stride; COUNT=t.enemy.count;
     SFIELDS=t.enemy.fields; ID_OFF=t.enemy.idOff;
+    AFIELDS=t.enemy.affinityFields||[]; AFF_NORMAL=t.enemy.affinityNormal;
     RBASE=t.reward.base; RSTRIDE=t.reward.stride; RFIELDS=t.reward.fields;
     SEND=SBASE+COUNT*STRIDE; REND=RBASE+COUNT*RSTRIDE;
-    BOSS_ID_MIN=t.bossIdMin;
+    BOSS_ID_MIN=t.bossIdMin; CATKEYS=t.catalogKeys||{};
+    SERIAL=Object.keys(t.serials||{}).find(k=>t.serials[k]===1)||"SLUS-20892";
     return (TABLES=t);
   }
 
@@ -41,8 +46,15 @@
   function getOrig(T,i,off,w){const a=i*(T===S?STRIDE:RSTRIDE)+off;
     const d=new DataView(T.orig.buffer);
     return w===4?d.getUint32(a,true):w===2?d.getUint16(a,true):T.orig[a];}
-  const tableOf=(f)=>SFIELDS.some(x=>x[0]===f)?S:R;
-  const specOf=(f)=>SFIELDS.concat(RFIELDS).find(x=>x[0]===f);
+  // stats and affinities live in the stat record; rewards are their own table
+  const tableOf=(f)=>RFIELDS.some(x=>x[0]===f)?R:S;
+  const allFields=()=>SFIELDS.concat(AFIELDS,RFIELDS);
+  const specOf=(f)=>allFields().find(x=>x[0]===f);
+  // retail value of one field, from the verified bestiary (affinities have none)
+  const retail=(i,label)=>{
+    const key=CATKEYS[label];
+    return (key && cat[i] && cat[i][key]!==undefined) ? cat[i][key] : undefined;
+  };
 
   async function loadCat(){ if(cat)return cat;
     try{cat=await (await fetch("../Editor/x2_enemies.json")).json();}catch(e){cat={};} return cat; }
@@ -100,11 +112,23 @@
       '<button id="esave" class="btn primary" disabled>Save to ISO <span id="ebadge" class="badge"></span></button>'+
       '<span id="estat" class="status"></span></div>'+
       '<table id="etbl"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
+      '<div id="eretail" class="note"></div>'+
+      '<details class="unverified"><summary>⚠ Damage affinities — unverified, opt in</summary>'+
+        '<p class="note">Eight percentages in the record ('+AFF_NORMAL+' = normal damage, '+
+        'lower resists, higher takes extra, 0 is immune). That there are eight and that they '+
+        'hold '+AFF_NORMAL+' in ordinary records is solid — <b>which element each slot is has '+
+        'not been confirmed</b>, so they are numbered rather than named. Editing them is an '+
+        'experiment; the retail comparison and patch export handle them separately because '+
+        'the bestiary has no baseline for them.</p>'+
+        '<table><tbody><tr id="erow3"></tr></tbody></table></details>'+
       '<p class="note">Stats + battle rewards, verified against guide data (74/76 exact matches). '+
       'Writes only the changed bytes back at their exact offsets.</p></div>'+
       '<div class="card"><h2>3 · Rebalance (all '+COUNT+' enemies)</h2>'+
       '<p class="sub" style="margin:0 0 10px">The community\'s #1 complaint is bloated enemy HP. '+
       'Scale it globally — 50% halves every enemy\'s HP; rewards can be scaled up to keep pace.</p>'+
+      '<div class="toolbar"><label>Presets</label>'+
+      PRESETS.map((p,i)=>'<button class="btn preset" data-p="'+i+'">'+esc(p.label)+'</button>').join("")+
+      '</div>'+
       '<div class="toolbar">'+
       '<label>HP</label> <input type="number" id="sclHP" value="100" min="1" max="1000" style="width:8ch">%'+
       '<label style="margin-left:10px">EXP/SP/CP</label> <input type="number" id="sclRW" value="100" min="1" max="1000" style="width:8ch">%'+
@@ -112,13 +136,48 @@
       '<span style="flex:1"></span>'+
       '<button id="sclApply" class="btn primary">Stage rebalance</button></div>'+
       '<p class="note">Staged into the same pending-changes set above — review everything before writing. '+
-      'Values round to whole numbers; HP floors at 1.</p></div>';
+      'Values round to whole numbers; HP floors at 1. Rebalancing always scales from the values '+
+      'on the disc, so nudging a preset twice will not compound.</p></div>'+
+      '<div class="card"><h2>4 · Patch files &amp; retail values</h2>'+
+      '<div class="toolbar">'+
+      '<button id="pExport" class="btn">⬇ Export patch…</button>'+
+      '<button id="pImport" class="btn">⬆ Import patch…</button>'+
+      '<input type="file" id="pFile" accept=".json,application/json" hidden>'+
+      '<span style="flex:1"></span>'+
+      '<button id="pDiff" class="btn">Compare to retail</button>'+
+      '<button id="pRestore" class="btn">Stage restore to retail</button>'+
+      '</div>'+
+      '<p class="note">A patch is a small JSON file listing only the fields you changed, so you can '+
+      'share a rebalance instead of a 4.6 GB disc. Importing <i>stages</i> the changes for review '+
+      'rather than writing them. The command line reads and writes the same file: '+
+      '<code>x2patch.py export-patch</code> / <code>apply-patch</code>. Because the bestiary shipped '+
+      'with this editor holds the verified retail numbers, the editor can also tell you exactly how '+
+      'your disc differs from an unmodified one — and put it back.</p></div>';
     $("#esel").onchange=loadEnemy;
     $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);loadEnemy();epending();};
     $("#esave").onclick=saveISO;
-    $("#sclApply").onclick=stageRebalance;
+    $("#sclApply").onclick=()=>stageRebalance();
+    document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>{
+      const p=PRESETS[+b.dataset.p];
+      $("#sclHP").value=p.hp; $("#sclRW").value=p.rw; $("#sclBoss").checked=!!p.bosses;
+      stageRebalance();
+    });
+    $("#pExport").onclick=exportPatch;
+    $("#pImport").onclick=()=>$("#pFile").click();
+    $("#pFile").onchange=e=>{const f=e.target.files[0]; e.target.value=""; if(f)importPatch(f);};
+    $("#pDiff").onclick=showRetailDiff;
+    $("#pRestore").onclick=stageRestore;
     loadEnemy();
   }
+
+  const PRESETS=[
+    {label:"Halve HP",              hp:50,  rw:100},
+    {label:"Halve HP · +50% rewards", hp:50,  rw:150},
+    {label:"Gentle (75% HP)",       hp:75,  rw:120},
+    {label:"Double rewards",        hp:100, rw:200},
+    {label:"Harder (+50% HP)",      hp:150, rw:100},
+    {label:"Halve everything, bosses too", hp:50, rw:100, bosses:true},
+  ];
 
   // `val` is the staged (current) value shown in the box; `def` is the value on
   // disc. They differ after a staged rebalance or when revisiting an edited enemy —
@@ -130,11 +189,22 @@
   }
   function loadEnemy(){
     const i=+$("#esel").value;
+    const eid=get(S,i,ID_OFF,2);
     $("#erow").innerHTML=SFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
     $("#erow2").innerHTML='<td><div class="fl">rewards</div></td>'+
       RFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("")+
-      '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+get(S,i,ID_OFF,2)+'</span></td>';
-    document.querySelectorAll("#erow input, #erow2 input").forEach(inp=>{
+      '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+eid+
+      (eid>=BOSS_ID_MIN?" · boss":"")+'</span></td>';
+    $("#erow3").innerHTML=AFIELDS.map(([l,o,w])=>
+      cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
+    // how this record compares with an unmodified disc
+    const off=SFIELDS.concat(RFIELDS).filter(([l,o,w])=>{
+      const v=retail(i,l); return v!==undefined && get(tableOf(l),i,o,w)!==v; });
+    $("#eretail").innerHTML = off.length
+      ? "Differs from retail: "+off.map(([l,o,w])=>esc(l)+" "+get(tableOf(l),i,o,w).toLocaleString()+
+          " (retail "+retail(i,l).toLocaleString()+")").join(", ")
+      : "Matches the retail values for this enemy.";
+    document.querySelectorAll("#erow input, #erow2 input, #erow3 input").forEach(inp=>{
       let btn=inp.nextElementSibling;
       if(!btn||!btn.classList.contains("restore")){btn=document.createElement("button");btn.type="button";
         btn.className="restore";btn.textContent="↺";inp.after(btn);}
@@ -181,7 +251,7 @@
     let rows="",count=0;
     for(let i=0;i<COUNT && count<400;i++){
       let cells="";
-      for(const [T,FL] of [[S,SFIELDS],[R,RFIELDS]]){
+      for(const [T,FL] of [[S,SFIELDS],[S,AFIELDS],[R,RFIELDS]]){
         for(const [l,o,w] of FL){
           const a=getOrig(T,i,o,w),b=get(T,i,o,w);
           if(a!==b) cells+='<div class="revrow"><span class="rl">'+l+'</span><span class="ro">'+
@@ -192,6 +262,130 @@
     }
     if(count>=400) rows+='<div class="note">…truncated…</div>';
     return rows;
+  }
+
+  // ---- patch files, retail comparison, restore ----------------------------
+  // Verified fields are exported against the retail bestiary so a patch describes
+  // a complete mod, not just this session's edits. Affinities have no retail
+  // baseline, so those are exported only where they differ from the opened disc.
+  function buildPatch(note){
+    const edits={};
+    for(let i=0;i<COUNT;i++){
+      const f={};
+      for(const [l,o,w] of SFIELDS.concat(RFIELDS)){
+        const cur=get(tableOf(l),i,o,w), van=retail(i,l);
+        if(van!==undefined && cur!==van) f[l]=cur;
+      }
+      for(const [l,o,w] of AFIELDS){
+        const cur=get(S,i,o,w);
+        if(cur!==getOrig(S,i,o,w)) f[l]=cur;
+      }
+      if(Object.keys(f).length) edits[String(i)]=f;
+    }
+    return {format:PATCH_FORMAT,version:PATCH_VERSION,game:SERIAL,note:note||"",edits};
+  }
+
+  function patchStats(doc){
+    const recs=Object.keys(doc.edits||{}).length;
+    let fields=0; for(const v of Object.values(doc.edits||{})) fields+=Object.keys(v).length;
+    return {recs,fields};
+  }
+
+  async function exportPatch(){
+    const doc=buildPatch();
+    const {recs,fields}=patchStats(doc);
+    if(!recs){ toastFn("Nothing to export — the disc matches retail",true); return; }
+    const text=JSON.stringify(doc,null,1)+"\n";
+    const name="xenosaga2-enemy-patch.json";
+    try{
+      if("showSaveFilePicker" in window){
+        const h=await window.showSaveFilePicker({suggestedName:name,
+          types:[{description:"Xenosaga II enemy patch",accept:{"application/json":[".json"]}}]});
+        const w=await h.createWritable(); await w.write(text); await w.close();
+      }else{
+        const a=document.createElement("a");
+        a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+        a.download=name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      }
+      toastFn("✓ Exported "+fields+" field(s) across "+recs+" enemy record(s)");
+    }catch(e){ if(e&&e.name!=="AbortError") toastFn("✗ "+e,true); }
+  }
+
+  // Strict on purpose: this stages writes into a disc image, so an unknown field
+  // or an out-of-range record is an error rather than something to skip quietly.
+  function applyPatchDoc(doc){
+    if(!doc||typeof doc!=="object"||doc.format!==PATCH_FORMAT)
+      throw new Error("not a "+PATCH_FORMAT+" file");
+    if(doc.version!==PATCH_VERSION)
+      throw new Error("patch version "+doc.version+" is not supported (this build reads "+PATCH_VERSION+")");
+    const known=new Map(allFields().map(f=>[f[0],f]));
+    const entries=Object.entries(doc.edits||{});
+    if(!entries.length) throw new Error("patch contains no edits");
+    let n=0;
+    for(const [key,fields] of entries){
+      const i=Number(key);
+      if(!Number.isInteger(i)||i<0||i>=COUNT) throw new Error("record "+key+" is out of range");
+      if(!fields||typeof fields!=="object") throw new Error("record "+i+": expected a field map");
+      for(const [l,v] of Object.entries(fields)){
+        const spec=known.get(l);
+        if(!spec) throw new Error("record "+i+": unknown field "+l);
+        if(!Number.isInteger(v)) throw new Error("record "+i+"."+l+": expected a whole number");
+        put(tableOf(l),i,spec[1],spec[2],v); n++;
+      }
+    }
+    return n;
+  }
+
+  async function importPatch(file){
+    let doc;
+    try{ doc=JSON.parse(await file.text()); }
+    catch(e){ toastFn("✗ "+file.name+" is not valid JSON",true); return; }
+    // apply to a scratch copy first so a bad patch cannot half-stage
+    const keepS=S.buf.slice(), keepR=R.buf.slice();
+    let n;
+    try{ n=applyPatchDoc(doc); }
+    catch(e){ S.buf.set(keepS); R.buf.set(keepR); toastFn("✗ "+e.message,true); return; }
+    const {recs}=patchStats(doc);
+    loadEnemy(); epending();
+    toastFn("✓ Staged "+n+" field(s) across "+recs+" record(s)"+
+      (doc.note?" — "+doc.note:"")+" · review, then Save to ISO");
+  }
+
+  function stageRestore(){
+    let n=0;
+    for(let i=0;i<COUNT;i++)
+      for(const [l,o,w] of SFIELDS.concat(RFIELDS)){
+        const van=retail(i,l), T=tableOf(l);
+        if(van!==undefined && get(T,i,o,w)!==van){ put(T,i,o,w,van); n++; }
+      }
+    loadEnemy(); epending();
+    toastFn(n?("✓ Staged a restore of "+n+" field(s) to retail — review, then Save to ISO")
+             :"Already matches the retail values");
+  }
+
+  async function showRetailDiff(){
+    let rows="", recs=0, fields=0;
+    for(let i=0;i<COUNT;i++){
+      let cells="";
+      for(const [l,o,w] of SFIELDS.concat(RFIELDS)){
+        const van=retail(i,l); if(van===undefined) continue;
+        const cur=get(tableOf(l),i,o,w);
+        if(cur===van) continue;
+        fields++;
+        cells+='<div class="revrow"><span class="rl">'+esc(l)+'</span><span class="ro">'+
+          van.toLocaleString()+'</span>→ <span class="rn">'+cur.toLocaleString()+'</span></div>';
+      }
+      if(cells){recs++;
+        if(recs<=200) rows+='<div class="revgrp">'+String(i).padStart(3,"0")+' · '+
+          esc(cat[i]?cat[i].name:i)+'</div>'+cells;}
+    }
+    const head=recs
+      ? '<div class="note">'+recs+' record(s), '+fields+' field(s) differ from an unmodified disc '+
+        '(retail → yours). Affinity slots are not listed — the bestiary has no retail baseline '+
+        'for them.</div>'+(recs>200?'<div class="note">…first 200 shown…</div>':'')
+      : '<div class="note">Every enemy stat and reward matches the retail values.</div>';
+    if(window.openInfo) await window.openInfo("Compared to retail", head+rows);
   }
 
   async function saveISO(){

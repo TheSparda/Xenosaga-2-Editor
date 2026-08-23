@@ -17,10 +17,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — edit every enemy's **stats** (HP, STR,
   VIT, EATK, EDEF, DEX, EVA, AGL) and **battle rewards** (EXP, SP, CP) for all 125 enemy
-  records, written **in place** into your disc image — plus a one-click **global HP
-  rebalance** to fix the game's infamous HP bloat.
-- **Reference** — searchable bestiary (verified stats & rewards) + item / key-item /
-  E.S.-gear catalogs extracted from the disc.
+  records, written **in place** into your disc image — plus **rebalance presets** for the
+  game's infamous HP bloat, **shareable patch files**, and a **compare-to-retail** view that
+  shows exactly how your disc differs from an unmodified one (and can restore it).
+- **Reference** — searchable bestiary (verified stats & rewards, filter by field/boss/E.S.,
+  sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc.
 
 > Supply your own legally-obtained saves/ISOs. The repo ships **no game data**.
 
@@ -52,6 +53,10 @@ cd Editor
 python3 x2patch.py verify "../ISO/....(Disc 1).iso"          # identify a disc
 python3 x2patch.py enemies "../ISO/...iso" --csv             # dump the bestiary
 python3 x2patch.py rebalance "../ISO/...iso" --hp 50 --dry-run
+python3 x2patch.py diff "../ISO/...iso"                      # how it differs from retail
+python3 x2patch.py export-patch "../ISO/...iso" --out mod.json
+python3 x2patch.py apply-patch "../ISO/...iso" mod.json      # share a rebalance
+python3 x2patch.py restore "../ISO/...iso"                   # back to retail values
 python3 x2save.py slots "…/Mcd001.ps2"                       # list a card's saves
 python3 x2save.py "…/Mcd001.ps2" --slot 2                    # decode one of them
 python3 x2save.py set "…/BASLUS-….PSV" --gold 9999999 --char 0 --level 99 --hp 9999

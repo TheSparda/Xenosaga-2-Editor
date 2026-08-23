@@ -69,6 +69,11 @@ GAMEDATA_SIZE = 20832
 
 GD_GOLD_OFF = 0xD0                 # u32 gold / money
 
+# The per-save screenshot the game embeds, shown on the load screen. Useful for
+# telling one slot from another in the editor.
+GD_THUMB_OFF = 0x174
+GD_THUMB_END = 0xD44
+
 CHAR_TABLE_OFF = 0x1174
 CHAR_STRIDE    = 0x108             # 264 bytes/record (matches pnach EE stride)
 CHAR_COUNT     = 15               # rec0-6 on-foot, 7-9 reserved, 10-14 E.S. units
@@ -187,8 +192,30 @@ ENEMY_FIELDS = [               # (label, offset, width, kind) — stat record
     ("EVA",  0x45, 1, "num"),  # evasion
     ("AGL",  0x46, 1, "num"),  # agility / turn speed
 ]
-# also in the record: +0x04 u8*8 element affinities (0x64=100%)
 ENEMY_ID_OFF = 0x52           # u16 enemy id: 501+ field, BOSS_ID_MIN+ boss, 701+ E.S.
+
+# +0x04: eight u8 damage-affinity percentages, 0x64 (100) = normal. Lower resists,
+# higher takes extra, 0 is immune.
+#
+# UNVERIFIED, and deliberately labelled by position rather than element name. That
+# there are eight of them and that they hold 0x64 in vanilla records is solid; what
+# each slot *is* is not. The game's elements are known from elsewhere (the E.S.
+# Anti-Fire/Ice/Thunder/Beam armors, plus the physical attack types) but nothing on
+# disc ties a slot to a name, and this project's rule is not to write a field under
+# a name it hasn't earned. Front-ends gate these behind an explicit opt-in.
+ENEMY_AFFINITY_OFF = 0x04
+ENEMY_AFFINITY_COUNT = 8
+ENEMY_AFFINITY_NORMAL = 0x64
+ENEMY_AFFINITY_FIELDS = [(f"Aff{i + 1}", ENEMY_AFFINITY_OFF + i, 1, "num")
+                         for i in range(ENEMY_AFFINITY_COUNT)]
+
+# Field label -> key in x2_enemies.json, so a disc can be diffed against the
+# verified vanilla values (and restored to them). Affinities are absent from the
+# catalog, so they have no vanilla baseline to compare against.
+ENEMY_CATALOG_KEY = {
+    "HP": "hp", "STR": "str", "VIT": "vit", "EATK": "eatk", "EDEF": "edef",
+    "DEX": "dex", "EVA": "eva", "AGL": "agl", "EXP": "exp", "SP": "sp", "CP": "cp",
+}
 REWARD_TABLE_OFF = 0x201094C   # rewards, stride 0x10, row = record index
 REWARD_STRIDE    = 0x10
 REWARD_FIELDS = [
@@ -244,6 +271,9 @@ def web_tables():
             "namesOff": ENEMY_NAMES_OFF,
             "idOff": ENEMY_ID_OFF,
             "fields": fields(ENEMY_FIELDS),
+            # unverified slot names — front-ends must gate these, see above
+            "affinityFields": fields(ENEMY_AFFINITY_FIELDS),
+            "affinityNormal": ENEMY_AFFINITY_NORMAL,
         },
         "reward": {
             "base": REWARD_TABLE_OFF,
@@ -259,4 +289,5 @@ def web_tables():
             "caps": CHAR_CAPS,
             "sheetCols": [list(c) for c in SHEET_COLS],
         },
+        "catalogKeys": ENEMY_CATALOG_KEY,
     }

@@ -420,8 +420,12 @@ def _decodable_saves():
             entry = dict(s)
             entry["slot"] = sl["slot"]
             entry["folder"] = sl["folder"]
-            entry["label"] = s["name"] + (
-                f" · {sl['folder']}" if len(slots) > 1 else f" ({s['format']})")
+            # prefer the save's own in-game name + playtime over the folder id
+            bits = [sl.get("label") or sl["folder"]]
+            if sl.get("playtime"):
+                bits.append(sl["playtime"])
+            bits.append(s["name"] if len(slots) > 1 else f"{s['name']} ({s['format']})")
+            entry["label"] = " · ".join(bits)
             out.append(entry)
     return out
 

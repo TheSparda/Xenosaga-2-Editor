@@ -1,6 +1,19 @@
 {
   "_comment": "GENERATED from Editor/x2fields.py by Editor/gen_web_tables.py \u2014 do not edit by hand; run the generator instead.",
   "bossIdMin": 561,
+  "catalogKeys": {
+    "AGL": "agl",
+    "CP": "cp",
+    "DEX": "dex",
+    "EATK": "eatk",
+    "EDEF": "edef",
+    "EVA": "eva",
+    "EXP": "exp",
+    "HP": "hp",
+    "SP": "sp",
+    "STR": "str",
+    "VIT": "vit"
+  },
   "character": {
     "base": 4468,
     "caps": {
@@ -53,6 +66,17 @@
     "stride": 264
   },
   "enemy": {
+    "affinityFields": [
+      ["Aff1", 4, 1],
+      ["Aff2", 5, 1],
+      ["Aff3", 6, 1],
+      ["Aff4", 7, 1],
+      ["Aff5", 8, 1],
+      ["Aff6", 9, 1],
+      ["Aff7", 10, 1],
+      ["Aff8", 11, 1]
+    ],
+    "affinityNormal": 100,
     "base": 33551856,
     "count": 125,
     "fields": [

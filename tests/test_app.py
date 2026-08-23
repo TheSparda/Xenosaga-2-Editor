@@ -100,9 +100,20 @@ class TestSaveApi(AppCase):
         status, body = self.request("GET", "/")
         self.assertEqual(status, 200)
         page = body.decode()
-        self.assertIn("BASLUS-20892Xeno201", page)
-        self.assertIn("BASLUS-20892Xeno202", page)
+        # labelled by the save's own in-game name + playtime, not the folder id
+        self.assertIn("XenosagaEPII-01 · 10:30 · Mcd001.ps2", page)
+        self.assertIn("XenosagaEPII-02 · 11:30 · Mcd001.ps2", page)
         self.assertIn("slot.psv", page)
+
+    def test_slot_labels_fall_back_to_the_folder_without_an_icon(self):
+        bare = os.path.join(self.root, "Saves", "bare.ps2")
+        with open(bare, "wb") as f:
+            f.write(FX.memcard([("BASLUS-20892Xeno209",
+                                 {"BASLUS-20892Xeno209": FX.gamedata()})]))
+        E.invalidate()
+        labels = [s["label"] for s in E.decodable_saves() if s["name"] == "bare.ps2"]
+        self.assertEqual(len(labels), 1)
+        self.assertIn("BASLUS-20892Xeno209", labels[0])
 
     def test_each_card_slot_decodes_separately(self):
         saves = E.decodable_saves()
