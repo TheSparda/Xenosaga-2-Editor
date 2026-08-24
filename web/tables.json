@@ -279,5 +279,33 @@
     "SLUS-20892": 1,
     "SLUS-21133": 2
   },
+  "skill": {
+    "blocks": {
+      "1": [
+        ["ether", 33586336, 57, 0],
+        ["double", 33588224, 29, 59]
+      ],
+      "2": [
+        ["ether", 33584288, 57, 0],
+        ["double", 33586176, 29, 59]
+      ]
+    },
+    "elementBits": {
+      "Aura": 2,
+      "Beam": 1,
+      "Fire": 8,
+      "Ice": 16,
+      "Thunder": 4
+    },
+    "fields": [
+      ["EP", 6, 1],
+      ["Element", 8, 2],
+      ["Power", 10, 2],
+      ["EffPct", 18, 2],
+      ["EffMask", 20, 2]
+    ],
+    "span": 2816,
+    "stride": 32
+  },
   "volumeId": "XENOSAGA_II"
 }

@@ -266,6 +266,21 @@ def skill_record_off(disc, text_index):
             return base + (text_index - text0) * SKILL_STRIDE
     return None
 
+def skill_base(disc):
+    """Lowest address of the disc's skill blocks — the start of the one span a
+    front-end needs to read to cover both."""
+    return min(b for (_n, b, _c, _t) in skill_blocks(disc))
+
+def skill_span(disc=1):
+    """Bytes from the first skill block's base through the end of the last.
+
+    The two blocks are not adjacent (a 64-byte gap sits between them), and both
+    move by the same -0x800 on disc 2, so this length is the same either way —
+    which is what lets one buffer serve both discs.
+    """
+    blocks = skill_blocks(disc)
+    return max(b + c * SKILL_STRIDE for (_n, b, c, _t) in blocks) - skill_base(disc)
+
 def skill_element_text(mask):
     """0x08 -> 'Fire'; 0 -> '-'; unknown bits shown raw."""
     names = [n for n, b in SKILL_ELEMENT_BITS.items() if mask & b]
@@ -887,6 +902,17 @@ def web_tables():
             "esFields": fields(ES_EQUIP_FIELDS),
             "caps": CHAR_CAPS,
             "sheetCols": [list(c) for c in SHEET_COLS],
+        },
+        # Ether + Double skill numeric records. Two disjoint blocks per disc, so
+        # the front-end reads one span covering both rather than two buffers;
+        # skillSpan is that span's length, identical on both discs.
+        "skill": {
+            "blocks": {str(d): [[n, b, c, t] for (n, b, c, t) in blocks]
+                       for d, blocks in sorted(SKILL_BLOCKS.items())},
+            "span": skill_span(),
+            "stride": SKILL_STRIDE,
+            "fields": fields(SKILL_NUM_FIELDS),
+            "elementBits": SKILL_ELEMENT_BITS,
         },
         "catalogKeys": ENEMY_CATALOG_KEY,
         # Battle-pacing profiles, so the web ISO editor runs the same numbers as

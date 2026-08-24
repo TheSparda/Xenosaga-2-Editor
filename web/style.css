@@ -28,6 +28,15 @@ header h1{margin:0;font-size:19px;letter-spacing:.03em;color:var(--acc2)}
   background:var(--panel);color:var(--mut);cursor:pointer}
 .mtab.on{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
 .sub{color:var(--mut);font-size:13px;margin:0 0 12px}
+/* Enemies / Skills inside the ISO editor. Deliberately lighter than the
+   top-level mode bar so the nesting reads as nesting, not as a second app. */
+.modebar.panetabs{gap:4px;margin-bottom:14px}
+.modebar.panetabs .mtab{flex:0 0 auto;padding:6px 16px;border-radius:8px;font-size:13px}
+.modebar.panetabs .mtab.on{background:var(--panel2);color:var(--ink);
+  border-color:var(--acc);font-weight:600}
+/* the enemy-only half of the action bar, hidden on the Skills tab */
+.barGroup{display:contents}
+.barGroup[hidden]{display:none}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
   padding:15px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
 .card h2{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--acc2)}
