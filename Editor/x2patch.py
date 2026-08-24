@@ -208,7 +208,7 @@ def _enemy_tables(iso, i):
     t = iso.tables
     return ((t["stats"] + i * F.ENEMY_STRIDE,
              F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.ZONE_FIELDS),
-            (t["rewards"] + i * F.REWARD_STRIDE, F.REWARD_FIELDS))
+            (t["rewards"] + i * F.REWARD_STRIDE, F.REWARD_FIELDS + F.DROP_FIELDS))
 
 def read_enemy(iso, i):
     out = {}
@@ -281,7 +281,7 @@ def parse_patch(doc):
         raise ValueError(f"patch version {version!r} is not supported "
                          f"(this build reads version {PATCH_VERSION})")
     known = {f[0] for f in F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-             F.ZONE_FIELDS + F.REWARD_FIELDS}
+             F.ZONE_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS}
     out = {}
     for key, fields in (doc.get("edits") or {}).items():
         try:
@@ -755,9 +755,17 @@ def _affinity_cols():
 def _zone_cols():
     return [f[0] for f in F.ZONE_FIELDS]
 
+def _drop_cols():
+    return [f[0] for f in F.DROP_FIELDS]
+
+def drops_of(rec):
+    """('Med Kit S 100%', 'Med Kit L 10%') — common and rare, ready to print."""
+    return (F.drop_label(rec["DropCat"], rec["DropItem"], rec["DropRate"]),
+            F.drop_label(rec["RareCat"], rec["RareItem"], rec["RareRate"]))
+
 def _enemy_field_names():
     """Every writable field, including the unverified affinity slots."""
-    return _summary_cols() + _affinity_cols() + _zone_cols()
+    return _summary_cols() + _affinity_cols() + _zone_cols() + _drop_cols()
 
 def break_seq_of(rec):
     """The record's break sequence as text ('CBB'), or '' if it can't be broken."""
@@ -803,6 +811,9 @@ def cmd_enemy_get(a):
         van = vanilla_enemy(a.index).get(c)
         mark = "" if van is None or van == rec[c] else f"   (retail {van:,})"
         print(f"  {c:<5} {rec[c]:>10,}{mark}")
+    common, rare = drops_of(rec)
+    print(f"  {'drop':<5} {common:>10}")
+    print(f"  {'rare':<5} {rare:>10}")
     seq = break_seq_of(rec)
     print(f"  {'zones':<5} {F.zone_mask_text(rec['Zones']) or '(none)':>10}"
           f"   (which heights this enemy can be hit at)")
@@ -939,7 +950,7 @@ def sync_discs(src, dst):
     normal field path, so each disc uses its own bases and the affinity block's
     straddle is handled the same way it is everywhere else."""
     labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-                             F.ZONE_FIELDS + F.REWARD_FIELDS)]
+                             F.ZONE_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
     recs = fields = 0
     for i in range(F.ENEMY_COUNT):
         want = read_enemy(src, i)
@@ -975,7 +986,7 @@ def cmd_sync(a):
         print(f"source : disc {src.disc} ({a.src})")
         print(f"target : disc {dst.disc} ({a.dst})")
         labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-                                 F.ZONE_FIELDS + F.REWARD_FIELDS)]
+                                 F.ZONE_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
         diff = []
         for i in range(F.ENEMY_COUNT):
             w, h = read_enemy(src, i), read_enemy(dst, i)

@@ -385,7 +385,67 @@ REWARD_FIELDS = [
     ("SP",  0x04, 2, "num"),
     ("CP",  0x06, 2, "num"),
 ]
-# rewards +0x08..0x0F: drop rates/categories/item ids (partially decoded)
+
+# ---------------------------------------------------------------------------
+# ITEM DROPS (VERIFIED 2026-08-23) — the rest of the 0x10 rewards row.
+#
+#   +0x08 u8  common drop rate, percent
+#   +0x09 u8  rare   drop rate, percent
+#   +0x0A u8  common item CATEGORY   0 = nothing, 1 = consumable, 2 = E.S. gear
+#   +0x0B u8  rare   item CATEGORY
+#   +0x0C u8  common item id, 1-BASED within its category (0 = nothing)
+#   +0x0D u8  rare   item id
+#   +0x0E, +0x0F      always 0 across all 125 records
+#
+# Derived from the strategy guide's ITEM / RARE ITEM lines, mapped onto records
+# by exact stat signature. Drop RATES match the guide on 138 of 144 comparisons.
+# The category byte explains what looked at first like a "present" flag: it takes
+# 0/1/2 (24/100/20 occurrences), and every value of 2 belongs to an enemy the
+# guide says drops E.S. equipment.
+#
+# Consumable ids are solid: all 23 distinct ids seen resolve through
+# `consumable_names()[id - 1]` with **zero conflicts** (id 1 = Med Kit S,
+# 5 = Ether Pack S, 11 = Antidote L, 33 = Scrap Iron, 34 = Junked Circuit...).
+# Two of them expose gaps in our own consumable catalog around Skill Upgrade B/C
+# rather than a decoding problem.
+#
+# E.S. gear ids are NOT resolved. The category is certain, but the id space does
+# not line up with `x2_es_equip.json` at any constant offset (the guide's pairs
+# imply +1, +4, +7 and +8 for different entries), and that catalog was itself
+# only ever confirmed for accessory ids 0-30. So the fields are editable and the
+# category is named, but a category-2 id is shown as a bare number rather than
+# under a name it has not earned.
+DROP_FIELDS = [
+    ("DropRate", 0x08, 1, "num"),
+    ("RareRate", 0x09, 1, "num"),
+    ("DropCat",  0x0A, 1, "num"),
+    ("RareCat",  0x0B, 1, "num"),
+    ("DropItem", 0x0C, 1, "num"),
+    ("RareItem", 0x0D, 1, "num"),
+]
+DROP_CAT_NONE, DROP_CAT_CONSUMABLE, DROP_CAT_ES = 0, 1, 2
+DROP_CAT_NAMES = {DROP_CAT_NONE: "nothing",
+                  DROP_CAT_CONSUMABLE: "consumable",
+                  DROP_CAT_ES: "E.S. gear"}
+
+def drop_item_name(category, item_id):
+    """Name for a (category, 1-based id) drop, or None if it can't be named.
+
+    Only consumables can be named with confidence — see the note above."""
+    if not category or not item_id:
+        return None
+    if category == DROP_CAT_CONSUMABLE:
+        return consumable_names().get(item_id - 1)
+    return None
+
+def drop_label(category, item_id, rate):
+    """'Med Kit S 100%' / 'E.S. gear #14 20%' / 'nothing' — for display."""
+    if not category or not item_id:
+        return "nothing"
+    name = drop_item_name(category, item_id)
+    if name is None:
+        name = f"{DROP_CAT_NAMES.get(category, 'category %d' % category)} #{item_id}"
+    return f"{name} {rate}%"
 
 def enemy_catalog():
     """{int idx: {name,id,hp,str,vit,eatk,edef,dex,eva,agl,exp,sp,cp}} — verified."""
@@ -556,6 +616,10 @@ def web_tables():
             "base": REWARD_TABLE_OFF,
             "stride": REWARD_STRIDE,
             "fields": fields(REWARD_FIELDS),
+            # item drops share the 0x10 rewards row
+            "dropFields": fields(DROP_FIELDS),
+            "dropCatNames": {str(k): v for k, v in sorted(DROP_CAT_NAMES.items())},
+            "dropCatConsumable": DROP_CAT_CONSUMABLE,
         },
         "character": {
             "base": CHAR_TABLE_OFF,

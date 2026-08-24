@@ -51,9 +51,9 @@ Two things worth stating plainly:
   the game until it is. ISO edits are unaffected. A `.bak` is always kept.
 - The enemy record still has **52 undecoded bytes**. Nothing is written there.
 
-Next reverse-engineering targets: enemy **item drops** and the **skill/tech** table (both
-have published ground truth and need no emulator), then the save checksum, party, and
-inventory — those need a PCSX2 session to anchor. `.max` (AR Max / LZARI) is the one
+Next reverse-engineering targets: the **skill/tech** table (its name table is located on
+disc and the guide supplies SP/EP costs — no emulator needed) and the E.S. item id space,
+then the save checksum, party, and inventory — those need a PCSX2 session to anchor. `.max` (AR Max / LZARI) is the one
 container still unsupported.
 
 ### Both discs, edited as one
@@ -74,6 +74,14 @@ On the command line the same thing is one flag — `--also` — or the `sync` co
 python3 x2patch.py rebalance "…(Disc 1).iso" --profile faster --also "…(Disc 2).iso"
 python3 x2patch.py sync "…(Disc 1).iso" "…(Disc 2).iso"     # copy tables disc-to-disc
 ```
+
+### Item drops
+
+Each enemy has a common and a rare drop — a percentage, a category (consumable or E.S. gear)
+and an item id — and all of it is editable. Drop rates are verified against the guide on 138
+of 144 comparisons. Consumable drops are shown by name; E.S. gear appears as a bare id
+(`E.S. gear #14`) because that id space hasn't been pinned down yet, and the editor won't
+print a name it hasn't earned.
 
 ### Damage affinities
 
@@ -127,7 +135,7 @@ cd Editor
 python3 x2patch.py verify "../ISO/....(Disc 1).iso"          # identify a disc
 python3 x2patch.py verify-tables "../ISO/...iso"              # confirm/locate the enemy table
 python3 x2patch.py enemies "../ISO/...iso" --csv             # dump the bestiary
-python3 x2patch.py enemy "../ISO/...iso" 6                   # one record: stats, zones, Break
+python3 x2patch.py enemy "../ISO/...iso" 6                   # stats, drops, zones, Break, affinities
 python3 x2patch.py enemy-set "../ISO/...iso" 6 --break CB     # shorten Perun's Break sequence
 python3 x2patch.py rebalance "../ISO/...iso" --profile faster --dry-run
 python3 x2patch.py diff "../ISO/...iso"                      # how it differs from retail

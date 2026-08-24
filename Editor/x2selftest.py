@@ -286,6 +286,37 @@ def t_truth(_iso, tmp):
     eq(unmatched, [], "no unmatched rows")
 
 
+@check("item drops decode and round-trip", path=True)
+def t_drops(iso_path, _tmp):
+    """The rest of the 0x10 rewards row: rate, category and a 1-BASED item id per
+    slot. Only consumables can be named — E.S. gear ids don't line up with the
+    catalog, so drop_label() must fall back to a bare number rather than guess."""
+    eq(F.drop_label(F.DROP_CAT_NONE, 0, 0), "nothing", "empty slot")
+    name = F.consumable_names().get(0)
+    eq(F.drop_label(F.DROP_CAT_CONSUMABLE, 1, 100), f"{name} 100%", "consumable named")
+    lbl = F.drop_label(F.DROP_CAT_ES, 14, 20)
+    eq("#14" in lbl and "20%" in lbl, True, f"E.S. gear left unnamed, got {lbl!r}")
+    eq(F.drop_item_name(F.DROP_CAT_ES, 14), None, "no invented name for E.S. gear")
+
+    # this check shares the fixture with the rebalance checks, so compare against
+    # what the row held a moment ago rather than against retail values
+    with X.Iso(iso_path) as iso:
+        before = X.read_enemy(iso, 9)
+    with X.Iso(iso_path, write=True) as iso:
+        n = X.write_enemy(iso, 9, {"DropRate": 55, "RareRate": 5,
+                                   "DropCat": F.DROP_CAT_CONSUMABLE, "RareCat": F.DROP_CAT_ES,
+                                   "DropItem": 1, "RareItem": 14})
+        eq(n, 6, "six drop fields written")
+    with X.Iso(iso_path) as iso:
+        rec = X.read_enemy(iso, 9)
+        common, rare = X.drops_of(rec)
+        eq(common, f"{name} 55%", "common drop reads back")
+        eq("#14 5%" in rare, True, f"rare drop reads back, got {rare!r}")
+        # the drop bytes share a row with EXP/SP/CP — those must be untouched
+        for lbl2 in ("EXP", "SP", "CP"):
+            eq(rec[lbl2], before[lbl2], f"{lbl2} untouched by a drop write")
+
+
 @check("damage affinities: codec, straddle, isolation", path=True)
 def t_affinity(iso_path, _tmp):
     """+0x58, eight signed bytes, percent = byte*5 (71/71 against the guide).
