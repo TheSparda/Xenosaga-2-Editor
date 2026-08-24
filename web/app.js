@@ -4,13 +4,15 @@
 // every byte layout + container handling comes from one engine. Nothing is uploaded.
 
 const SAVE_PATH = "/save.bin";
-// character-sheet columns: [header, decoded-field key]
-const SHEET = [["Lvl","Level"],["HP","HP"],["Cur HP","Current HP"],["EP","EP"],
-  ["Str","Str"],["Vit","Vit"],["EAtk","Eatk"],["EDef","Edef"],["Dex","Dex"],["Eva","Eva"],["Agl","Agl"]];
-const CAPS = {Level:99,HP:9999,"Current HP":9999,EP:99,Str:999,Vit:999,Eatk:999,Edef:999,Dex:99,Eva:99,Agl:99};
+// Character-sheet columns ([header, field key]) and per-field caps both come from
+// the engine at boot — x2fields.py is the only place they are written down.
+let SHEET = [], CAPS = {};
 
 let pyReady = null, PY = null, REF = null, curSave = null, origName = "save.bin";
 let fileHandle = null;
+// A memory-card image holds one folder per in-game save slot, so one opened file
+// can contain several editable saves; every other container holds exactly one.
+let curSlot = 0, curSlots = [];
 const SUPPORTS_FS = typeof window !== "undefined" && "showOpenFilePicker" in window;
 
 const $ = (s,r=document)=>r.querySelector(s);
@@ -46,6 +48,7 @@ window.x2idb={get:idbGet,set:idbSet,del:idbDel,ensureWritable,fmtSize,fmtWhen};
 let toastT;
 function toast(msg,err){const t=$("#toast");if(!t)return;t.textContent=msg;t.className="show"+(err?" err":"");
   clearTimeout(toastT);toastT=setTimeout(()=>t.className=t.className.replace("show",""),2600);}
+window.toast=toast;   // iso.js and ref.js call this; don't leave it to implicit globals
 
 // ---- shared modal: review-changes + searchable picker ----
 function _modalEls(){return{el:$("#modal"),title:$("#modalTitle"),body:$("#modalBody"),ok:$("#modalOk"),cancel:$("#modalCancel")};}
@@ -72,7 +75,15 @@ function openPicker(title, items, current){
     q.addEventListener("input",draw);draw();setTimeout(()=>q.focus(),50);
     m.cancel.onclick=()=>done(null);m.el.onclick=e=>{if(e.target===m.el)done(null);};});
 }
-window.openReview=openReview; window.openPicker=openPicker;
+// read-only variant: no Confirm button, just something to look at
+function openInfo(title, bodyHtml){
+  return new Promise(res=>{const m=_modalEls();m.title.textContent=title;m.body.innerHTML=bodyHtml;
+    m.ok.style.display="none";m.cancel.textContent="Close";
+    m.el.classList.remove("hidden");
+    const done=()=>{m.el.classList.add("hidden");m.cancel.onclick=m.el.onclick=null;res();};
+    m.cancel.onclick=done;m.el.onclick=e=>{if(e.target===m.el)done();};});
+}
+window.openReview=openReview; window.openPicker=openPicker; window.openInfo=openInfo;
 
 // ---- theme ----
 (function(){try{if(localStorage.getItem("x2theme")==="light")document.body.classList.add("light");}catch(e){}
@@ -99,49 +110,83 @@ async function bootPyodide(){
   const py = await loadPyodide();
   bootProgress(55,"Loading save engine…");
   const grab = async u=>{const r=await fetch(u);if(!r.ok)throw new Error("fetch "+u+" ("+r.status+")");return r.text();};
-  for(const f of ["x2fields.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json"])
+  for(const f of ["x2fields.py","x2mc.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json"])
     py.FS.writeFile(f, await grab("../Editor/"+f));
   bootProgress(80,"Wiring adapters…");
   py.runPython(`
-import json, x2save, x2fields as F
+import base64, json, x2save, x2fields as F
 def load_reference():
     cat = F.es_equip_catalog()
     return json.dumps({
       "roster": F.ROSTER,
+      "sheetCols": F.SHEET_COLS,
+      "caps": F.CHAR_CAPS,
+      "esFields": [l for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS],
       "esEquip": {str(i): v["name"] for i, v in cat.items()},
       "esEquipList": [{"id": i, "name": v["name"], "desc": v.get("desc","")} for i, v in sorted(cat.items())],
     })
-def load_save(path):
+def load_slots(path):
+    """Container format + every Xenosaga II save inside it (cards hold several)."""
+    fmt = x2save.sniff_format(path)
+    if not fmt: return json.dumps({"format": "", "slots": []})
+    try:
+        return json.dumps({"format": fmt, "slots": x2save.list_slots(path, fmt)})
+    except Exception as e:
+        return json.dumps({"format": fmt, "slots": [], "error": str(e)})
+def load_save(path, slot=0):
     fmt = x2save.sniff_format(path)
     if not fmt: return json.dumps({"error":"Unrecognized save format."})
     try:
-        d = x2save.decode_save(path, fmt); d["format"]=fmt; return json.dumps(d)
+        gd = x2save.extract_gamedata(path, fmt, slot)
+        d = x2save.decode_gamedata(gd)
+        d["format"] = fmt
+        # the save's own screenshot, so you can see which slot you opened
+        thumb = x2save.thumbnail(gd)
+        d["thumb"] = base64.b64encode(thumb).decode() if thumb else ""
+        return json.dumps(d)
     except Exception as e:
         return json.dumps({"error": str(e)})
-def apply_edits(path, payload):
+def apply_edits(path, payload, slot=0):
     p = json.loads(payload)
     edits = {"characters": {int(k): v for k, v in (p.get("characters") or {}).items()}}
     if p.get("gold") is not None: edits["gold"] = p["gold"]
-    return json.dumps(x2save.write_save(path, edits, make_backup=False))
+    return json.dumps(x2save.write_save(path, edits, make_backup=False, slot=slot))
 `);
   REF = JSON.parse(py.runPython("load_reference()"));
+  SHEET = REF.sheetCols; CAPS = REF.caps;
   PY = py; bootProgress(100,"Ready — load a save");
   $("#pickBtn").disabled = false;
   return py;
 }
 
 // ---- load a save ----
+const fail = (msg)=>{ $("#editor").innerHTML='<div class="card blocked">'+msg+'</div>'; };
+
 async function handleFile(file, handle){
   await pyReady;
   origName = file.name || "save.bin"; fileHandle = handle || null;
   const buf = new Uint8Array(await file.arrayBuffer());
   PY.FS.writeFile(SAVE_PATH, buf);
-  const d = JSON.parse(PY.runPython(`load_save(${JSON.stringify(SAVE_PATH)})`));
-  if(d.error){ $("#editor").innerHTML = '<div class="card blocked">Could not open '+esc(origName)+' — '+esc(d.error)+'</div>'; return; }
-  curSave = d;
+  const info = JSON.parse(PY.runPython(`load_slots(${JSON.stringify(SAVE_PATH)})`));
+  curSlots = info.slots || []; curSlot = 0;
+  if(!curSlots.length){
+    fail('No Xenosaga II save found in <b>'+esc(origName)+'</b>'+
+      (info.format ? ' — it looks like a '+esc(info.format)+' container, but nothing inside it is a '+
+        'Xenosaga II save.' : ' — the container format was not recognized.')+
+      (info.error ? '<div class="note">'+esc(info.error)+'</div>' : ''));
+    return;
+  }
   // Persist bytes for one-tap reopen anywhere, plus the writable handle (desktop) so a
   // reopened save can still be written back IN PLACE instead of downloading a copy.
   try{ await idbSet("last",{bytes:buf,name:origName,handle:fileHandle||null,size:buf.length,at:Date.now()}); refreshRecent(); }catch(e){}
+  await openSlot(0);
+}
+
+async function openSlot(slot){
+  curSlot = slot|0;
+  const d = JSON.parse(PY.runPython(`load_save(${JSON.stringify(SAVE_PATH)}, ${curSlot})`));
+  if(d.error){ fail('Could not open '+esc(origName)+' — '+esc(d.error)); return; }
+  curSave = d;
   renderSheet(d);
 }
 
@@ -166,12 +211,35 @@ function renderSheet(d){
     rows+='<tr class="u1'+es+'"><td class="name" rowspan="'+(c.is_es?3:2)+'">'+esc(c.name)+'</td>'+GA.map(k=>cell(c,idx,k)).join("")+'</tr>';
     rows+='<tr class="u'+(c.is_es?"2m":"2")+es+'">'+GB.map(k=>cell(c,idx,k)).join("")+'<td></td>'+'</tr>';
     if(c.is_es){
-      const gear=[["Gear 1","Gear 1"],["Gear 2","Gear 2"],["Gear 3","Gear 3"],["Gear 4","Gear 4"]];
-      rows+='<tr class="u2 es gearrow">'+gear.map(k=>cell(c,idx,k)).join("")+'<td></td><td></td>'+'</tr>';
+      const gear=(REF.esFields||[]).map(l=>[l,l]);
+      const pad=Math.max(0,GA.length-gear.length);
+      rows+='<tr class="u2 es gearrow">'+gear.map(k=>cell(c,idx,k)).join("")+
+        '<td></td>'.repeat(pad)+'</tr>';
     }
   });
+  const slotOpt = s=>esc(s.label||s.folder)+(s.playtime?"  ·  "+esc(s.playtime):"");
+  const slotBar = curSlots.length>1
+    ? '<div class="toolbar"><label>Card slot</label> <select id="slotSel">'+
+        curSlots.map(s=>'<option value="'+s.slot+'"'+(s.slot===curSlot?' selected':'')+'>'+
+          slotOpt(s)+'</option>').join("")+'</select>'+
+        '<span class="muted small">'+curSlots.length+' Xenosaga II saves on this card — '+
+        'each is a separate in-game slot</span></div>'
+    : '';
+  // identity strip: the save's own screenshot, name and playtime
+  const si = curSlots[curSlot] || {};
+  const ident = (d.thumb || si.name || si.playtime)
+    ? '<div class="ident">'+
+        (d.thumb?'<img class="thumb" alt="save screenshot" src="data:image/jpeg;base64,'+d.thumb+'">':'')+
+        '<div class="identtext"><div class="identname">'+esc(si.name||si.folder||origName)+'</div>'+
+        '<div class="muted small">'+
+          (si.playtime?'played '+esc(si.playtime)+' · ':'')+
+          'gold '+Number(d.gold).toLocaleString()+' · '+
+          d.characters.filter(c=>c.active).length+' units'+
+        '</div></div></div>'
+    : '';
   $("#editor").innerHTML =
     '<div class="card"><h2>2 · Edit ('+esc(origName)+' · '+esc((d.format||"").toUpperCase())+')</h2>'+
+    slotBar+ident+
     '<div class="toolbar"><label>Gold</label> <input id="gold" type="number" min="0" max="4294967295" '+
       'autocomplete="off" data-def="'+d.gold+'" value="'+d.gold+'">'+
       '<span style="flex:1"></span>'+
@@ -204,6 +272,14 @@ function renderSheet(d){
   $("#revBtn").onclick=()=>{document.querySelectorAll("#sheet input, #gold").forEach(i=>{i.value=i.getAttribute("data-def");
     i.classList.remove("changed");const b=i.nextElementSibling;if(b&&b.classList.contains("restore"))b.classList.remove("show");});updatePending();};
   $("#saveBtn").onclick=applyAndSave;
+  const ss=$("#slotSel");
+  if(ss) ss.onchange=async()=>{
+    if(changed().length && !(await openReview("Switch slot — discard staged edits?",
+        '<div class="note">You have '+changed().length+' unsaved change(s) on <b>'+
+        esc(curSlots[curSlot].folder)+'</b>. Switching slots discards them.</div>',
+        "Discard & switch"))){ ss.value=curSlot; return; }
+    await openSlot(+ss.value);
+  };
   updatePending();
 }
 
@@ -231,11 +307,13 @@ async function applyAndSave(){
   changed().forEach(i=>{if(i.id==="gold")return;const idx=i.dataset.idx,f=i.dataset.field;
     (edits.characters[idx]=edits.characters[idx]||{})[f]=+i.value;});
   const dest = (fileHandle&&SUPPORTS_FS)?("Apply & save to "+origName):("Apply & download");
-  if(!(await openReview("Review changes — "+origName, reviewHtml(), dest))) return;
+  const title = "Review changes — "+origName+
+    (curSlots.length>1?(" · "+curSlots[curSlot].folder):"");
+  if(!(await openReview(title, reviewHtml(), dest))) return;
   const st=$("#sstatus");st.textContent="saving…";st.className="status";$("#saveBtn").disabled=true;
   let ok=false;
   try{
-    PY.runPython(`apply_edits(${JSON.stringify(SAVE_PATH)}, ${JSON.stringify(JSON.stringify(edits))})`);
+    PY.runPython(`apply_edits(${JSON.stringify(SAVE_PATH)}, ${JSON.stringify(JSON.stringify(edits))}, ${curSlot})`);
     const bytes=PY.FS.readFile(SAVE_PATH);
     ok=true;
     // commit baseline
@@ -328,7 +406,7 @@ async function pickupShared(){
 }
 
 // ---- PWA staleness self-heal (B17) ----
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 $("#forceRefresh")?.addEventListener("click", async ()=>{
   try{ if("serviceWorker" in navigator)
     for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();

@@ -248,48 +248,40 @@ def t_truth(_iso, tmp):
     eq(unmatched, [], "no unmatched rows")
 
 
-def _js_object(src, name):
-    """Pull a top-level `const <name>={...}` literal out of iso.js and parse it.
-    Tolerant of JS-isms we actually use: bare keys and trailing commas."""
-    import json, re
-    i = src.index(f"const {name}=") + len(f"const {name}=")
-    depth, j = 0, i
-    while j < len(src):                       # walk to the matching brace
-        if src[j] == "{":
-            depth += 1
-        elif src[j] == "}":
-            depth -= 1
-            if depth == 0:
-                break
-        j += 1
-    body = src[i:j + 1]
-    body = re.sub(r"([{,]\s*)([A-Za-z_]\w*)\s*:", r'\1"\2":', body)
-    body = re.sub(r",(\s*[}\]])", r"\1", body)
-    return json.loads(body)
-
-
 @check("web ISO editor mirrors the Python profiles")
 def t_web_parity(_iso, _tmp):
-    """The browser editor can't import x2fields, so PROFILES/MAJOR_HP/CAPS are
-    duplicated in iso.js. Catch the drift here rather than shipping two editors
-    that rebalance discs differently."""
-    import re
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web", "iso.js")
-    if not os.path.exists(path):
-        raise AssertionError("web/iso.js not found")
-    src = open(path, encoding="utf-8").read()
+    """Two editors that rebalance discs differently would be a bad bug, so the
+    browser side must run the same numbers as the CLI.
 
-    eq(int(re.search(r"const MAJOR_HP=(\d+)", src).group(1)),
-       F.MAJOR_HP_THRESHOLD, "MAJOR_HP threshold")
-    eq(_js_object(src, "CAPS"), F.ENEMY_FIELD_CAPS, "field caps")
+    It used to hold its own copy of PROFILES/MAJOR_HP/CAPS, and this check parsed
+    the JS literals to catch drift. It now reads them out of web/tables.json,
+    generated from x2fields — so the check is that the generated file is current,
+    and that iso.js really does consume it instead of re-declaring its own."""
+    import json
+    here = os.path.dirname(os.path.abspath(__file__))
+    tables = os.path.join(here, "..", "web", "tables.json")
+    iso_js = os.path.join(here, "..", "web", "iso.js")
+    for p in (tables, iso_js):
+        if not os.path.exists(p):
+            raise AssertionError(f"{os.path.basename(p)} not found")
 
-    web = _js_object(src, "PROFILES")
-    eq(sorted(web), sorted(F.PROFILES), "profile keys")
+    with open(tables, encoding="utf-8") as f:
+        web = json.load(f)
+    eq(web.get("majorHpThreshold"), F.MAJOR_HP_THRESHOLD, "MAJOR_HP threshold")
+    eq(web.get("fieldCaps"), F.ENEMY_FIELD_CAPS, "field caps")
+    eq(sorted(web.get("profiles", {})), sorted(F.PROFILES), "profile keys")
     for key, prof in F.PROFILES.items():
         for field in ("label", "note"):
-            eq(web[key][field], prof[field], f"{key}.{field}")
+            eq(web["profiles"][key][field], prof[field], f"{key}.{field}")
         for group in ("regular", "major"):
-            eq(web[key][group], prof[group], f"{key}.{group} scaling")
+            eq(web["profiles"][key][group], prof[group], f"{key}.{group} scaling")
+
+    src = open(iso_js, encoding="utf-8").read()
+    eq("tables.json" in src, True, "iso.js fetches tables.json")
+    for name in ("PROFILES", "MAJOR_HP", "CAPS"):
+        if f"const {name}=" in src:
+            raise AssertionError(f"iso.js re-declares {name} instead of reading "
+                                 f"tables.json — the duplication is back")
 
 
 def main():

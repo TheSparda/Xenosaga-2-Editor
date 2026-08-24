@@ -68,10 +68,40 @@ Character record (0x108 bytes) — offsets within the record:
 The 0x108 record is now essentially fully mapped. **Total EXP is NOT in the record** —
 EXP-to-next lives in a separate RAM table (pnach 0x61C4xx), not yet located in the save.
 
-### Containers supported (x2save.py)
-psv (full), **sharkport `.sps/.xps`** (uncompressed), **cbs** (RC4+zlib) — all decode to
-the same 20,832-byte gamedata. `.max` (Ps2PowerSave/LZARI) still TODO. WRITE is PSV-only
-so far (sharkport/cbs need splice-back + their own container checksums).
+### Containers supported (x2save.py + x2mc.py)
+All of these decode to the same 20,832-byte gamedata, and all are writable:
+
+| Container | Read | Write | Notes |
+|---|---|---|---|
+| memcard `.ps2`/`.mcd` | yes | yes | PS2MFS filesystem — see below. What PCSX2 uses. |
+| `.psu` | yes | yes | EMS export: leading dirent, bodies padded to 1024 |
+| `.psv` | yes | yes | PS3 export; the wrapper's HMAC is not re-signed |
+| sharkport `.sps`/`.xps` | yes | yes | uncompressed |
+| `.cbs` | yes | yes | RC4 + zlib; re-compressed on write |
+| `.max` | no | no | Ps2PowerSave/LZARI — still TODO |
+
+**Memory cards (implemented in `x2mc.py`, per the published PS2MFS layout).** The
+superblock is page 0: pagesize/pages-per-cluster at +0x28, `clusters_per_card`,
+`alloc_offset`, `alloc_end`, `rootdir_cluster` at +0x30, `ifc_list[32]` at +0x50.
+The FAT is two levels (ifc_list -> indirect-FAT cluster -> FAT cluster, 256 u32
+entries each); an entry's top bit means allocated, the low 31 bits are the next
+cluster with `0x7FFFFFFF` ending the chain (a *free* entry is `0x7FFFFFFF` with the
+top bit clear). Directory entries are 512 bytes (mode u16 @0, length @4, first
+cluster @0x10, 32-byte name @0x40) — the same record `.psu` is built from, and the
+same `0x8427` dir / `0x8497` file modes the PSV table uses.
+
+The game stores **one folder per in-game save slot** (`BASLUS-20892Xeno201`,
+`…02`, …), so a card holds several saves. `x2save.list_slots()` enumerates them and
+every read/write takes a `slot=` index.
+
+Images come in two physical flavours: raw (512-byte pages back to back) and
+with-ECC (each page followed by 16 spare bytes, the first 12 holding a Hamming
+code over each 128-byte chunk). PCSX2 writes the ECC flavour. We recompute the
+code for every page we touch, but only after checking our implementation
+reproduces the codes already on that image; if it does not, the write is refused
+rather than risking a save the console reads as damaged (`Ps2Card.ecc_mode()`).
+Writes are length-preserving in-place patches only — nothing allocates, frees, or
+creates, so the filesystem can never be reshaped under the console.
 
 ### Inventory (item catalog mapped; save offset needs ground truth)
 From the disc-1 pnach: **36 consumables** at EE RAM `0x61C800` (u16 quantity per id,
@@ -175,7 +205,7 @@ pass-through and the `+0x08` field is preserved as-is.
   invalidates it. Fine for emulator/mymc workflows; real-PS3 re-import needs re-signing.
 
 ### Save TODO
-- [ ] `.max` / `.sps` / `.cbs` gamedata extraction + write (they wrap the same 20,832-byte
+- [x] Container coverage: memcard / psu / psv / sharkport / cbs read+write (only
   payload; SharkPort layout is `magic → 0 → title → desc → dirname → datalen →
   McFsEntry files → u32 checksum`).
 - [ ] Pin the five stat names/order; decode EXP, current-vs-max HP, equipment, techs.
@@ -360,6 +390,38 @@ says HP 1200 not 1000; Ai Apaec matched on name/position anyway).
 - **Rewards table**: base `0x201094C`, stride `0x10`, row = record index.
   - `+0x00` u32 EXP · `+0x04` u16 SP · `+0x06` u16 CP (16/16 anchors each)
   - `+0x08..0x0F` drop rates/categories/item ids (partially decoded)
+
+#### Affinity slots at `+0x04` — exposed, NOT verified
+Eight u8 percentages, `0x64` in ordinary records. That there are eight of them and
+that they hold 100 is solid; **which element each slot is has not been confirmed**.
+The game's element set is known from elsewhere (the E.S. Anti-Fire/Ice/Thunder/Beam
+accessories, plus the physical attack types in the status labels) but nothing on
+disc ties a slot to a name, and pairing a name to a byte on vibes is exactly the
+mistake the B12 retraction above came from. So they are exposed as `Aff1..Aff8`:
+numbered, gated behind an explicit opt-in in the UI, and flagged on the CLI. They
+also have no entry in `x2_enemies.json`, so they cannot be diffed against retail —
+patch export handles them separately (see below).
+
+Next step to actually verify them: a PCSX2 battle with a known element-resistant
+enemy, or the damage-calculation routine in the battle overlay.
+
+### Patch files (`x2-enemy-patch`, version 1)
+Because `x2_enemies.json` holds the verified retail values, a disc can be diffed
+against retail without a pristine copy — which makes edits exportable as a small
+JSON document others can apply to their own disc:
+
+```json
+{"format":"x2-enemy-patch","version":1,"game":"SLUS-20892","note":"half HP",
+ "edits":{"6":{"HP":11200,"EXP":45000}}}
+```
+
+`x2patch.py export-patch / apply-patch / diff / restore` and the web ISO editor
+read and write the same file. Parsing is deliberately strict (unknown field,
+out-of-range record, or non-integer value is an error, not something to skip) and
+validation happens before anything is written, so a bad patch cannot half-apply.
+The CLI exports verified fields against the retail catalog; the web editor also
+exports affinity slots, measured against the disc it opened, since retail has no
+baseline for those.
 
 Sanity anchors: Perun rec 6 HP 22,400 / EXP 30,000 / SP 1,200; Proto Ω 999,999;
 Mikumari 200,000; Baal Zebul 99,999; Phobos Rigas 55,555; Patriarch 21,600;

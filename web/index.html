@@ -29,8 +29,9 @@
 
   <section id="mode-save" class="mode">
     <p class="sub">Full save editor — gold and every character's level, HP, stats, and E.S. gear.
-      Everything runs in your browser via Python (Pyodide); your save <b>never leaves the
-      device</b>. Works on desktop and Android. Back up first.</p>
+      Opens PCSX2 memory-card images directly (and picks the slot), plus every common
+      single-save export. Everything runs in your browser via Python (Pyodide); your save
+      <b>never leaves the device</b>. Works on desktop and Android. Back up first.</p>
 
     <div class="card" id="loaderCard">
       <h2>1 · Load save</h2>
@@ -39,7 +40,8 @@
         <label class="file"><button type="button" id="pickBtn" disabled>Choose file…</button>
           <input type="file" id="file" hidden></label>
         <div class="muted" id="engineStatus"><span class="spinner"></span>Starting Python engine…</div>
-        <div class="muted small">Supports .psv (PS3), .sps/.xps (SharkPort), and .cbs (CodeBreaker).</div>
+        <div class="muted small">Supports <b>.ps2/.mcd</b> memory-card images (PCSX2), .psu (EMS),
+          .psv (PS3), .sps/.xps (SharkPort), and .cbs (CodeBreaker).</div>
       </div>
       <div id="recent"></div>
     </div>
@@ -49,15 +51,18 @@
 
   <section id="mode-iso" class="mode hidden">
     <p class="sub">Edit the disc directly — every enemy's stats (HP, STR, VIT, EATK, EDEF, DEX,
-      EVA, AGL) and battle rewards (EXP, SP, CP), plus one-click <b>battle-pacing profiles</b>
-      that retune what the stock→break→boost combo loop costs.
-      Changes write <b>in place</b>; nothing is uploaded. Desktop Chromium only. Back up first.</p>
+      EVA, AGL) and battle rewards (EXP, SP, CP), one-click <b>battle-pacing profiles</b> that
+      retune what the stock→break→boost combo loop costs, and <b>shareable patch files</b>. It
+      also knows the retail values, so it can show exactly how your disc differs from an
+      unmodified one — and put it back. Changes write <b>in place</b>; nothing is uploaded.
+      Desktop Chromium only. Back up first.</p>
     <div id="isoRoot"></div>
   </section>
 
   <section id="mode-ref" class="mode hidden">
     <p class="sub">Browse the game's data — items, key items, E.S. equipment, and the full
-      bestiary (verified stats &amp; rewards) — extracted from the disc. Read-only; search by name.</p>
+      bestiary (verified stats &amp; rewards) — extracted from the disc. Read-only; search by
+      name, filter the bestiary by field/boss/E.S., sort it, and export it as CSV.</p>
     <div id="refRoot"></div>
   </section>
 
@@ -69,7 +74,7 @@
       · v<span id="appver">1.3.0</span> ·
       <button id="forceRefresh" class="linkbtn" title="Unregister the service worker, clear caches, reload">↻ Force refresh</button></span>
     <span class="note">Save editor: in-browser Pyodide port of <code>x2save.py</code> (works everywhere).
-      ISO editor: in-place enemy stat/reward edits + battle-pacing profiles on desktop Chromium.</span>
+      ISO editor: in-place enemy stat/reward edits, battle-pacing profiles, patch files and retail compare on desktop Chromium.</span>
   </footer>
 </div>
 

@@ -1,0 +1,198 @@
+{
+  "_comment": "GENERATED from Editor/x2fields.py by Editor/gen_web_tables.py \u2014 do not edit by hand; run the generator instead.",
+  "bossIdMin": 561,
+  "catalogKeys": {
+    "AGL": "agl",
+    "CP": "cp",
+    "DEX": "dex",
+    "EATK": "eatk",
+    "EDEF": "edef",
+    "EVA": "eva",
+    "EXP": "exp",
+    "HP": "hp",
+    "SP": "sp",
+    "STR": "str",
+    "VIT": "vit"
+  },
+  "character": {
+    "base": 4468,
+    "caps": {
+      "Agl": 99,
+      "Current HP": 9999,
+      "Dex": 99,
+      "EP": 99,
+      "Eatk": 999,
+      "Edef": 999,
+      "Eva": 99,
+      "HP": 9999,
+      "Level": 99,
+      "Str": 999,
+      "Vit": 999
+    },
+    "count": 15,
+    "esFields": [
+      ["Gear 1", 134, 2],
+      ["Gear 2", 136, 2],
+      ["Gear 3", 138, 2],
+      ["Gear 4", 144, 2]
+    ],
+    "fields": [
+      ["Character id", 0, 2],
+      ["HP", 2, 2],
+      ["EP", 6, 2],
+      ["Str", 8, 2],
+      ["Vit", 10, 2],
+      ["Eatk", 12, 2],
+      ["Edef", 14, 2],
+      ["Dex", 16, 1],
+      ["Eva", 17, 1],
+      ["Agl", 18, 1],
+      ["Level", 19, 1],
+      ["Current HP", 92, 2]
+    ],
+    "sheetCols": [
+      ["Lvl", "Level"],
+      ["HP", "HP"],
+      ["Cur HP", "Current HP"],
+      ["EP", "EP"],
+      ["Str", "Str"],
+      ["Vit", "Vit"],
+      ["EAtk", "Eatk"],
+      ["EDef", "Edef"],
+      ["Dex", "Dex"],
+      ["Eva", "Eva"],
+      ["Agl", "Agl"]
+    ],
+    "stride": 264
+  },
+  "enemy": {
+    "affinityFields": [
+      ["Aff1", 4, 1],
+      ["Aff2", 5, 1],
+      ["Aff3", 6, 1],
+      ["Aff4", 7, 1],
+      ["Aff5", 8, 1],
+      ["Aff6", 9, 1],
+      ["Aff7", 10, 1],
+      ["Aff8", 11, 1]
+    ],
+    "affinityNormal": 100,
+    "base": 33551856,
+    "count": 125,
+    "fields": [
+      ["HP", 54, 4],
+      ["STR", 60, 2],
+      ["VIT", 62, 2],
+      ["EATK", 64, 2],
+      ["EDEF", 66, 2],
+      ["DEX", 68, 1],
+      ["EVA", 69, 1],
+      ["AGL", 70, 1]
+    ],
+    "idOff": 82,
+    "namesOff": 33563408,
+    "stride": 92
+  },
+  "fieldCaps": {
+    "AGL": 255,
+    "CP": 9999,
+    "DEX": 255,
+    "EATK": 999,
+    "EDEF": 999,
+    "EVA": 255,
+    "EXP": 999999,
+    "HP": 999999,
+    "SP": 9999,
+    "STR": 999,
+    "VIT": 999
+  },
+  "game": "Xenosaga Episode II - Jenseits von Gut und Boese",
+  "gamedataSize": 20832,
+  "majorHpThreshold": 20000,
+  "profiles": {
+    "deeper": {
+      "label": "Deeper challenge",
+      "major": {
+        "CP": 200,
+        "EATK": 115,
+        "EXP": 200,
+        "HP": 130,
+        "SP": 200,
+        "STR": 115
+      },
+      "note": "For players who like the loop: enemies hit harder and last longer, but pay out much more.",
+      "regular": {
+        "CP": 200,
+        "EATK": 115,
+        "EXP": 200,
+        "HP": 110,
+        "SP": 200,
+        "STR": 115
+      }
+    },
+    "faster": {
+      "label": "Faster fights",
+      "major": {
+        "CP": 150,
+        "EXP": 150,
+        "HP": 70,
+        "SP": 150
+      },
+      "note": "Keeps the combo loop, cuts the tax: fewer stocked chains per kill and quicker skill unlocks. The safe default.",
+      "regular": {
+        "CP": 150,
+        "EXP": 150,
+        "HP": 45,
+        "SP": 150
+      }
+    },
+    "freer": {
+      "label": "Freer play",
+      "major": {
+        "CP": 150,
+        "EDEF": 80,
+        "EXP": 150,
+        "HP": 75,
+        "SP": 150,
+        "VIT": 80
+      },
+      "note": "Makes off-combo attacks viable \u2014 softer defenses so unbroken damage lands, on top of a lighter HP cut.",
+      "regular": {
+        "CP": 150,
+        "EDEF": 70,
+        "EXP": 150,
+        "HP": 55,
+        "SP": 150,
+        "VIT": 70
+      }
+    },
+    "grindcut": {
+      "label": "Reward-only",
+      "major": {
+        "CP": 250,
+        "EXP": 250,
+        "SP": 250
+      },
+      "note": "Leaves every fight exactly as designed and only removes the grind between them.",
+      "regular": {
+        "CP": 250,
+        "EXP": 250,
+        "SP": 250
+      }
+    }
+  },
+  "reward": {
+    "base": 33622348,
+    "fields": [
+      ["EXP", 0, 4],
+      ["SP", 4, 2],
+      ["CP", 6, 2]
+    ],
+    "stride": 16
+  },
+  "serials": {
+    "SLUS-20892": 1,
+    "SLUS-21133": 2
+  },
+  "volumeId": "XENOSAGA_II"
+}
