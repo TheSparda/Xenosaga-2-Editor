@@ -212,6 +212,20 @@
   },
   "reward": {
     "base": 33622348,
+    "dropCatConsumable": 1,
+    "dropCatNames": {
+      "0": "nothing",
+      "1": "consumable",
+      "2": "E.S. gear"
+    },
+    "dropFields": [
+      ["DropRate", 8, 1],
+      ["RareRate", 9, 1],
+      ["DropCat", 10, 1],
+      ["RareCat", 11, 1],
+      ["DropItem", 12, 1],
+      ["RareItem", 13, 1]
+    ],
     "fields": [
       ["EXP", 0, 4],
       ["SP", 4, 2],

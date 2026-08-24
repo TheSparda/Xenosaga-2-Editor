@@ -15,6 +15,8 @@
   let AFIELDS, AFF_NORMAL, AFF_SCALE, AFF_ELEMENTS, CATKEYS, CAPS, PROFILES, MAJOR_HP;
   // break/zone data: a hittable-zone mask and BRK_SLOTS one-hot sequence slots
   let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM;
+  // item drops share the rewards row: rate, category and 1-based id per slot
+  let DFIELDS, DROPCATS, DROP_CONSUMABLE, ITEMS=null;
   let TABLES=null;
   // Both retail discs carry the enemy tables, disc 2's copy 0x800 lower, so no
   // base can be fixed at load time — each opened disc carries its own (see DISCS).
@@ -37,6 +39,8 @@
     BRK_SLOTS=t.enemy.breakSeqSlots||4; ZBITS=t.enemy.zoneBits||{A:1,B:2,C:4};
     ZSYM={}; for(const k in ZBITS) ZSYM[ZBITS[k]]=k;
     RSTRIDE=t.reward.stride; RFIELDS=t.reward.fields;
+    DFIELDS=t.reward.dropFields||[]; DROPCATS=t.reward.dropCatNames||{};
+    DROP_CONSUMABLE=t.reward.dropCatConsumable;
     BOSS_ID_MIN=t.bossIdMin; CATKEYS=t.catalogKeys||{};
     CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{}; MAJOR_HP=t.majorHpThreshold;
     ETABLES=t.enemyTables||{"1":{stats:t.enemy.base,rewards:t.reward.base}};
@@ -102,8 +106,8 @@
     const d=new DataView(T.orig.buffer);
     return w===4?d.getUint32(a,true):w===2?d.getUint16(a,true):T.orig[a];}
   // stats and affinities live in the stat record; rewards are their own table
-  const tableOf=(f)=>RFIELDS.some(x=>x[0]===f)?R:S;
-  const allFields=()=>SFIELDS.concat(AFIELDS,RFIELDS);
+  const tableOf=(f)=>(RFIELDS.some(x=>x[0]===f)||DFIELDS.some(x=>x[0]===f))?R:S;
+  const allFields=()=>SFIELDS.concat(AFIELDS,RFIELDS,DFIELDS);
   const specOf=(f)=>allFields().find(x=>x[0]===f);
   // retail value of one field, from the verified bestiary (affinities have none)
   const retail=(i,label)=>{
@@ -112,7 +116,22 @@
   };
 
   async function loadCat(){ if(cat)return cat;
-    try{cat=await (await fetch("../Editor/x2_enemies.json")).json();}catch(e){cat={};} return cat; }
+    try{cat=await (await fetch("../Editor/x2_enemies.json")).json();}catch(e){cat={};}
+    // only consumables can be named with confidence — E.S. gear ids don't line up
+    try{ITEMS=await (await fetch("../Editor/x2_consumables.json")).json();}catch(e){ITEMS={};}
+    return cat; }
+
+  // mirrors x2fields.drop_label()
+  function dropLabel(catByte,id,rate){
+    if(!catByte||!id) return "nothing";
+    let name=null;
+    if(catByte===DROP_CONSUMABLE && ITEMS){
+      const e=ITEMS[String(id-1)];
+      if(e) name=(typeof e==="string")?e:e.name;
+    }
+    if(!name) name=(DROPCATS[String(catByte)]||("category "+catByte))+" #"+id;
+    return name+" "+rate+"%";
+  }
 
   window.initISO = async function(){
     const root=$("#isoRoot"); if(root.dataset.init) return; root.dataset.init="1";
@@ -317,6 +336,14 @@
       '<span id="estat" class="status"></span></div>'+
       '<table id="etbl"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
       '<div id="eretail" class="note"></div>'+
+      '<div class="affbox"><div class="fl">Item drops</div>'+
+        '<table><tbody><tr id="erow4"></tr></tbody></table>'+
+        '<div id="edrops" class="muted small"></div>'+
+        '<p class="note">Two slots per enemy: a common drop and a rare one, each a '+
+        'percentage plus a category (0 nothing, 1 consumable, 2 E.S. gear) and a '+
+        '<b>1-based</b> item id within that category. Consumable ids are verified against '+
+        'the item catalog; E.S. gear ids are shown as bare numbers because that id space '+
+        'has not been pinned down yet.</p></div>'+
       '<div class="affbox"><div class="fl">Damage taken, by element (%)</div>'+
         '<table><tbody><tr id="erow3"></tr></tbody></table>'+
         '<p class="note">'+AFF_NORMAL+'% is normal, below resists, above takes extra, '+
@@ -454,6 +481,8 @@
       RFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("")+
       '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+eid+
       (eid>=BOSS_ID_MIN?" · boss":"")+'</span></td>';
+    $("#erow4").innerHTML=DFIELDS.map(([l,o,w])=>
+      cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("");
     $("#erow3").innerHTML=AFIELDS.map(([l,o,w])=>
       cellHtml(l,o,w,affPct(get(S,i,o,w)),affPct(getOrig(S,i,o,w)),true)).join("");
     // how this record compares with an unmodified disc
@@ -463,18 +492,25 @@
       ? "Differs from retail: "+off.map(([l,o,w])=>esc(l)+" "+get(tableOf(l),i,o,w).toLocaleString()+
           " (retail "+retail(i,l).toLocaleString()+")").join(", ")
       : "Matches the retail values for this enemy.";
-    document.querySelectorAll("#erow input, #erow2 input, #erow3 input").forEach(inp=>{
+    const paintDrops=()=>{
+      const el=$("#edrops"); if(!el) return;
+      const v=(f)=>{const sp=DFIELDS.find(x=>x[0]===f); return sp?get(R,i,sp[1],sp[2]):0;};
+      el.textContent="common: "+dropLabel(v("DropCat"),v("DropItem"),v("DropRate"))+
+                     "   ·   rare: "+dropLabel(v("RareCat"),v("RareItem"),v("RareRate"));
+    };
+    document.querySelectorAll("#erow input, #erow2 input, #erow3 input, #erow4 input").forEach(inp=>{
       let btn=inp.nextElementSibling;
       if(!btn||!btn.classList.contains("restore")){btn=document.createElement("button");btn.type="button";
         btn.className="restore";btn.textContent="↺";inp.after(btn);}
       const refresh=()=>{const f=inp.dataset.f,off=+inp.dataset.o,w=+inp.dataset.w;
         put(tableOf(f),i,off,w, inp.dataset.pct ? affByte(inp.value) : +inp.value);
         const ch=String(inp.value)!==String(inp.getAttribute("data-def"));
-        inp.classList.toggle("changed",ch);btn.classList.toggle("show",ch);epending();};
+        inp.classList.toggle("changed",ch);btn.classList.toggle("show",ch);paintDrops();epending();};
       inp.addEventListener("input",refresh);
       btn.onclick=()=>{inp.value=inp.getAttribute("data-def");refresh();};refresh();
     });
     wireBreak(i);
+    paintDrops();
     epending();
   }
 

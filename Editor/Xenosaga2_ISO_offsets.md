@@ -617,6 +617,51 @@ heights the model *has*, not which ones Break it.
 16 of the 125 records have an empty sequence: the guide's `Cannot` entries
 (mechanisms and scripted fights).
 
+### 2026-08-23 — ITEM DROPS SOLVED (the rest of the rewards row)
+
+The `0x10` rewards row is now fully accounted for:
+
+```
++0x00 u32  EXP        +0x08 u8  common drop rate %
++0x04 u16  SP         +0x09 u8  rare   drop rate %
++0x06 u16  CP         +0x0A u8  common item CATEGORY
+                      +0x0B u8  rare   item CATEGORY
+                      +0x0C u8  common item id (1-BASED)
+                      +0x0D u8  rare   item id
+                      +0x0E, +0x0F  always 0 (all 125 records)
+```
+
+Category: **0 = nothing, 1 = consumable, 2 = E.S. gear** (24 / 100 / 20
+occurrences across the mapped records). It first looked like a boolean "has a
+drop" flag; the 2s are exactly the enemies the guide says drop E.S. equipment.
+
+Ids are **1-based within the category**, so `consumable_names()[id - 1]`.
+All 23 distinct consumable ids seen resolve with **zero conflicts** — id 1 =
+Med Kit S, 5 = Ether Pack S, 11 = Antidote L, 33 = Scrap Iron, 34 = Junked
+Circuit, 35 = Ether Core. Drop rates match the guide on **138 of 144**
+comparisons, and full labels match on 119 of 144 with 21 more being E.S. gear
+that we deliberately leave unnamed.
+
+**E.S. gear ids are NOT resolved.** The category is certain but the id space does
+not line up with `x2_es_equip.json` at any constant offset — the guide's pairs
+imply +1, +4, +7 and +8 for different entries, and that catalog was only ever
+confirmed for accessory ids 0-30 anyway. `drop_item_name()` returns None for
+category 2 and the front-ends print `E.S. gear #14`. Resolving it needs the disc's
+own E.S. item table, not more guide data.
+
+Four residual disagreements, none structural:
+
+- rec 13 Arvakv — guide says `Skill Upgrade C`, disc id 24 resolves to
+  `Skill Upgrade B`. **Two independent sources conflict here** and neither was
+  changed: our consumable catalog comes from the disc-1 pnach (id 23 =
+  Skill Upgrade B, "+30 SP") and has a *gap* at id 22, while the guide's drop ids
+  imply catalog 22 = Skill Upgrade B and 23 = Skill Upgrade C. One of them is off
+  by one in this narrow range. Everything either side of it agrees, so this is
+  recorded rather than "fixed".
+- rec 18 Wraith Feeler — guide lists EMAX300 / Auto Recover, the disc row is all
+  zeros. Likely the guide describing a different encounter of the same statline.
+- rec 51 Executus Sagitta — guide says no rare drop, the disc has one.
+
 ### 2026-08-23 — DAMAGE AFFINITIES SOLVED (and the old +0x04 slots were wrong)
 
 **`+0x58`, eight SIGNED bytes, percent = byte × 5.** Element order is the guide's
