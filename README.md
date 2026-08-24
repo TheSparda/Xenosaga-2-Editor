@@ -22,6 +22,10 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   shows exactly how your disc differs from an unmodified one (and can restore it).
 - **Reference** — searchable bestiary (verified stats & rewards, filter by field/boss/E.S.,
   sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc.
+- **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
+  tap. On desktop the writable file handle is kept too, so a reopened file still saves **in
+  place**. Stored locally in your browser (IndexedDB); the ISO entry keeps only a file
+  reference, never disc contents.
 
 > Supply your own legally-obtained saves/ISOs. The repo ships **no game data**.
 

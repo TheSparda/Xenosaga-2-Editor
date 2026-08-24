@@ -72,7 +72,14 @@ tr.gearrow .fl{color:var(--acc2)} tr.gearrow .fl::before{content:"⚙ "}
 .es td.name{color:var(--mut)}
 .gpick{cursor:pointer;text-decoration:underline dotted}
 .note{color:var(--mut);font-size:12.5px;margin:10px 0 0}
-.recent{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.recent{margin-top:10px;display:flex;gap:8px;align-items:center}
+/* chips default to margin-left:auto (header layout) — neutralize inside the recent row */
+.recent .chip,.recent .chip+.chip{margin-left:0}
+.recent .muted{margin-top:0}
+/* the filename chip shrinks/ellipsizes so the ✕ always stays on the same line */
+.recent .chip:not(.mini){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent .chip.mini{flex:0 0 auto;padding:5px 9px;line-height:1}
+#isoRecent:empty{display:none}
 footer{margin-top:20px;color:var(--mut);font-size:12px;display:flex;flex-direction:column;gap:5px}
 footer a{color:var(--acc)}
 code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
