@@ -398,7 +398,12 @@ def write_fake_disc(path, enemies=None):
             f.seek(F.REWARD_TABLE_OFF + i * F.REWARD_STRIDE)
             f.write(bytes(row))
 
-        # the last record's affinity block spills four bytes past the table
+        # the last record's affinity and resistance blocks spill past the table
+        tail = bytearray(F.enemy_record_tail())
+        for k in range(4):
+            tail[k] = F.affinity_byte(100)
+        for _n, off, _w, _k in F.STATUS_RES_FIELDS:
+            tail[off - F.ENEMY_STRIDE] = 50
         f.seek(F.ENEMY_TABLE_OFF + F.ENEMY_COUNT * F.ENEMY_STRIDE)
-        f.write(bytes([F.affinity_byte(100)] * 4))
+        f.write(bytes(tail))
     return path

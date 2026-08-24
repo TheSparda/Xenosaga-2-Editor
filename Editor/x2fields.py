@@ -468,6 +468,42 @@ def encode_break_seq(text):
     vals = [ZONE_BITS[c] for c in syms]
     return tuple(vals + [0] * (BREAK_SEQ_SLOTS - len(vals)))
 
+# ---------------------------------------------------------------------------
+# BULK BREAK SHORTENING
+#
+# The break sequence is the combo loop's actual gate: a 4-hit boss costs four
+# correct zone hits per break, every break, all fight. Dropping every sequence by
+# one hit (4->3, 3->2, 2->1) cuts that tax across the board without touching a
+# single stat. `steps` applies the drop repeatedly.
+#
+# A 1-hit sequence is left alone rather than emptied — an empty sequence means
+# "cannot be broken", which is a different thing entirely and would make a fight
+# harder, not faster. Enemies that already can't be broken stay that way.
+BREAK_MIN_LEN = 1
+
+def shorten_break_seq(seq, steps=1):
+    """'CBAA' -> 'CBA' (steps=1) -> 'CB' (steps=2). Trims from the END, so the
+    opening zone a player already knows stays correct. Never empties a sequence
+    and never touches one that is already empty."""
+    if not seq:
+        return seq
+    n = max(BREAK_MIN_LEN, len(seq) - max(0, int(steps)))
+    return seq[:n]
+
+def plan_break_shortening(sequences, steps=1):
+    """[(index, old, new), ...] for every record the shortening would change.
+
+    `sequences` is {record index: sequence text}. Records already at the minimum,
+    or unbreakable, are omitted — so the caller can show exactly what it touches
+    before writing anything."""
+    plan = []
+    for i in sorted(sequences):
+        old = sequences[i] or ""
+        new = shorten_break_seq(old, steps)
+        if new != old:
+            plan.append((i, old, new))
+    return plan
+
 def zone_mask_text(mask):
     """5 -> 'AC' — which zones the enemy has."""
     return "".join(s for v, s in sorted(ZONE_SYMBOLS.items()) if mask & v)
@@ -665,6 +701,22 @@ ENEMY_FIELD_CAPS = {
 # the guide's ten status resistances but does NOT match it, so it stays here.
 ENEMY_UNMAPPED = [(0x0C, 0x36), (0x47, 0x4C), (0x4D, 0x52)]
 
+def enemy_record_tail():
+    """Bytes a stat-record field reaches PAST the nominal ENEMY_STRIDE.
+
+    The affinity block (+0x58, 8 bytes) and the status-resistance block (+0x6C,
+    11 bytes) both start inside one record and end inside the next — see the
+    notes. Anything that slices the table into a fixed buffer of
+    ENEMY_COUNT * ENEMY_STRIDE therefore reads off the end on the LAST record,
+    which is how the web editor briefly showed Dark Erde Kaiser's Ice/Pierce/
+    Slash/Hit and every resistance as blank-and-modified. Callers must add this
+    many bytes to the span they read."""
+    reach = max(off + w for (_l, off, w, _k) in
+                (ENEMY_FIELDS + ENEMY_AFFINITY_FIELDS + ZONE_FIELDS
+                 + STATUS_RES_FIELDS))
+    return max(0, reach - ENEMY_STRIDE)
+
+
 def enemy_unmapped_offsets():
     """Every still-unknown byte offset within a stat record, ascending."""
     return [o for a, b in ENEMY_UNMAPPED for o in range(a, b)]
@@ -782,6 +834,9 @@ def web_tables():
             "count": ENEMY_COUNT,
             "namesOff": ENEMY_NAMES_OFF,
             "idOff": ENEMY_ID_OFF,
+            # extra bytes past count*stride that a front-end must read, because
+            # the affinity and resistance blocks overhang the record
+            "recordTail": enemy_record_tail(),
             "fields": fields(ENEMY_FIELDS),
             # verified: eight signed bytes at +0x58, percent = byte * 5
             "affinityFields": fields(ENEMY_AFFINITY_FIELDS),

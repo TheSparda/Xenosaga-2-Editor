@@ -95,6 +95,7 @@
     ],
     "idOff": 82,
     "namesOff": 33563408,
+    "recordTail": 27,
     "statusResFields": [
       ["Slow", 108, 1],
       ["Blind", 110, 1],

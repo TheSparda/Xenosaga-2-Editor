@@ -766,6 +766,26 @@ of the 174 into fragments, which is exactly what the first pass did.
 
 `x2patch.py skills [--grep X] [--csv] [--verbose]` lists it.
 
+### 2026-08-24 — the record tail (a bug worth recording)
+
+Three field groups reach past the nominal `0x5C` record: affinities (`+0x58`, 8
+bytes) and status resistances (`+0x6C`, 11 bytes). Anything that slices the table
+into a fixed buffer of `ENEMY_COUNT * ENEMY_STRIDE` therefore reads **off the end
+on the last record** — record 124, Dark Erde Kaiser. The web editor did exactly
+that, and showed its Ice/Pierce/Slash/Hit and all eight resistances as blank and
+"modified", because the reads returned `undefined`.
+
+`F.enemy_record_tail()` computes the overhang from the field table itself (27
+bytes today) and is exported to `web/tables.json` as `enemy.recordTail`;
+`x2patch.read_records()` includes it too, so the column scanners stop truncating
+the last record. Three tests guard it: the tail matches the fields, the generated
+tables carry it, and `iso.js` is asserted to add it to its slice.
+
+The write path was never wrong — writes address `base + off` absolutely, and
+out-of-range typed-array stores are silently dropped rather than corrupting
+anything — so this was a display bug, not a data one. Worth stating because the
+same overhang will bite the next front-end that assumes a record is a record.
+
 ### 2026-08-24 — SKILL NUMERIC TABLE SOLVED (the two failed searches, explained)
 
 **32-byte records at ISO `0x2007CA0` (disc 1) / `0x20074A0` (disc 2, the usual
@@ -987,6 +1007,26 @@ Gotcha worth recording: the text is ASCII **with occasional EUC-JP glyphs** —
 of the 174 into fragments, which is exactly what the first pass did.
 
 `x2patch.py skills [--grep X] [--csv] [--verbose]` lists it.
+
+### 2026-08-24 — the record tail (a bug worth recording)
+
+Three field groups reach past the nominal `0x5C` record: affinities (`+0x58`, 8
+bytes) and status resistances (`+0x6C`, 11 bytes). Anything that slices the table
+into a fixed buffer of `ENEMY_COUNT * ENEMY_STRIDE` therefore reads **off the end
+on the last record** — record 124, Dark Erde Kaiser. The web editor did exactly
+that, and showed its Ice/Pierce/Slash/Hit and all eight resistances as blank and
+"modified", because the reads returned `undefined`.
+
+`F.enemy_record_tail()` computes the overhang from the field table itself (27
+bytes today) and is exported to `web/tables.json` as `enemy.recordTail`;
+`x2patch.read_records()` includes it too, so the column scanners stop truncating
+the last record. Three tests guard it: the tail matches the fields, the generated
+tables carry it, and `iso.js` is asserted to add it to its slice.
+
+The write path was never wrong — writes address `base + off` absolutely, and
+out-of-range typed-array stores are silently dropped rather than corrupting
+anything — so this was a display bug, not a data one. Worth stating because the
+same overhang will bite the next front-end that assumes a record is a record.
 
 ### 2026-08-24 — SKILL NUMERIC TABLE SOLVED (the two failed searches, explained)
 

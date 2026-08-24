@@ -154,3 +154,34 @@ class TestGeneratedWebTables(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRecordTail(unittest.TestCase):
+    """The affinity and status-resistance blocks end past the nominal record, so
+    the LAST record's fields live beyond count*stride. A front-end that slices a
+    fixed buffer must add the tail — the web editor didn't, and rendered Dark
+    Erde Kaiser's Ice/Pierce/Slash/Hit and every resistance as blank."""
+
+    def test_tail_covers_every_overhanging_field(self):
+        reach = max(off + w for (_l, off, w, _k) in
+                    (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.ZONE_FIELDS
+                     + F.STATUS_RES_FIELDS))
+        self.assertEqual(F.enemy_record_tail(), max(0, reach - F.ENEMY_STRIDE))
+        self.assertGreater(F.enemy_record_tail(), 0,
+                           "a field really does overhang; a zero tail means the "
+                           "field table changed and this guard went stale")
+
+    def test_generated_tables_expose_it(self):
+        with open(WEB_TABLES) as f:
+            t = json.load(f)
+        self.assertEqual(t["enemy"]["recordTail"], F.enemy_record_tail())
+
+    def test_iso_js_reads_the_tail(self):
+        with open(os.path.join(os.path.dirname(WEB_TABLES), "iso.js")) as f:
+            src = f.read()
+        self.assertIn("recordTail", src,
+                      "iso.js must consume enemy.recordTail")
+        self.assertRegex(
+            src, r"COUNT\s*\*\s*STRIDE\s*\+\s*TAIL",
+            "iso.js slices the stat table without adding the tail, so the last "
+            "record's overhanging fields read past the buffer")
