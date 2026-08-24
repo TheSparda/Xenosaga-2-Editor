@@ -305,6 +305,47 @@ def enemy_unk3a(i):
 #
 # 16 of the 125 records have an empty sequence — those are the "Cannot" break
 # entries in the guide (mechanisms and scripted fights).
+# ---------------------------------------------------------------------------
+# STATUS RESISTANCES (VERIFIED 2026-08-23) — one u8 percentage per status.
+#
+# Enemy i's block sits at `base + i*ENEMY_STRIDE + 0x6C`, which is 0x10 bytes
+# INTO RECORD i+1. That is the same shifted framing the affinity block showed
+# (+0x58, running past the record end): the game's real record boundary is not
+# where our stat base puts it. Empirically, per enemy i:
+#
+#     stats        base + i*0x5C + 0x36..     (125/125 against the catalog)
+#     affinities   base + i*0x5C + 0x58       (71/71 against the guide)
+#     resistances  base + i*0x5C + 0x6C       (479/486 against the guide)
+#
+# Byte-to-status mapping, scored against every published guide row:
+#
+#     +0  Slow   50/51      +6  EthPD  70/71
+#     +2  Blind  70/71      +7  EthDD  70/71
+#     +3  Heavy  70/71      +9  ResDw  50/51
+#     +4  Weak   70/71     +10  Junk   29/29
+#
+# 479/486 overall (98.6%), byte-identical on both discs.
+#
+# Bytes +1, +5 and +8 are NOT identified. +5 carries real per-enemy data (15
+# distinct values); +1 and +8 are almost always 0 with a handful of exceptions.
+# The guide's remaining two columns, Lost and Curse, do not map to any byte here
+# — Lost peaks at 38% agreement and Curse only "matches" because it is nearly
+# always 0, which any zero byte satisfies. So they are left out rather than
+# assigned on a coin-flip. Bytes +11 onward are 0 across all 125 records.
+STATUS_RES_OFF = 0x6C
+STATUS_RES_SLOTS = 11
+STATUS_RES_FIELDS = [
+    ("Slow",  STATUS_RES_OFF + 0,  1, "num"),
+    ("Blind", STATUS_RES_OFF + 2,  1, "num"),
+    ("Heavy", STATUS_RES_OFF + 3,  1, "num"),
+    ("Weak",  STATUS_RES_OFF + 4,  1, "num"),
+    ("EthPD", STATUS_RES_OFF + 6,  1, "num"),
+    ("EthDD", STATUS_RES_OFF + 7,  1, "num"),
+    ("ResDw", STATUS_RES_OFF + 9,  1, "num"),
+    ("Junk",  STATUS_RES_OFF + 10, 1, "num"),
+]
+STATUS_RES_NAMES = [f[0] for f in STATUS_RES_FIELDS]
+
 ZONE_BITS = {"A": 0x01, "B": 0x02, "C": 0x04}
 ZONE_SYMBOLS = {0x01: "A", 0x02: "B", 0x04: "C"}
 ENEMY_ZONE_MASK_OFF = 0x4C
@@ -456,15 +497,39 @@ DROP_CAT_NAMES = {DROP_CAT_NONE: "nothing",
                   DROP_CAT_CONSUMABLE: "consumable",
                   DROP_CAT_ES: "E.S. gear"}
 
-def drop_item_name(category, item_id):
-    """Name for a (category, 1-based id) drop, or None if it can't be named.
+# The disc holds ONE unified item table (names + descriptions) at ISO 0x200C5D4,
+# extracted to x2_items.json. Both drop categories index it, each from its own
+# base, with a 1-BASED id:
+#
+#   category 2 (E.S. gear)   -> x2_items[id - 1]        base 0
+#   category 1 (consumable)  -> x2_items[id - 1 + 40]   base 40 (Med Kit S)
+#
+# The table includes 13 "予備" (spare/reserve) placeholder slots that occupy id
+# space. Skipping them is precisely why the drop ids appeared not to line up with
+# x2_es_equip.json at any constant offset: the drift accumulates at each block of
+# placeholders. Counting them, all 15 unambiguous E.S. pairs from the guide
+# resolve exactly.
+DROP_CAT_BASE = {DROP_CAT_CONSUMABLE: 40, DROP_CAT_ES: 0}
 
-    Only consumables can be named with confidence — see the note above."""
+def item_catalog():
+    """{index: {name, desc, off, placeholder}} — the disc's unified item table."""
+    return {int(k): v for k, v in res_json("x2_items.json").items()}
+
+def item_name(index):
+    """Name at a unified-table index, or None for a placeholder / bad index."""
+    e = item_catalog().get(index)
+    if not e or e.get("placeholder"):
+        return None
+    return e["name"]
+
+def drop_item_name(category, item_id):
+    """Name for a (category, 1-based id) drop, or None if it can't be named."""
     if not category or not item_id:
         return None
-    if category == DROP_CAT_CONSUMABLE:
-        return consumable_names().get(item_id - 1)
-    return None
+    base = DROP_CAT_BASE.get(category)
+    if base is None:
+        return None
+    return item_name(base + item_id - 1)
 
 def drop_label(category, item_id, rate):
     """'Med Kit S 100%' / 'E.S. gear #14 20%' / 'nothing' — for display."""
@@ -639,6 +704,8 @@ def web_tables():
             "breakSeqOff": BREAK_SEQ_OFF,
             "breakSeqSlots": BREAK_SEQ_SLOTS,
             "zoneBits": ZONE_BITS,
+            # status resistances: one u8 percent per status, at +0x6C
+            "statusResFields": fields(STATUS_RES_FIELDS),
         },
         "reward": {
             "base": REWARD_TABLE_OFF,
@@ -648,6 +715,8 @@ def web_tables():
             "dropFields": fields(DROP_FIELDS),
             "dropCatNames": {str(k): v for k, v in sorted(DROP_CAT_NAMES.items())},
             "dropCatConsumable": DROP_CAT_CONSUMABLE,
+            # unified item table bases, so the front-end can name both categories
+            "dropCatBase": {str(k): v for k, v in sorted(DROP_CAT_BASE.items())},
         },
         "character": {
             "base": CHAR_TABLE_OFF,

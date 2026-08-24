@@ -645,6 +645,103 @@ heights the model *has*, not which ones Break it.
 16 of the 125 records have an empty sequence: the guide's `Cannot` entries
 (mechanisms and scripted fights).
 
+### 2026-08-23 — STATUS RESISTANCES SOLVED (8 of 10 named)
+
+Enemy `i`'s resistance block sits at **`base + i*0x5C + 0x6C`** — which is `0x10`
+bytes *into record `i+1`*. One `u8` percentage per status; higher resists more.
+
+| byte | status | agreement |
+|---|---|---|
+| `+0`  | Slow  | 50/51 |
+| `+2`  | Blind | 70/71 |
+| `+3`  | Heavy | 70/71 |
+| `+4`  | Weak  | 70/71 |
+| `+6`  | EthPD | 70/71 |
+| `+7`  | EthDD | 70/71 |
+| `+9`  | ResDw | 50/51 |
+| `+10` | Junk  | 29/29 |
+
+**479/486 overall (98.6%)**, byte-identical on both discs.
+
+#### The shifted frame, again
+
+This is the third field to sit outside our nominal record, and the pattern is now
+unmistakable. Per enemy `i`, relative to `base + i*0x5C`:
+
+```
++0x36..  stats          125/125
++0x58    affinities      71/71   (runs 4 bytes past the record)
++0x6C    resistances    479/486  (entirely inside record i+1)
+```
+
+So the game's real record boundary is **not** where our stat base puts it. Every
+field is verified at the offset above and the editor addresses them absolutely,
+so nothing is wrong in practice — but a scanner that slices `0x5C` per record
+cannot see the affinity or resistance blocks at all, which is exactly why both
+searches came up empty until the window was widened past the record end. **When a
+field "isn't in the record", check past the record end before concluding it isn't
+in the table.**
+
+#### What is NOT resolved
+
+- Bytes `+1`, `+5`, `+8` of the block. `+5` carries real per-enemy data (15
+  distinct values); `+1` and `+8` are almost always 0 with a few exceptions.
+- The guide's other two columns, **Lost** and **Curse**. Lost peaks at 38%
+  agreement against any byte; Curse "matches" a zero byte 96% of the time only
+  because Curse is nearly always 0, which is not evidence. Both are left
+  unassigned rather than guessed. The disc block has room for them — the three
+  unidentified bytes are the obvious candidates — but nothing here distinguishes
+  which.
+- Bytes `+11` onward are 0 across all 125 records.
+
+The earlier disc-wide sweep for a *separate* resistance table found nothing, which
+was correct: the data was in the enemy table all along, just past the record edge.
+
+### 2026-08-23 — E.S. ITEM IDS SOLVED (one unified item table)
+
+The disc holds **one** item table at ISO **`0x200C5D4`** — name/description pairs
+covering E.S. gear, consumables, Awakenings and Secret Keys. Extracted to
+`Editor/x2_items.json`: **139 entries, 126 real and 13 placeholders**.
+
+The placeholders are the key. Thirteen slots hold the Japanese string **`予備`**
+("spare/reserve") — unused item ids the localisation never filled. They occupy id
+space. Skipping them, which `x2_es_equip.json` did, makes ids drift by a growing
+amount at each block of spares, which is precisely why the drop table's category-2
+ids appeared to match the accessory catalog at no constant offset (the guide's
+pairs implied +1, +4, +7 and +8 for different entries — the accumulating drift).
+
+Counting them, both drop categories index this one table with a **1-based** id,
+each from its own base:
+
+```
+category 2 (E.S. gear)  -> x2_items[id - 1]        base 0
+category 1 (consumable) -> x2_items[id - 1 + 40]   base 40  (Med Kit S)
+```
+
+All 15 unambiguous E.S. pairs from the guide resolve exactly (id 1 = Auxiliary
+Armor A, 6 = EF Circuit A past three spares, 22 = G Blind Guard, 30 = G Boost
+Guard, 36 = EMAX300, 37 = Auto Recover). Drop labelling went from 119/144 exact
+with 21 unnamed, to **137/144 exact with none unnamed**.
+
+#### This also settles the Skill Upgrade B/C conflict
+
+The unified table has Skill Upgrade **A(61) B(62) C(63) D(64) E(65)** with no gap.
+Consumable base 40 makes those ids 21, 22, 23, 24, 25 — so `x2_consumables.json`,
+derived from the disc-1 pnach, is **missing id 22 and mislabels id 23 as "Skill
+Upgrade B" when it is Skill Upgrade C**. The guide was right and our catalog was
+wrong; the earlier note recording this as an unresolved two-source conflict is
+now resolved in the guide's favour. The pnach-derived catalog is left in place for
+its existing uses, and drop naming goes through the disc's own table.
+
+#### Still open: the SAVE-side gear slots
+
+The four `Gear 1..4` slots in a save record are a **different** id space, and this
+does not settle them. Checking every non-zero gear value across the 24 local
+saves: under `index = id` five values land on `予備` placeholders, and under
+`index = id - 1` three do — neither is clean. That fits the standing note that the
+four slots are probably weapon/frame/armor/anima indexing *separate* tables. The
+save editor's gear picker is unchanged and remains explicitly experimental.
+
 ### 2026-08-23 — SKILL / TECH catalog extracted (174 skills)
 
 The skill table's text lives at **ISO `0x2009B58`..`0x20108D4`** as alternating
@@ -669,10 +766,37 @@ of the 174 into fragments, which is exactly what the first pass did.
 
 `x2patch.py skills [--grep X] [--csv] [--verbose]` lists it.
 
-**Not yet located: the numeric table** behind these — raw power, cast time,
-accuracy. The catalog gives names, targets and EP; changing what a skill *does*
-needs that table, and finding it needs ground truth to anchor (the guide's SP
-costs per skill are the obvious lever).
+**Not located: the numeric table** behind these — raw power, cast time, accuracy.
+The catalog gives names, targets and EP; changing what a skill *does* needs that
+table.
+
+#### Searched for, and NOT found (2026-08-23) — don't repeat these
+
+Two independent approaches, both negative:
+
+1. **Pointer array into the name table.** Built all 174 name offsets and scanned
+   `0x1FE0000..0x2030000` for `u32` arrays holding them, absolute and relative to
+   six plausible bases. Absolute: **0 hits**. `0x2000000`: 5. `0x2009000`: 6.
+   (Relative to the table's own start gives ~20k hits, which is just small
+   integers matching everything — noise, not a table.) So skill names are
+   resolved by **string index in code**, not by a scannable offset table — the
+   same wall the E.S. weapon/frame ids hit.
+
+2. **The EP-cost column.** 56 of the 174 skills carry an EP cost in their own
+   description text, which is ground truth needing no guide. Scanned for a strided
+   `u8` column reproducing that sequence in name-table order, requiring ≥75-80%
+   agreement, with three well-separated anchors for early rejection:
+   - data region `0x1F00000..0x2060000`, strides 1..64 — **no candidate**
+   - boot ELF `SLUS_208.92` (5.8 MB), strides 1..48 — **no candidate**
+   - `OV01.OVL`, `OV02.OVL`, `XENOSAGA.00`, `XENOSAGA.10` — **no candidate**
+
+The assumption most likely to be wrong is that **skill index order equals
+name-table order**. If the game indexes skills by a class/level id rather than by
+position in the text run, every scan above is looking for the right values in the
+wrong order and would find nothing regardless. Next attempt should establish the
+index mapping first — from a save's learned-skill array (character record
+`+0x33..`, which grows with observed ids `0x1D, 0x1E, 0x1F…`) cross-referenced
+against which skills a character actually knows.
 
 ### 2026-08-23 — ITEM DROPS SOLVED (the rest of the rewards row)
 

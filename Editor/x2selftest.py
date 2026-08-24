@@ -289,14 +289,14 @@ def t_truth(_iso, tmp):
 @check("item drops decode and round-trip", path=True)
 def t_drops(iso_path, _tmp):
     """The rest of the 0x10 rewards row: rate, category and a 1-BASED item id per
-    slot. Only consumables can be named — E.S. gear ids don't line up with the
-    catalog, so drop_label() must fall back to a bare number rather than guess."""
+    slot. Both categories now resolve through the disc's unified item table, each
+    from its own base — see t_item_names for the id-space checks."""
     eq(F.drop_label(F.DROP_CAT_NONE, 0, 0), "nothing", "empty slot")
-    name = F.consumable_names().get(0)
+    name = F.drop_item_name(F.DROP_CAT_CONSUMABLE, 1)
     eq(F.drop_label(F.DROP_CAT_CONSUMABLE, 1, 100), f"{name} 100%", "consumable named")
-    lbl = F.drop_label(F.DROP_CAT_ES, 14, 20)
-    eq("#14" in lbl and "20%" in lbl, True, f"E.S. gear left unnamed, got {lbl!r}")
-    eq(F.drop_item_name(F.DROP_CAT_ES, 14), None, "no invented name for E.S. gear")
+    eq(F.drop_label(F.DROP_CAT_ES, 14, 20), "Anti-Beam Armor 20%", "E.S. gear named")
+    # an id past the end of the table still must not invent anything
+    eq(F.drop_item_name(F.DROP_CAT_ES, 9999), None, "out-of-range id names nothing")
 
     # this check shares the fixture with the rebalance checks, so compare against
     # what the row held a moment ago rather than against retail values
@@ -311,10 +311,60 @@ def t_drops(iso_path, _tmp):
         rec = X.read_enemy(iso, 9)
         common, rare = X.drops_of(rec)
         eq(common, f"{name} 55%", "common drop reads back")
-        eq("#14 5%" in rare, True, f"rare drop reads back, got {rare!r}")
+        eq(rare, "Anti-Beam Armor 5%", f"rare drop reads back, got {rare!r}")
         # the drop bytes share a row with EXP/SP/CP — those must be untouched
         for lbl2 in ("EXP", "SP", "CP"):
             eq(rec[lbl2], before[lbl2], f"{lbl2} untouched by a drop write")
+
+
+@check("status resistances read and write at their own offsets", path=True)
+def t_resist(iso_path, _tmp):
+    """+0x6C, one u8 percent per status — which is 0x10 bytes INTO record i+1,
+    the same shifted framing the affinity block showed. So a write for enemy i
+    must not disturb enemy i+1's stats, and must not be confused with enemy
+    i+1's own resistances."""
+    for name, off, w, _k in F.STATUS_RES_FIELDS:
+        eq(w, 1, f"{name} is a single byte")
+        eq(off >= F.STATUS_RES_OFF, True, f"{name} sits in the block")
+    eq(len(F.STATUS_RES_NAMES), 8, "eight named statuses")
+    # the block starts past the nominal record, like the affinity block
+    eq(F.STATUS_RES_OFF > F.ENEMY_STRIDE, True, "block is past the record end")
+
+    with X.Iso(iso_path) as iso:
+        before8 = X.read_enemy(iso, 8)
+    with X.Iso(iso_path, write=True) as iso:
+        n = X.write_enemy(iso, 7, {"Slow": 55, "Blind": 5, "Junk": 100})
+        eq(n, 3, "three resistances written")
+    with X.Iso(iso_path) as iso:
+        rec7 = X.read_enemy(iso, 7)
+        eq((rec7["Slow"], rec7["Blind"], rec7["Junk"]), (55, 5, 100), "written back")
+        after8 = X.read_enemy(iso, 8)
+        for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL"):
+            eq(after8[lbl], before8[lbl], f"record 8 {lbl} untouched")
+        # enemy 8's own resistances live further on and must be independent
+        for name in F.STATUS_RES_NAMES:
+            eq(after8[name], before8[name], f"record 8 {name} untouched")
+
+
+@check("drops name both item categories from the unified table")
+def t_item_names(_iso, _tmp):
+    """One table on disc holds E.S. gear and consumables; each drop category
+    indexes it from its own base with a 1-based id. The 予備 placeholder slots
+    occupy id space — skipping them is what made the E.S. ids look unmappable."""
+    items = F.item_catalog()
+    eq(len(items) > 100, True, "catalog loaded")
+    ph = [i for i, v in items.items() if v.get("placeholder")]
+    eq(len(ph) > 0, True, "placeholders are kept, not dropped")
+    eq(F.item_name(ph[0]), None, "a placeholder refuses to name itself")
+    # the anchors the guide pinned down
+    eq(F.drop_item_name(F.DROP_CAT_ES, 1), "Auxiliary Armor A", "E.S. id 1")
+    eq(F.drop_item_name(F.DROP_CAT_ES, 6), "EF Circuit A", "E.S. id 6 (past 3 spares)")
+    eq(F.drop_item_name(F.DROP_CAT_ES, 22), "G Blind Guard", "E.S. id 22")
+    eq(F.drop_item_name(F.DROP_CAT_CONSUMABLE, 1), "Med Kit S", "consumable id 1")
+    eq(F.drop_item_name(F.DROP_CAT_CONSUMABLE, 24), "Skill Upgrade C", "consumable id 24")
+    eq(F.drop_item_name(F.DROP_CAT_NONE, 5), None, "category 0 names nothing")
+    lbl = F.drop_label(F.DROP_CAT_ES, 6, 25)
+    eq(lbl, "EF Circuit A 25%", f"label reads {lbl!r}")
 
 
 @check("damage affinities: codec, straddle, isolation", path=True)
