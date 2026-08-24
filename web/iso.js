@@ -17,6 +17,9 @@
   let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM, ZFIELDS;
   // item drops share the rewards row: rate, category and 1-based id per slot
   let DFIELDS, DROPCATS, DROP_CONSUMABLE, DROPBASE, RFIELDS_RES, ITEMS=null;
+  // Ether + Double skill numeric records: two disjoint blocks per disc, read as
+  // one span so a single buffer covers both (x2fields.skill_span()).
+  let KFIELDS, KSTRIDE, KBLOCKS, KSPAN, KELEM, SKILLS=null;
   let TABLES=null;
   // Both retail discs carry the enemy tables, disc 2's copy 0x800 lower, so no
   // base can be fixed at load time — each opened disc carries its own (see DISCS).
@@ -48,6 +51,9 @@
     DFIELDS=t.reward.dropFields||[]; DROPCATS=t.reward.dropCatNames||{};
     DROP_CONSUMABLE=t.reward.dropCatConsumable; DROPBASE=t.reward.dropCatBase||{};
     RFIELDS_RES=t.enemy.statusResFields||[];
+    KFIELDS=(t.skill||{}).fields||[]; KSTRIDE=(t.skill||{}).stride||32;
+    KBLOCKS=(t.skill||{}).blocks||{}; KSPAN=(t.skill||{}).span||0;
+    KELEM=(t.skill||{}).elementBits||{};
     BOSS_ID_MIN=t.bossIdMin; CATKEYS=t.catalogKeys||{};
     CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{}; MAJOR_HP=t.majorHpThreshold;
     ETABLES=t.enemyTables||{"1":{stats:t.enemy.base,rewards:t.reward.base}};
@@ -77,8 +83,9 @@
   // TARGET   = 'both' | 1 | 2 — which discs a Save actually writes
   const DISCS={};
   let PRIMARY=null, TARGET='both';
-  // two independent slices: {buf, orig, dv}
-  let S=null, R=null;
+  // three independent slices of the disc, each {buf, orig, dv}: enemy stats,
+  // enemy rewards, and the skill numeric blocks
+  let S=null, R=null, K=null;
   const loadedDiscs=()=>Object.keys(DISCS).map(Number).sort();
   const targetDiscs=()=>loadedDiscs().filter(n=>TARGET==='both'||TARGET===n);
   const $=(s,r=document)=>r.querySelector(s);
@@ -112,6 +119,19 @@
   function getOrig(T,i,off,w){const a=i*(T===S?STRIDE:RSTRIDE)+off;
     const d=new DataView(T.orig.buffer);
     return w===4?d.getUint32(a,true):w===2?d.getUint16(a,true):T.orig[a];}
+  // Skills are addressed by absolute offset inside their buffer, not index*stride:
+  // the two blocks are disjoint with a gap between them, so index arithmetic off a
+  // single base would silently address the gap.
+  function getAt(T,a,w){
+    return w===4?T.dv.getUint32(a,true):w===2?T.dv.getUint16(a,true):T.buf[a];}
+  function putAt(T,a,w,v){
+    const max=w===4?0xFFFFFFFF:w===2?0xFFFF:0xFF;
+    v=Math.max(0,Math.min(Math.round(+v||0),max));
+    if(w===4)T.dv.setUint32(a,v,true);else if(w===2)T.dv.setUint16(a,v,true);else T.buf[a]=v;}
+  function getOrigAt(T,a,w){
+    const d=new DataView(T.orig.buffer);
+    return w===4?d.getUint32(a,true):w===2?d.getUint16(a,true):T.orig[a];}
+
   // stats and affinities live in the stat record; rewards are their own table
   const tableOf=(f)=>(RFIELDS.some(x=>x[0]===f)||DFIELDS.some(x=>x[0]===f))?R:S;
   // ZFIELDS (Zones, Brk1..Brk4) must be in here or a JSON import silently drops
@@ -170,7 +190,51 @@
     // the disc's unified item table — both drop categories index it, each from
     // its own base (see x2fields.DROP_CAT_BASE)
     try{ITEMS=await (await fetch("../Editor/x2_items.json")).json();}catch(e){ITEMS={};}
+    // names, descriptions and the retail numerics for the skill panel
+    try{SKILLS=await (await fetch("../Editor/x2_skills.json")).json();}catch(e){SKILLS={};}
     return cat; }
+
+  // ---- skills -------------------------------------------------------------
+  // A skill is addressed by its TEXT index, which is what the catalog is keyed
+  // by; only indices inside a verified block have a numeric record. The tech and
+  // combo blocks use a different layout, so they are deliberately not addressable
+  // (mirrors x2fields.skill_record_off returning None).
+  const kBlocks=()=>KBLOCKS[String(PRIMARY||1)]||[];
+  const kBase=(disc)=>Math.min.apply(null,(KBLOCKS[String(disc)]||[[0,0,0,0]])
+                                          .map(b=>b[1]));
+  function skillKeys(){
+    const out=[];
+    for(const [,,count,text0] of kBlocks())
+      for(let n=0;n<count;n++) out.push(text0+n);
+    return out;
+  }
+  // byte offset of a skill's record WITHIN the K buffer
+  function skillOff(i){
+    const base=kBase(PRIMARY||1);
+    for(const [,b,count,text0] of kBlocks())
+      if(i>=text0 && i<text0+count) return b-base+(i-text0)*KSTRIDE;
+    return -1;
+  }
+  const skillBlockName=(i)=>{
+    for(const [n,,count,text0] of kBlocks()) if(i>=text0 && i<text0+count) return n;
+    return "";
+  };
+  const skillInfo=(i)=>(SKILLS&&SKILLS[String(i)])||null;
+  const skillName=(i)=>{const v=skillInfo(i); return v&&v.name?v.name:("skill "+i);};
+  // retail value of one numeric field, from the shipped catalog
+  const KCATKEY={EP:"ep",Element:"element",Power:"power",EffPct:"effPct",EffMask:"effMask"};
+  function skillRetail(i,label){
+    const v=skillInfo(i), k=KCATKEY[label];
+    return (v&&v.numeric&&k&&v.numeric[k]!==undefined)?v.numeric[k]:undefined;
+  }
+  // mirrors x2fields.skill_element_text()
+  function elementText(mask){
+    const names=[]; let rest=mask;
+    for(const n of Object.keys(KELEM).sort((a,b)=>KELEM[a]-KELEM[b]))
+      if(mask&KELEM[n]){ names.push(n); rest&=~KELEM[n]; }
+    if(rest) names.push("0x"+rest.toString(16).toUpperCase());
+    return names.length?names.join("+"):"—";
+  }
 
   // mirrors x2fields.drop_label()
   function dropLabel(catByte,id,rate){
@@ -272,11 +336,13 @@
     if(probe!==disc) say(probe,"");        // the guess was wrong — don't leave it hanging
     const t=ETABLES[String(disc)];
     if(!t){ say(probe,"✗ No table offsets known for disc "+disc+".","err"); return; }
-    const sBase=t.stats, rBase=t.rewards;
+    const sBase=t.stats, rBase=t.rewards, kb=kBase(disc);
     const sb=new Uint8Array(await f.slice(sBase,sBase+COUNT*STRIDE+TAIL).arrayBuffer());
     const rb=new Uint8Array(await f.slice(rBase,rBase+COUNT*RSTRIDE).arrayBuffer());
+    const kbuf=new Uint8Array(await f.slice(kb,kb+KSPAN).arrayBuffer());
 
-    DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,backedUp:false};
+    DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,kBase:kb,
+                 backedUp:false};
     rememberIso(disc,DISCS[disc].name,h);
 
     if(PRIMARY===null || PRIMARY===disc){
@@ -284,23 +350,24 @@
       PRIMARY=disc;
       S={buf:sb,orig:sb.slice(),dv:new DataView(sb.buffer)};
       R={buf:rb,orig:rb.slice(),dv:new DataView(rb.buffer)};
+      K={buf:kbuf,orig:kbuf.slice(),dv:new DataView(kbuf.buffer)};
       const [,hpO,hpW]=SFIELDS.find(x=>x[0]==="HP");
       const perun=get(S,6,hpO,hpW), want=retail(6,"HP");
       say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+")"+
         (want!==undefined&&perun!==want?" — "+esc(cat[6]?cat[6].name:"record 6")+" HP reads "+
           perun.toLocaleString()+" not "+want.toLocaleString()+" (modified disc?)":""),"ok");
-      renderEnemy();
+      renderEditor();
     } else {
       // second disc: it must agree with what we're editing, or the user has to
       // decide which disc's values win. Compare against `orig`, not `buf`, so
       // staged edits aren't mistaken for a difference between the discs.
-      const dS=countDiff(sb,S.orig), dR=countDiff(rb,R.orig);
-      if(dS+dR===0){
+      const dS=countDiff(sb,S.orig), dR=countDiff(rb,R.orig), dK=countDiff(kbuf,K.orig);
+      if(dS+dR+dK===0){
         say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+") — matches disc "+PRIMARY,"ok");
       } else {
-        say(disc,"⚠ Disc "+disc+" loaded, but its enemy tables differ from disc "+PRIMARY+
-               " in "+(dS+dR)+" byte run(s) — pick which disc's values to keep below","err");
-        pendingDiverge={disc,sb,rb,runs:dS+dR};
+        say(disc,"⚠ Disc "+disc+" loaded, but its enemy/skill tables differ from disc "+PRIMARY+
+               " in "+(dS+dR+dK)+" byte run(s) — pick which disc's values to keep below","err");
+        pendingDiverge={disc,sb,rb,kbuf,runs:dS+dR+dK};
       }
     }
     renderDiscBar();
@@ -322,8 +389,10 @@
     if(pendingDiverge && pendingDiverge.disc===n){
       S={buf:pendingDiverge.sb,orig:pendingDiverge.sb.slice(),dv:new DataView(pendingDiverge.sb.buffer)};
       R={buf:pendingDiverge.rb,orig:pendingDiverge.rb.slice(),dv:new DataView(pendingDiverge.rb.buffer)};
+      K={buf:pendingDiverge.kbuf,orig:pendingDiverge.kbuf.slice(),
+         dv:new DataView(pendingDiverge.kbuf.buffer)};
       PRIMARY=n; pendingDiverge=null;
-      renderEnemy(); renderDiscBar();
+      renderEditor(); renderDiscBar();
       toastFn("Now editing disc "+n+"'s values — they will be written to every targeted disc");
     }
   }
@@ -406,9 +475,33 @@
     else { sel.value=keys[0]; loadEnemy(); }
   }
 
-  function renderEnemy(){
+  // Which pane the editor is showing. Both write to the same disc and share one
+  // Save, so this is presentation only — switching tabs never discards staged
+  // work, and the Save button's count covers every pane.
+  let PANE="enemy";
+  // ids written out literally, not built from the pane name — a concatenated id
+  // is invisible to anything that greps the source (tests/test_web.py checks it)
+  function showPane(which){
+    PANE=which;
+    const on=(el,yes)=>{ if(el) el.className="mtab"+(yes?" on":""); };
+    const show=(el,yes)=>{ if(el) el.hidden=!yes; };
+    show($("#pane-enemy"), which==="enemy");
+    show($("#pane-skill"), which==="skill");
+    on($("#ptab-enemy"), which==="enemy");
+    on($("#ptab-skill"), which==="skill");
+    // the patch/JSON/retail actions describe the enemy tables specifically
+    show($("#enemyActions"), which==="enemy");
+    if(which==="skill") loadSkill();
+  }
+
+  function renderEditor(){
     const opts=enemyKeys().map(optionHtml).join("");
     $("#isoEdit").innerHTML=
+      '<nav class="modebar panetabs">'+
+      '<button id="ptab-enemy" class="mtab on">Enemies</button>'+
+      '<button id="ptab-skill" class="mtab">Skills</button>'+
+      '</nav>'+
+      '<div id="pane-enemy">'+
       '<div class="card"><h2>2 · Enemy</h2>'+
       '<div class="toolbar"><label>Enemy</label> <select id="esel">'+opts+'</select>'+
       '<span class="findbox"><input type="search" id="esearch" placeholder="find by name, index or id" '+
@@ -502,6 +595,29 @@
       '<code>x2patch.py export-patch</code> / <code>apply-patch</code>. Because the bestiary shipped '+
       'with this editor holds the verified retail numbers, the editor can also tell you exactly how '+
       'your disc differs from an unmodified one — and put it back.</p></div>'+
+      '</div>'+                              // /pane-enemy
+      '<div id="pane-skill" hidden>'+
+      '<div class="card"><h2>2 · Skill</h2>'+
+      '<div class="toolbar"><label>Skill</label> <select id="ksel"></select>'+
+      '<span class="findbox"><input type="search" id="ksearch" placeholder="find by name, text or index" '+
+        'autocomplete="off" spellcheck="false"><button type="button" id="kclear" '+
+        'class="chip mini" title="Clear search" aria-label="Clear search">✕</button></span>'+
+      '<span id="kcount" class="muted small"></span></div>'+
+      '<div id="kdesc" class="note"></div>'+
+      '<div id="krow"></div>'+
+      '<div id="kelem" class="note"></div>'+
+      '<div id="kretail" class="note"></div>'+
+      '<p class="note"><b>EP</b> is what the skill costs to cast and <b>Power</b> scales its '+
+      'damage or healing — between them they decide whether a skill is worth a turn. '+
+      '<b>Element</b> is a bitmask (' + Object.keys(KELEM).sort((a,b)=>KELEM[a]-KELEM[b]).map(n=>esc(n)+" = 0x"+KELEM[n].toString(16).toUpperCase()).join(", ") + '), '+
+      'so it pairs with the enemy damage affinities on the Enemies tab. <b>EffPct</b> and '+
+      '<b>EffMask</b> drive the status effect a skill applies; they are verified as fields but '+
+      'their encoding is only partly decoded, so treat them as advanced.</p>'+
+      '<p class="note">Only the '+skillKeys().length+' Ether and Double skills have verified numeric '+
+      'records. The tech and combo blocks use a different layout and are deliberately not '+
+      'editable here rather than written blind — the Reference tab lists all 174 by name.</p>'+
+      '</div>'+
+      '</div>'+                              // /pane-skill
       // Sticky bottom action bar — same shape and ordering as the Suikoden 3
       // editor: primary Save first, then the dirty pill, then revert, then the
       // export/import pairs. Opaque so content scrolls cleanly underneath.
@@ -510,6 +626,7 @@
         '<span id="ebadge" class="badge"></span></button>'+
       '<span id="edirty" class="pill dirty" hidden></span>'+
       '<button id="erev" class="btn" disabled>↺ Revert all</button>'+
+      '<span id="enemyActions" class="barGroup">'+
       '<span class="sep"></span>'+
       '<button id="pExport" class="btn">⬇ Export patch…</button>'+
       '<button id="pImport" class="btn">⬆ Import patch…</button>'+
@@ -518,6 +635,7 @@
       '<span class="sep"></span>'+
       '<button id="pDiff" class="btn">Compare to retail</button>'+
       '<button id="pRestore" class="btn">Stage restore</button>'+
+      '</span>'+
       '<span style="flex:1"></span>'+
       '<span id="estat" class="status"></span></div>';
     $("#esel").onchange=loadEnemy;
@@ -527,7 +645,20 @@
       if(e.key==="Enter"){ e.preventDefault(); loadEnemy(); }
     });
     $("#eclear").onclick=()=>{ $("#esearch").value=""; paintEnemyList(); $("#esearch").focus(); };
-    $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);loadEnemy();epending();};
+    $("#ptab-enemy").onclick=()=>showPane("enemy");
+    $("#ptab-skill").onclick=()=>showPane("skill");
+    $("#ksel").onchange=loadSkill;
+    $("#ksearch").addEventListener("input",paintSkillList);
+    $("#ksearch").addEventListener("keydown",e=>{
+      if(e.key==="Escape"){ $("#ksearch").value=""; paintSkillList(); }
+      if(e.key==="Enter"){ e.preventDefault(); loadSkill(); }
+    });
+    $("#kclear").onclick=()=>{ $("#ksearch").value=""; paintSkillList(); $("#ksearch").focus(); };
+    paintSkillList();
+    // Revert covers every pane: one Save writes them all, so one Revert has to
+    // undo them all or the button would lie about its scope.
+    $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);K.buf.set(K.orig);
+      loadEnemy();loadSkill();epending();};
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
@@ -644,6 +775,71 @@
     paintDrops();
     epending();
     checkBrkPlan(); paintBrkOpts();
+  }
+
+  // ---- skills pane --------------------------------------------------------
+  function skillMatches(i,q){
+    if(!q) return true;
+    const v=skillInfo(i)||{};
+    const hay=[String(i),v.name||"",v.desc||"",v.target||"",skillBlockName(i)]
+      .join(" ").toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(t=>hay.indexOf(t)>=0);
+  }
+  function paintSkillList(){
+    const sel=$("#ksel"); if(!sel) return;
+    const q=($("#ksearch").value||"").trim().toLowerCase();
+    const prev=sel.value;
+    const keys=skillKeys().filter(i=>skillMatches(i,q));
+    const all=skillKeys().length;
+    $("#kcount").textContent=q?(keys.length+" of "+all):(all+" editable");
+    if(!keys.length){
+      sel.innerHTML='<option value="">no match</option>'; sel.disabled=true;
+      $("#kdesc").textContent="No skill matches “"+q+"”."; $("#krow").innerHTML="";
+      $("#kelem").textContent=""; $("#kretail").textContent=""; return;
+    }
+    sel.disabled=false;
+    sel.innerHTML=keys.map(i=>'<option value="'+i+'">'+String(i).padStart(3,"0")+
+      " · "+esc(skillName(i))+'</option>').join("");
+    if(keys.indexOf(+prev)>=0) sel.value=prev; else loadSkill();
+  }
+  function loadSkill(){
+    const sel=$("#ksel"); if(!sel||sel.disabled||sel.value==="") return;
+    const i=+sel.value, base=skillOff(i);
+    if(base<0){ $("#kdesc").textContent="No verified numeric record for this skill."; return; }
+    const v=skillInfo(i)||{};
+    $("#kdesc").innerHTML='<b>'+esc(v.name||("skill "+i))+'</b>'+
+      (v.target?' <span class="muted">· '+esc(v.target)+'</span>':'')+
+      ' <span class="muted">· '+esc(skillBlockName(i))+' block</span>'+
+      (v.desc?'<br>'+esc(v.desc):'');
+    $("#krow").innerHTML='<table><tbody><tr>'+KFIELDS.map(([l,o,w])=>
+      cellHtml(l,base+o,w,getAt(K,base+o,w),getOrigAt(K,base+o,w))).join("")+'</tr></tbody></table>';
+    document.querySelectorAll("#krow input").forEach(inp=>{
+      let btn=inp.nextElementSibling;
+      if(!btn||!btn.classList.contains("restore")){btn=document.createElement("button");
+        btn.type="button";btn.className="restore";btn.textContent="↺";inp.after(btn);}
+      const refresh=()=>{
+        putAt(K,+inp.dataset.o,+inp.dataset.w,+inp.value);
+        const ch=String(inp.value)!==String(inp.getAttribute("data-def"));
+        inp.classList.toggle("changed",ch);btn.classList.toggle("show",ch);
+        paintSkillDerived(i); epending();};
+      inp.addEventListener("input",refresh);
+      btn.onclick=()=>{inp.value=inp.getAttribute("data-def");refresh();};refresh();
+    });
+    paintSkillDerived(i);
+  }
+  // element mask in words, and how the record compares with an unmodified disc
+  function paintSkillDerived(i){
+    const base=skillOff(i); if(base<0) return;
+    const em=KFIELDS.find(x=>x[0]==="Element");
+    if(em) $("#kelem").textContent="Element: "+elementText(getAt(K,base+em[1],em[2]));
+    const off=[];
+    for(const [l,o,w] of KFIELDS){
+      const van=skillRetail(i,l); if(van===undefined) continue;
+      const cur=getAt(K,base+o,w); if(cur===van) continue;
+      off.push(esc(l)+" "+cur.toLocaleString()+" (retail "+van.toLocaleString()+")");
+    }
+    $("#kretail").innerHTML = off.length ? "Differs from retail: "+off.join(", ")
+                                         : "Matches the retail values for this skill.";
   }
 
   // The break sequence is one text box over BRK_SLOTS bytes, so it can't use the
@@ -930,7 +1126,7 @@
   }
 
   function diffCount(){let n=0;
-    for(const T of [S,R]){for(let i=0;i<T.buf.length;i++)if(T.buf[i]!==T.orig[i]){n++;while(i<T.buf.length&&T.buf[i]!==T.orig[i])i++;}}
+    for(const T of [S,R,K]){for(let i=0;i<T.buf.length;i++)if(T.buf[i]!==T.orig[i]){n++;while(i<T.buf.length&&T.buf[i]!==T.orig[i])i++;}}
     return n;}
   function epending(){const n=diffCount();const b=$("#ebadge");if(b)b.textContent=n?"("+n+")":"";
     const s=$("#esave"),r=$("#erev");if(s)s.disabled=!n;if(r)r.disabled=!n;
@@ -939,19 +1135,42 @@
   function diffRuns(T){const runs=[];let i=0;while(i<T.buf.length){if(T.buf[i]!==T.orig[i]){let j=i;
     while(j<T.buf.length&&T.buf[j]!==T.orig[j])j++;runs.push([i,j]);i=j;}else i++;}return runs;}
 
+  // What the confirm dialog lists before anything is written. It must cover
+  // every field a Save actually writes — it used to show stats, affinities and
+  // rewards only, so a break-sequence or drop change went to disc without ever
+  // appearing in the review it was supposedly reviewed in.
   function reviewRows(){
-    // summarize per-enemy field diffs across both tables
+    const row=(l,a,b)=>'<div class="revrow"><span class="rl">'+esc(l)+'</span><span class="ro">'+
+      esc(a)+'</span>→ <span class="rn">'+esc(b)+'</span></div>';
     let rows="",count=0;
     for(let i=0;i<COUNT && count<400;i++){
       let cells="";
-      for(const [T,FL] of [[S,SFIELDS],[S,AFIELDS],[R,RFIELDS]]){
+      // break slots collapse into one readable row, as in the retail comparison
+      let ob=""; for(let n=0;n<BRK_SLOTS;n++){const y=ZSYM[getOrig(S,i,BRK_OFF+n,1)];if(!y)break;ob+=y;}
+      const nb=breakSeq(i);
+      if(ob!==nb) cells+=row("Break",ob||"—",nb||"—");
+      for(const [T,FL] of [[S,SFIELDS],[S,AFIELDS],[S,RFIELDS_RES],[R,RFIELDS],[R,DFIELDS]]){
         for(const [l,o,w] of FL){
           const a=getOrig(T,i,o,w),b=get(T,i,o,w);
-          if(a!==b) cells+='<div class="revrow"><span class="rl">'+l+'</span><span class="ro">'+
-            a.toLocaleString()+'</span>→ <span class="rn">'+b.toLocaleString()+'</span></div>';
+          if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
         }
       }
+      const zs=ZFIELDS.find(x=>x[0]==="Zones");
+      if(zs){
+        const a=getOrig(S,i,zs[1],zs[2]), b=get(S,i,zs[1],zs[2]);
+        if(a!==b) cells+=row("Zones",zoneMaskText(a)||"—",zoneMaskText(b)||"—");
+      }
       if(cells){rows+='<div class="revgrp">'+String(i).padStart(3,"0")+' · '+esc(cat[i]?cat[i].name:i)+'</div>'+cells;count++;}
+    }
+    for(const i of skillKeys()){
+      const base=skillOff(i); if(base<0) continue;
+      let cells="";
+      for(const [l,o,w] of KFIELDS){
+        const a=getOrigAt(K,base+o,w), b=getAt(K,base+o,w);
+        if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
+      }
+      if(cells) rows+='<div class="revgrp">skill '+String(i).padStart(3,"0")+' · '+
+        esc(skillName(i))+'</div>'+cells;
     }
     if(count>=400) rows+='<div class="note">…truncated…</div>';
     return rows;
@@ -1083,7 +1302,7 @@
 
   async function saveISO(){
     const rows=reviewRows();
-    if(window.openReview && !(await window.openReview("Write to ISO — enemy tables", rows, "Apply & write to disc"))) return;
+    if(window.openReview && !(await window.openReview("Write to ISO — enemy & skill tables", rows, "Apply & write to disc"))) return;
     const st=$("#estat");st.textContent="writing…";st.className="status";$("#esave").disabled=true;
     const targets=targetDiscs();
     // The SAME edit buffer goes to every target, each at its own bases — that is
@@ -1104,7 +1323,7 @@
         st.textContent="writing disc "+n+"…";
         let runs=0;
         const w=await d.handle.createWritable({keepExistingData:true});
-        for(const [T,base] of [[S,d.sBase],[R,d.rBase]]){
+        for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase]]){
           for(const [s,e] of diffRuns(T)){
             await w.write({type:"write",position:base+s,data:T.buf.slice(s,e)}); runs++;
           }
@@ -1118,10 +1337,10 @@
       st.className="status err"; toastFn("✗ "+failed[0],true);
     } else {
       // only clear the pending state once every target actually took the write
-      S.orig=S.buf.slice();R.orig=R.buf.slice();
-      loadEnemy();
+      S.orig=S.buf.slice();R.orig=R.buf.slice();K.orig=K.buf.slice();
+      loadEnemy();loadSkill();
       st.textContent="✓ wrote disc "+done.join(", disc ");st.className="status ok";
-      toastFn("✓ Enemy tables saved to "+(done.length>1?"both discs":"disc "+targets[0]));
+      toastFn("✓ Saved to "+(done.length>1?"both discs":"disc "+targets[0]));
     }
     epending();
   }

@@ -152,8 +152,6 @@ class TestGeneratedWebTables(unittest.TestCase):
         self.assertIn("tables.json", src)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestRecordTail(unittest.TestCase):
@@ -185,3 +183,35 @@ class TestRecordTail(unittest.TestCase):
             src, r"COUNT\s*\*\s*STRIDE\s*\+\s*TAIL",
             "iso.js slices the stat table without adding the tail, so the last "
             "record's overhanging fields read past the buffer")
+
+
+class TestSkillSpan(unittest.TestCase):
+    """The web editor reads ONE span covering both skill blocks, because the two
+    blocks are disjoint. If that span ever stops covering them, the panel would
+    address the gap and write into whatever lives there."""
+
+    def test_span_covers_every_block_on_both_discs(self):
+        for disc in F.SKILL_BLOCKS:
+            base, span = F.skill_base(disc), F.skill_span(disc)
+            for name, b, count, _t0 in F.skill_blocks(disc):
+                with self.subTest(disc=disc, block=name):
+                    self.assertGreaterEqual(b, base)
+                    self.assertLessEqual(b + count * F.SKILL_STRIDE, base + span)
+
+    def test_span_is_the_same_on_both_discs(self):
+        # one buffer size serves either disc only while this holds
+        self.assertEqual(F.skill_span(1), F.skill_span(2))
+
+    def test_every_editable_skill_has_retail_numerics(self):
+        # the panel shows "differs from retail" per skill; without numerics in
+        # the catalog it would silently report a match on a modified disc
+        cat = F.skill_catalog()
+        for i in F.skill_editable_indices(1):
+            with self.subTest(i):
+                self.assertIn(i, cat, f"skill {i} is editable but not in the catalog")
+                self.assertTrue(cat[i].get("numeric"),
+                                f"skill {i} has no retail numerics")
+
+
+if __name__ == "__main__":
+    unittest.main()
