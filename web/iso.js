@@ -442,6 +442,7 @@
         '<button id="brkS2" class="btn">−2 hits</button>'+
         '<button id="brkS3" class="btn">−3 hits</button>'+
         '<span id="brkInfo" class="muted small"></span></div>'+
+        '<div id="brkOpts"></div>'+
         '<div id="brkPreview"></div>'+
         '<p class="note">This is the loop\'s actual gate, not a stat: a 4-hit boss costs four correct '+
         'zone hits <i>per break, all fight</i>. Trimming takes hits off the <b>end</b>, so the opening '+
@@ -599,6 +600,7 @@
     wireBreak(i);
     paintDrops();
     epending();
+    paintBrkOpts();
   }
 
   // The break sequence is one text box over BRK_SLOTS bytes, so it can't use the
@@ -668,6 +670,47 @@
     if(!seq) return seq;
     return seq.slice(0, Math.max(BREAK_MIN_LEN, seq.length-Math.max(0,steps|0)));
   }
+  // What each option would actually do, from the CURRENT staged state — so the
+  // three buttons can be compared before pressing one, and the numbers update
+  // after each press. "Break hits" is the honest measure of the tax: the total
+  // number of correct zone hits a full clear costs, once per break per enemy.
+  function breakStats(steps){
+    const plan=planShorten(steps);
+    let before=0, after=0, longest=0;
+    const from={};
+    for(let i=0;i<COUNT;i++){
+      const old=breakSeq(i);
+      if(!old) continue;                       // unbreakable: not part of the tax
+      const nw=shortenSeq(old,steps);
+      before+=old.length; after+=nw.length;
+      longest=Math.max(longest,nw.length);
+      if(nw.length!==old.length) from[old.length]=nw.length;
+    }
+    return {plan,affected:plan.length,before,after,longest,
+            cut: before?Math.round(100*(before-after)/before):0, from};
+  }
+  function paintBrkOpts(){
+    const el=$("#brkOpts"); if(!el) return;
+    const rows=[1,2,3].map(n=>[n,breakStats(n)]);
+    const base=rows[0][1].before;
+    if(!base){ el.innerHTML='<p class="note">No enemy on this disc has a Break '+
+      'sequence left to shorten.</p>'; return; }
+    el.innerHTML='<table class="brkopts"><tbody>'+
+      '<tr><th></th><th>enemies</th><th>becomes</th><th>break hits to clear</th></tr>'+
+      rows.map(([n,st])=>{
+        const map=Object.keys(st.from).sort((a,b)=>b-a)
+          .map(k=>k+"→"+st.from[k]).join("  ") || "—";
+        return '<tr><th>−'+n+(n===1?' hit':' hits')+'</th>'+
+          '<td>'+(st.affected||"—")+'</td>'+
+          '<td class="map">'+map+'</td>'+
+          '<td>'+st.before+' → '+st.after+
+            (st.cut?' <span class="cut">−'+st.cut+'%</span>':'')+'</td></tr>';
+      }).join("")+'</tbody></table>'+
+      '<p class="note" style="margin-top:6px">“Break hits to clear” is every enemy’s '+
+      'sequence added up — one full pass through the bestiary. It is the size of the '+
+      'ritual, not of any one fight. Unbreakable enemies aren’t counted.</p>';
+  }
+
   function planShorten(steps){
     const plan=[];
     for(let i=0;i<COUNT;i++){
@@ -690,10 +733,11 @@
     prev.innerHTML='<p class="note"><b>'+plan.length+' affected</b> — '+
       Object.keys(byLen).sort((a,b)=>b-a).map(k=>byLen[k]+" x "+k+"-hit").join(", ")+
       '</p><div class="brklist">'+plan.map(([i,old,nw])=>
-        '<div><span class="bi">'+String(i).padStart(3,"0")+'</span> '+
-        esc(cat[i]?cat[i].name:String(i))+' <span class="bs">'+old+' → '+nw+'</span></div>'
+        '<div><span class="bi">'+String(i).padStart(3,"0")+'</span>'+
+        '<span class="bn">'+esc(cat[i]?cat[i].name:String(i))+'</span>'+
+        '<span class="bs">'+old+' → '+nw+'</span></div>'
       ).join("")+'</div>';
-    loadEnemy(); epending();
+    loadEnemy(); epending(); paintBrkOpts();
     toastFn("✓ Break sequences shortened for "+plan.length+" enemies — review & Save");
   }
 
