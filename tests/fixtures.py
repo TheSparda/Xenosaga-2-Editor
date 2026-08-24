@@ -333,7 +333,15 @@ def write_fake_disc(path, enemies=None):
 
         for i in range(F.ENEMY_COUNT):
             rec = bytearray(F.ENEMY_STRIDE)
-            rec[0x04:0x0C] = bytes([0x64] * 8)           # element affinities
+            # +0x04..0x0B is a constant 0x64 block on disc (not affinities).
+            rec[0x04:0x0C] = bytes([0x64] * 8)
+            # Real affinities are at +0x58, eight signed bytes, percent = v*5, and
+            # a block straddles the record boundary (last 4 bytes here + first 4
+            # of the next record). Filling both halves with 20 makes every enemy
+            # read a flat 100%, which is what most retail records hold.
+            aff = F.affinity_byte(100)
+            rec[0x00:0x04] = bytes([aff] * 4)
+            rec[0x58:0x5C] = bytes([aff] * 4)
             # +0x3A is part of the 17-byte run the table locator searches for, so
             # a faithful stand-in has to carry it — including the eleven records
             # that hold something other than 99. Writing 99 across the board (as
@@ -360,4 +368,8 @@ def write_fake_disc(path, enemies=None):
                 row[off:off + width] = int(v).to_bytes(width, "little")
             f.seek(F.REWARD_TABLE_OFF + i * F.REWARD_STRIDE)
             f.write(bytes(row))
+
+        # the last record's affinity block spills four bytes past the table
+        f.seek(F.ENEMY_TABLE_OFF + F.ENEMY_COUNT * F.ENEMY_STRIDE)
+        f.write(bytes([F.affinity_byte(100)] * 4))
     return path

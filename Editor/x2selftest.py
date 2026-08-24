@@ -80,7 +80,11 @@ def build_fixture(path, disc=1):
         for i in range(F.ENEMY_COUNT):
             rec = bytearray(F.ENEMY_STRIDE)
             r = cat[i]
-            rec[0x04:0x0C] = bytes([0x64] * 8)            # element affinities
+            rec[0x04:0x0C] = bytes([0x64] * 8)            # constant block, not affinities
+            # affinities live at +0x58 and straddle the record boundary; a flat
+            # 100% in both halves keeps every enemy self-consistent
+            rec[0x00:0x04] = bytes([F.affinity_byte(100)] * 4)
+            rec[0x58:0x5C] = bytes([F.affinity_byte(100)] * 4)
             rec[PLANT_OFF] = encode_zones(zones_for(i))   # <- the answer the scanner must find
             # +0x3A carries the real per-record value, not a flat 99 — eleven
             # retail records differ, and a fixture that flattens them hides any
@@ -101,6 +105,12 @@ def build_fixture(path, disc=1):
             struct.pack_into("<IHH", row, 0x00, r["exp"], r["sp"], r["cp"])
             f.seek(t["rewards"] + i * F.REWARD_STRIDE)
             f.write(row)
+
+        # The LAST record's affinity block runs four bytes past the table, into
+        # the gap before the name table — the retail disc really does store them
+        # there, so a faithful fixture has to as well.
+        f.seek(t["stats"] + F.ENEMY_COUNT * F.ENEMY_STRIDE)
+        f.write(bytes([F.affinity_byte(100)] * 4))
     return path
 
 
@@ -276,6 +286,48 @@ def t_truth(_iso, tmp):
     eq(unmatched, [], "no unmatched rows")
 
 
+@check("damage affinities: codec, straddle, isolation", path=True)
+def t_affinity(iso_path, _tmp):
+    """+0x58, eight signed bytes, percent = byte*5 (71/71 against the guide).
+
+    The block runs four bytes past the nominal 0x5C record, so enemy i's last
+    four affinity bytes physically live inside record i+1. That is the part worth
+    pinning: a write must land on the right enemy and must not disturb the next
+    record's stats."""
+    for pct in (-200, -100, 0, 5, 100, 250, 400):
+        eq(F.affinity_pct(F.affinity_byte(pct)), pct, f"round-trip {pct}%")
+    eq(F.affinity_byte(-200), 0xD8, "-200% is a signed -40")
+    eq(F.affinity_pct(0xD8), -200, "0xD8 decodes negative")
+    eq(F.ENEMY_AFFINITY_OFF + F.ENEMY_AFFINITY_COUNT > F.ENEMY_STRIDE, True,
+       "the block really does straddle the record boundary")
+
+    els = list(F.AFFINITY_ELEMENTS)
+    with X.Iso(iso_path) as iso:
+        for i in (0, 6, F.ENEMY_COUNT - 1):
+            rec = X.read_enemy(iso, i)
+            for el in els:
+                eq(F.affinity_pct(rec[el]), 100, f"record {i} {el} starts at 100%")
+
+    with X.Iso(iso_path) as iso:
+        before7 = X.read_enemy(iso, 7)
+    with X.Iso(iso_path, write=True) as iso:
+        X.write_enemy(iso, 6, {els[0]: F.affinity_byte(0),      # immune
+                               els[3]: F.affinity_byte(-200),   # absorbs double
+                               els[7]: F.affinity_byte(250)})
+    with X.Iso(iso_path) as iso:
+        rec6 = X.read_enemy(iso, 6)
+        eq(F.affinity_pct(rec6[els[0]]), 0, "immune written")
+        eq(F.affinity_pct(rec6[els[3]]), -200, "negative written")
+        eq(F.affinity_pct(rec6[els[7]]), 250, "weakness written")
+        # element 7 lives inside record 7's bytes — record 7's stats must survive
+        after7 = X.read_enemy(iso, 7)
+        for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL"):
+            eq(after7[lbl], before7[lbl], f"record 7 {lbl} untouched")
+        # ...and record 7's own affinities must not have been shifted either
+        for el in els:
+            eq(F.affinity_pct(after7[el]), 100, f"record 7 {el} untouched")
+
+
 @check("break sequence round-trips through the record", path=True)
 def t_break(iso_path, _tmp):
     """+0x54..+0x57 hold the break sequence one-hot, 0 = end; +0x4C is the
@@ -343,6 +395,40 @@ def t_disc2(_iso_path, tmp):
     with X.Iso(p) as iso:
         eq(X.read_enemy(iso, 6)["HP"], 4242, "write landed in disc 2's table")
         eq(X.disc_is_pristine(iso), False, "edit is detected on disc 2")
+
+
+@check("sync_discs mirrors every verified field onto the other disc", path=True)
+def t_sync(_iso_path, tmp):
+    """The one primitive keeping the discs in step: copy every verified field,
+    each disc reading and writing at its own bases. Covers the fields most likely
+    to be forgotten — the affinity block (which straddles the record boundary)
+    and the break sequence — not just HP."""
+    d1 = build_fixture(os.path.join(tmp, "sync-d1.iso"), disc=1)
+    d2 = build_fixture(os.path.join(tmp, "sync-d2.iso"), disc=2)
+    el = F.AFFINITY_ELEMENTS[3]
+
+    with X.Iso(d1, write=True) as iso:
+        X.apply_rebalance(iso, X.plan_rebalance(iso, F.profile("faster")))
+        X.write_enemy(iso, 6, {el: F.affinity_byte(-200)})
+        slots = F.encode_break_seq("CB")
+        X.write_enemy(iso, 6, {f"Brk{n + 1}": v for n, v in enumerate(slots)})
+
+    with X.Iso(d1) as src, X.Iso(d2, write=True) as dst:
+        eq(src.disc, 1, "source is disc 1"); eq(dst.disc, 2, "target is disc 2")
+        recs, fields = X.sync_discs(src, dst)
+    if recs < 100:
+        raise AssertionError(f"expected a broad sync, only touched {recs} records")
+
+    with X.Iso(d1) as a, X.Iso(d2) as b:
+        for i in range(F.ENEMY_COUNT):
+            eq(X.read_enemy(a, i), X.read_enemy(b, i), f"record {i} after sync")
+        rb = X.read_enemy(b, 6)
+        eq(F.affinity_pct(rb[el]), -200, "negative affinity crossed over")
+        eq(X.break_seq_of(rb), "CB", "break sequence crossed over")
+
+    # idempotent: a second pass has nothing left to do
+    with X.Iso(d1) as src, X.Iso(d2, write=True) as dst:
+        eq(X.sync_discs(src, dst), (0, 0), "second sync is a no-op")
 
 
 @check("a disc-1 patch replays onto disc 2", path=True)

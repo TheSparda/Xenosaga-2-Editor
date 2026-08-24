@@ -11,16 +11,14 @@
   // data-loss bug (or a silently-diverging profile) waiting to happen, and CI
   // fails if the generated file drifts. If the fetch fails we refuse to open a
   // disc rather than fall back to a possibly-stale copy.
-  let SBASE, STRIDE, COUNT, RBASE, RSTRIDE, SFIELDS, RFIELDS, SEND, REND, BOSS_ID_MIN, ID_OFF;
-  let AFIELDS, AFF_NORMAL, CATKEYS, SERIAL, CAPS, PROFILES, MAJOR_HP;
+  let STRIDE, COUNT, RSTRIDE, SFIELDS, RFIELDS, BOSS_ID_MIN, ID_OFF;
+  let AFIELDS, AFF_NORMAL, AFF_SCALE, AFF_ELEMENTS, CATKEYS, CAPS, PROFILES, MAJOR_HP;
   // break/zone data: a hittable-zone mask and BRK_SLOTS one-hot sequence slots
   let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM;
   let TABLES=null;
-  // Both retail discs carry the enemy tables and disc 2's copy sits 0x800 lower,
-  // so the bases can't be fixed at load time — they're resolved from the serial
-  // once a disc is open (setDisc). Editing only disc 1 leaves the second half of
-  // the game on retail values, so the UI has to say so.
-  let ETABLES=null, SERIALMAP=null, DISC=1;
+  // Both retail discs carry the enemy tables, disc 2's copy 0x800 lower, so no
+  // base can be fixed at load time — each opened disc carries its own (see DISCS).
+  let ETABLES=null, SERIALMAP=null;
   // the dotted form as it appears in SYSTEM.CNF, for the byte scan
   const SERIAL_ASCII={1:"SLUS_208.92", 2:"SLUS_211.33"};
   // Patch files are interchangeable with `x2patch.py export-patch/apply-patch`.
@@ -34,6 +32,7 @@
     STRIDE=t.enemy.stride; COUNT=t.enemy.count;
     SFIELDS=t.enemy.fields; ID_OFF=t.enemy.idOff;
     AFIELDS=t.enemy.affinityFields||[]; AFF_NORMAL=t.enemy.affinityNormal;
+    AFF_SCALE=t.enemy.affinityScale||5; AFF_ELEMENTS=t.enemy.affinityElements||[];
     ZMASK_OFF=t.enemy.zoneMaskOff; BRK_OFF=t.enemy.breakSeqOff;
     BRK_SLOTS=t.enemy.breakSeqSlots||4; ZBITS=t.enemy.zoneBits||{A:1,B:2,C:4};
     ZSYM={}; for(const k in ZBITS) ZSYM[ZBITS[k]]=k;
@@ -42,18 +41,11 @@
     CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{}; MAJOR_HP=t.majorHpThreshold;
     ETABLES=t.enemyTables||{"1":{stats:t.enemy.base,rewards:t.reward.base}};
     SERIALMAP=t.serials||{};
-    setDisc(1);
     return (TABLES=t);
   }
 
-  // Point every offset at one disc's tables. Called once per opened disc, before
-  // any slice is read, so S/R can never be filled from the wrong base.
-  function setDisc(n){
-    const e=ETABLES[String(n)]; if(!e) throw new Error("no tables for disc "+n);
-    DISC=n; SBASE=e.stats; RBASE=e.rewards;
-    SEND=SBASE+COUNT*STRIDE; REND=RBASE+COUNT*RSTRIDE;
-    SERIAL=Object.keys(SERIALMAP||{}).find(k=>SERIALMAP[k]===n)||"SLUS-20892";
-  }
+  // The serial stamped into an exported patch — the disc the values came from.
+  const serialOf=(n)=>Object.keys(SERIALMAP||{}).find(k=>SERIALMAP[k]===n)||"SLUS-20892";
 
   // Placeholder/debug rows (13 of them: GNO013, CRE006/018, UMA013, MON001-4,
   // BOS026-29, and unused rows carrying a token EXP with no SP/CP) are never
@@ -61,9 +53,23 @@
   const isDummy=(r)=>!!r&&(/^[A-Z]{3}\d{3}$/.test(String(r.name||"").trim())||
                            (r.exp>0&&r.exp<100&&!r.sp&&!r.cp));
 
-  let handle=null, cat=null, backedUp=false;
-  // two independent slices: {buf, orig, dv, base}
+  let cat=null;
+  // ---- multi-disc model -------------------------------------------------
+  // Both retail discs hold byte-identical enemy tables at different bases, so
+  // there is exactly ONE set of values to edit. Rather than keep two buffers in
+  // step, we keep one edit buffer (S/R) and mirror it into each targeted disc at
+  // that disc's own bases when saving. Sync is then true by construction — there
+  // is no code path that can write different values to the two discs.
+  //
+  // DISCS[n] = {handle, name, sBase, rBase, backedUp}
+  // PRIMARY  = the disc whose values were loaded into S/R
+  // TARGET   = 'both' | 1 | 2 — which discs a Save actually writes
+  const DISCS={};
+  let PRIMARY=null, TARGET='both';
+  // two independent slices: {buf, orig, dv}
   let S=null, R=null;
+  const loadedDiscs=()=>Object.keys(DISCS).map(Number).sort();
+  const targetDiscs=()=>loadedDiscs().filter(n=>TARGET==='both'||TARGET===n);
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const toastFn=(m,e)=>{try{window.toast&&window.toast(m,e);}catch(_){}};
@@ -116,93 +122,185 @@
     catch(e){ root.innerHTML='<div class="card blocked"><b>Could not load the disc table definitions</b>'+
       ' — '+esc(String(e))+'. Try ↻ Force refresh in the footer.</div>'; root.dataset.init=""; return; }
     await loadCat();
-    root.innerHTML='<div class="card"><h2>1 · Open a disc ISO</h2>'+
-      '<button id="isoPick" class="btn primary">Choose ISO…</button> '+
-      '<span id="isoStatus" class="status"></span>'+
-      '<div id="isoRecent"></div><div id="isoPair"></div>'+
-      '<p class="note">Xenosaga II (USA) — <b>either disc</b> (SLUS-20892 or SLUS-21133). '+
-      'Both discs carry the same enemy tables, so <b>apply the same edits to both</b> or '+
-      'enemies revert to retail values after the disc swap. Enemy edits apply to a new game. '+
-      'Edits write in place; work on a copy or tick backup. Your last disc is remembered for '+
-      'one-tap reopening (only the file reference is stored — never the disc itself).</p></div>'+
+    // ids are written out literally rather than built in a loop, so every #id
+    // the script queries can be grepped straight out of the source
+    root.innerHTML='<div class="card"><h2>1 · Open your discs</h2>'+
+      '<div class="discrow"><button id="isoPick1" class="btn primary">Choose disc 1…</button> '+
+        '<span id="isoStatus1" class="status"></span><div id="isoRecent1"></div></div>'+
+      '<div class="discrow"><button id="isoPick2" class="btn">Choose disc 2…</button> '+
+        '<span id="isoStatus2" class="status"></span><div id="isoRecent2"></div></div>'+
+      '<div id="isoPair"></div>'+
+      '<p class="note">Xenosaga II (USA) — disc 1 is <code>SLUS-20892</code>, disc 2 is '+
+      '<code>SLUS-21133</code>. It doesn’t matter which button you use: each file is '+
+      'identified by its own serial and slotted automatically. <b>Open both</b> and every '+
+      'edit is written to both discs, which is what you want — they carry identical enemy '+
+      'tables, so editing one alone reverts at the disc swap. Enemy edits apply to a new '+
+      'game. Edits write in place; work on a copy or tick backup. Your discs are remembered '+
+      'for one-tap reopening (only the file reference is stored — never the disc itself).</p></div>'+
       '<div id="isoEdit"></div>';
-    $("#isoPick").onclick=openISO;
+    $("#isoPick1").onclick=()=>openISO(1);
+    $("#isoPick2").onclick=()=>openISO(2);
     showLastIso();
   };
 
-  // ---- remember last opened ISO (stores the file HANDLE only — the 4.6 GB is never copied) ----
+  // ---- remember opened discs (stores the file HANDLE only — the 4.6 GB is never copied) ----
   const IDB=()=>window.x2idb;
-  function rememberIso(name,h){ const k=IDB(); if(k) k.set("lastIso",{name,handle:h,at:Date.now()}).catch(()=>{}); }
+  const isoKey=(n)=>"lastIso"+n;
+  // Per-disc element selectors, written out rather than concatenated — building
+  // "#isoStatus"+n hides the id from anything that greps the source for it
+  // (tests/test_web.py checks every queried #id is really emitted).
+  const EL={1:{status:"#isoStatus1",recent:"#isoRecent1"},
+            2:{status:"#isoStatus2",recent:"#isoRecent2"}};
+  function rememberIso(n,name,h){ const k=IDB(); if(k) k.set(isoKey(n),{name,handle:h,at:Date.now()}).catch(()=>{}); }
   async function showLastIso(){
-    const el=$("#isoRecent"), k=IDB(); if(!el||!k) return;
-    let rec; try{ rec=await k.get("lastIso"); }catch(e){ return; }
-    if(!rec||!rec.handle){ el.innerHTML=""; return; }
-    const when=k.fmtWhen?k.fmtWhen(rec.at):"";
-    el.innerHTML='<div class="recent"><span class="muted small">Last opened:</span>'+
-      '<button class="chip" id="isoReopen" title="Reopen this disc">↻ '+esc(rec.name)+
-      (when?' <span class="muted">('+esc(when)+')</span>':'')+'</button>'+
-      '<button class="chip mini" id="isoForget" title="Forget this disc" aria-label="Forget this disc">✕</button></div>';
-    $("#isoReopen").onclick=()=>reopenLastIso(rec);
-    $("#isoForget").onclick=async()=>{await k.del("lastIso").catch(()=>{});showLastIso();};
+    const k=IDB(); if(!k) return;
+    for(const n of [1,2]){
+      const el=$(EL[n].recent); if(!el) continue;
+      let rec; try{ rec=await k.get(isoKey(n)); }catch(e){ continue; }
+      if(!rec||!rec.handle||DISCS[n]){ el.innerHTML=""; continue; }
+      const when=k.fmtWhen?k.fmtWhen(rec.at):"";
+      el.innerHTML='<div class="recent"><span class="muted small">Last:</span>'+
+        '<button class="chip" data-reopen="'+n+'" title="Reopen this disc">↻ '+esc(rec.name)+
+        (when?' <span class="muted">('+esc(when)+')</span>':'')+'</button>'+
+        '<button class="chip mini" data-forget="'+n+'" title="Forget" aria-label="Forget this disc">✕</button></div>';
+      el.querySelector("[data-reopen]").onclick=()=>reopenLastIso(n,rec);
+      el.querySelector("[data-forget]").onclick=async()=>{await k.del(isoKey(n)).catch(()=>{});showLastIso();};
+    }
   }
-  async function reopenLastIso(rec){
-    const st=$("#isoStatus"), k=IDB();
+  async function reopenLastIso(n,rec){
+    const st=$(EL[n].status), k=IDB();
     try{
       if(!(await k.ensureWritable(rec.handle))){
         st.textContent="✗ Reopen cancelled — write permission denied."; st.className="status err"; return; }
-      handle=rec.handle;
-      await commitISO(await handle.getFile());
+      await commitISO(await rec.handle.getFile(), rec.handle, n);
     }catch(e){
       st.textContent="✗ Could not reopen — the file may have moved. Pick it again."; st.className="status err";
     }
   }
 
-  async function openISO(){
-    try{ [handle]=await window.showOpenFilePicker(); }catch(e){ return; }
-    return commitISO(await handle.getFile());
+  // `hint` is only which button was pressed — used for the transient "checking…"
+  // message, since the real disc number isn't known until the header is read.
+  async function openISO(hint){
+    let h; try{ [h]=await window.showOpenFilePicker(); }catch(e){ return; }
+    return commitISO(await h.getFile(), h, hint);
   }
 
-  // Validate + commit an ISO from a File (handle is already set by the caller).
-  async function commitISO(f){
-    const st=$("#isoStatus"); st.textContent="checking disc…"; st.className="status";
+  // Validate an ISO, work out WHICH disc it is, and slot it in. The disc decides
+  // its own bases, so this must resolve the serial before slicing anything.
+  async function commitISO(f,h,hint){
+    const say=(n,msg,cls)=>{const e=$(EL[n||1].status); if(e){e.textContent=msg;e.className="status"+(cls?" "+cls:"");}};
+    const probe=(hint===1||hint===2)?hint:1;
+    say(probe,"checking disc…");
     const head=new Uint8Array(await f.slice(0,0x200000).arrayBuffer());
     const asc=s=>{let o=-1;const t=[...s].map(c=>c.charCodeAt(0));
       for(let i=0;i<head.length-t.length;i++){let m=true;for(let j=0;j<t.length;j++)if(head[i+j]!==t[j]){m=false;break;}if(m){o=i;break;}}return o;};
     const vol=new TextDecoder().decode(head.slice(0x8028,0x8028+11));
-    if(vol!=="XENOSAGA_II"){ st.textContent="✗ Not a Xenosaga II disc (volume "+esc(vol)+")"; st.className="status err"; return; }
-    // Both discs are editable, each from its own bases. Resolve which one this
-    // is BEFORE slicing, or the edits land at the other disc's offsets.
+    if(vol!=="XENOSAGA_II"){ say(probe,"✗ Not a Xenosaga II disc (volume "+esc(vol)+")","err"); return; }
     const disc = asc(SERIAL_ASCII[1])>=0 ? 1 : asc(SERIAL_ASCII[2])>=0 ? 2 : 0;
-    if(!disc){ st.textContent="✗ Unrecognized Xenosaga II serial."; st.className="status err"; return; }
-    try{ setDisc(disc); }
-    catch(e){ st.textContent="✗ No table offsets known for disc "+disc+"."; st.className="status err"; return; }
-    const sb=new Uint8Array(await f.slice(SBASE,SEND).arrayBuffer());
-    const rb=new Uint8Array(await f.slice(RBASE,REND).arrayBuffer());
-    S={buf:sb,orig:sb.slice(),dv:new DataView(sb.buffer),base:SBASE};
-    R={buf:rb,orig:rb.slice(),dv:new DataView(rb.buffer),base:RBASE};
-    backedUp=false;
-    // sanity anchor: Perun (rec 6) HP must match the bestiary on an unmodified disc
-    const [,hpO,hpW]=SFIELDS.find(f=>f[0]==="HP");
-    const perun=get(S,6,hpO,hpW), want=retail(6,"HP");
-    st.textContent="✓ Disc "+DISC+" loaded ("+f.name+")"+
-      (want!==undefined&&perun!==want?" — note: "+esc(cat[6]?cat[6].name:"record 6")+" HP reads "+
-        perun.toLocaleString()+" not "+want.toLocaleString()+" (modified disc?)":"");
-    st.className="status ok";
-    showPairNote();
-    rememberIso(f.name||("disc"+DISC+".iso"),handle);   // one-tap reopen next visit
-    renderEnemy();
+    if(!disc){ say(probe,"✗ Unrecognized Xenosaga II serial.","err"); return; }
+    if(probe!==disc) say(probe,"");        // the guess was wrong — don't leave it hanging
+    const t=ETABLES[String(disc)];
+    if(!t){ say(probe,"✗ No table offsets known for disc "+disc+".","err"); return; }
+    const sBase=t.stats, rBase=t.rewards;
+    const sb=new Uint8Array(await f.slice(sBase,sBase+COUNT*STRIDE).arrayBuffer());
+    const rb=new Uint8Array(await f.slice(rBase,rBase+COUNT*RSTRIDE).arrayBuffer());
+
+    DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,backedUp:false};
+    rememberIso(disc,DISCS[disc].name,h);
+
+    if(PRIMARY===null || PRIMARY===disc){
+      // first disc in, or a reload of the one we're already editing
+      PRIMARY=disc;
+      S={buf:sb,orig:sb.slice(),dv:new DataView(sb.buffer)};
+      R={buf:rb,orig:rb.slice(),dv:new DataView(rb.buffer)};
+      const [,hpO,hpW]=SFIELDS.find(x=>x[0]==="HP");
+      const perun=get(S,6,hpO,hpW), want=retail(6,"HP");
+      say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+")"+
+        (want!==undefined&&perun!==want?" — "+esc(cat[6]?cat[6].name:"record 6")+" HP reads "+
+          perun.toLocaleString()+" not "+want.toLocaleString()+" (modified disc?)":""),"ok");
+      renderEnemy();
+    } else {
+      // second disc: it must agree with what we're editing, or the user has to
+      // decide which disc's values win. Compare against `orig`, not `buf`, so
+      // staged edits aren't mistaken for a difference between the discs.
+      const dS=countDiff(sb,S.orig), dR=countDiff(rb,R.orig);
+      if(dS+dR===0){
+        say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+") — matches disc "+PRIMARY,"ok");
+      } else {
+        say(disc,"⚠ Disc "+disc+" loaded, but its enemy tables differ from disc "+PRIMARY+
+               " in "+(dS+dR)+" byte run(s) — pick which disc's values to keep below","err");
+        pendingDiverge={disc,sb,rb,runs:dS+dR};
+      }
+    }
+    renderDiscBar();
     showLastIso();
   }
 
-  // A rebalance applied to one disc only is the easiest way to get a half-modded
-  // playthrough, and nothing in the game warns you. Say it on the disc that's open.
-  function showPairNote(){
+  // number of differing byte RUNS between two equal-length arrays
+  function countDiff(a,b){
+    let n=0;
+    for(let i=0;i<a.length;i++){ if(a[i]!==b[i]){ n++; while(i<a.length&&a[i]!==b[i]) i++; } }
+    return n;
+  }
+  let pendingDiverge=null;
+
+  // Adopt one disc's on-disc values as the thing being edited, discarding
+  // whatever was staged (that's the point — the user chose a source of truth).
+  function adoptDisc(n){
+    const d=DISCS[n]; if(!d) return;
+    if(pendingDiverge && pendingDiverge.disc===n){
+      S={buf:pendingDiverge.sb,orig:pendingDiverge.sb.slice(),dv:new DataView(pendingDiverge.sb.buffer)};
+      R={buf:pendingDiverge.rb,orig:pendingDiverge.rb.slice(),dv:new DataView(pendingDiverge.rb.buffer)};
+      PRIMARY=n; pendingDiverge=null;
+      renderEnemy(); renderDiscBar();
+      toastFn("Now editing disc "+n+"'s values — they will be written to every targeted disc");
+    }
+  }
+
+  // ---- the disc bar: what's loaded, and where a Save goes ----
+  function renderDiscBar(){
     const el=$("#isoPair"); if(!el) return;
-    const other=DISC===1?2:1;
-    el.innerHTML='<p class="note warn">Editing <b>disc '+DISC+'</b>. Disc '+other+
-      ' holds its own copy of these tables — apply the same changes there too, or the '+
-      'second half of the game keeps retail values. A patch file (below) replays the '+
-      'exact same edits onto the other disc.</p>';
+    const loaded=loadedDiscs();
+    if(!loaded.length){ el.innerHTML=""; return; }
+    let html="";
+    if(pendingDiverge){
+      const other=PRIMARY;
+      html+='<p class="note warn"><b>These discs don\'t match.</b> Disc '+pendingDiverge.disc+
+        ' differs from disc '+other+' in '+pendingDiverge.runs+' byte run(s) — one of them was '+
+        'probably edited on its own already. Choose which disc\'s enemy values to keep; the other '+
+        'disc gets overwritten with them when you save.'+
+        ' <button class="btn mini" id="keepA">Keep disc '+other+'</button>'+
+        ' <button class="btn mini" id="keepB">Keep disc '+pendingDiverge.disc+'</button></p>';
+    }
+    if(loaded.length===1){
+      const n=loaded[0], other=n===1?2:1;
+      html+='<p class="note warn">Only <b>disc '+n+'</b> is open. Disc '+other+' holds its own copy of '+
+        'these tables, so anything you write here reverts to retail values at the disc swap. '+
+        '<b>Open disc '+other+' too</b> and edits go to both at once.</p>';
+    } else {
+      html+='<div class="discbar"><span class="fl">Write edits to</span>'+
+        ['both',1,2].map(v=>'<label class="pill'+(TARGET===v?' on':'')+'">'+
+          '<input type="radio" name="tgt" value="'+v+'"'+(TARGET===v?' checked':'')+'>'+
+          (v==='both'?'Both discs':'Disc '+v+' only')+'</label>').join("")+
+        '</div><p class="note">Both discs carry identical enemy tables, so <b>Both discs</b> is '+
+        'almost always what you want — the values you edit are written to each disc at its own '+
+        'offsets. Pick a single disc only if you deliberately want them to differ.</p>';
+    }
+    el.innerHTML=html;
+    if(pendingDiverge){
+      $("#keepA").onclick=()=>{ const d=pendingDiverge.disc; pendingDiverge=null; renderDiscBar();
+        toastFn("Keeping disc "+PRIMARY+"'s values; disc "+d+" will be overwritten on save"); };
+      $("#keepB").onclick=()=>adoptDisc(pendingDiverge.disc);
+    }
+    el.querySelectorAll('input[name=tgt]').forEach(r=>{
+      r.onchange=()=>{ TARGET = r.value==='both'?'both':+r.value; renderDiscBar(); epending(); };
+    });
+    const lbl=$("#esaveLabel");
+    if(lbl){
+      const tg=targetDiscs();
+      lbl.textContent = tg.length>1 ? "Save to both discs" : "Save to disc "+(tg[0]||PRIMARY);
+      epending();
+    }
   }
 
   function renderEnemy(){
@@ -214,18 +312,18 @@
       '<label style="margin-left:8px"><input type="checkbox" id="ebak"> back up ISO first</label>'+
       '<span style="flex:1"></span>'+
       '<button id="erev" class="btn" disabled>Revert all</button>'+
-      '<button id="esave" class="btn primary" disabled>Save to ISO <span id="ebadge" class="badge"></span></button>'+
+      '<button id="esave" class="btn primary" disabled><span id="esaveLabel">Save to ISO</span> '+
+      '<span id="ebadge" class="badge"></span></button>'+
       '<span id="estat" class="status"></span></div>'+
       '<table id="etbl"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
       '<div id="eretail" class="note"></div>'+
-      '<details class="unverified"><summary>⚠ Damage affinities — unverified, opt in</summary>'+
-        '<p class="note">Eight percentages in the record ('+AFF_NORMAL+' = normal damage, '+
-        'lower resists, higher takes extra, 0 is immune). That there are eight and that they '+
-        'hold '+AFF_NORMAL+' in ordinary records is solid — <b>which element each slot is has '+
-        'not been confirmed</b>, so they are numbered rather than named. Editing them is an '+
-        'experiment; the retail comparison and patch export handle them separately because '+
-        'the bestiary has no baseline for them.</p>'+
-        '<table><tbody><tr id="erow3"></tr></tbody></table></details>'+
+      '<div class="affbox"><div class="fl">Damage taken, by element (%)</div>'+
+        '<table><tbody><tr id="erow3"></tr></tbody></table>'+
+        '<p class="note">'+AFF_NORMAL+'% is normal, below resists, above takes extra, '+
+        '<b>0 is immune</b> and <b>negative absorbs</b> (Svarozic takes -200% Fire, i.e. it '+
+        'heals for double). Stored as a signed byte &times;'+AFF_SCALE+', so values snap to '+
+        AFF_SCALE+'% steps and the usable range is about -640% to +635%. Verified against '+
+        '71 guide entries, exact on every one.</p></div>'+
       '<div class="brkbox"><div class="fl">Break sequence</div>'+
         '<input id="ebrk" type="text" maxlength="'+BRK_SLOTS+'" spellcheck="false" '+
           'autocapitalize="characters" placeholder="e.g. CBB" style="width:8ch;text-transform:uppercase">'+
@@ -336,10 +434,18 @@
   // disc. They differ after a staged rebalance or when revisiting an edited enemy —
   // keeping them separate is what makes the amber highlight and per-field ↺ mean
   // "differs from the disc" rather than "differs from whatever was last rendered".
-  function cellHtml(lbl,off,w,val,def){
-    return '<td><div class="fl">'+lbl+'</div><span><input type="number" min="0" autocomplete="off" '+
-      'data-f="'+lbl+'" data-o="'+off+'" data-w="'+w+'" data-def="'+def+'" value="'+val+'"></span></td>';
+  function cellHtml(lbl,off,w,val,def,pct){
+    // pct: the field is a signed byte shown as a percentage (damage affinities),
+    // so it needs a sign, a wider range, and byte<->percent conversion on write.
+    return '<td><div class="fl">'+lbl+'</div><span><input type="number" '+
+      (pct?'step="'+AFF_SCALE+'" ':'min="0" ')+'autocomplete="off" '+
+      'data-f="'+lbl+'" data-o="'+off+'" data-w="'+w+'" data-def="'+def+'"'+
+      (pct?' data-pct="1"':'')+' value="'+val+'"></span></td>';
   }
+  // signed byte <-> percent, mirroring x2fields.affinity_pct / affinity_byte
+  const affPct=(b)=>((b>127?b-256:b)*AFF_SCALE);
+  const affByte=(p)=>{let st=Math.round((+p||0)/AFF_SCALE);
+    st=Math.max(-128,Math.min(st,127)); return st<0?st+256:st;};
   function loadEnemy(){
     const i=+$("#esel").value;
     const eid=get(S,i,ID_OFF,2);
@@ -349,7 +455,7 @@
       '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+eid+
       (eid>=BOSS_ID_MIN?" · boss":"")+'</span></td>';
     $("#erow3").innerHTML=AFIELDS.map(([l,o,w])=>
-      cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
+      cellHtml(l,o,w,affPct(get(S,i,o,w)),affPct(getOrig(S,i,o,w)),true)).join("");
     // how this record compares with an unmodified disc
     const off=SFIELDS.concat(RFIELDS).filter(([l,o,w])=>{
       const v=retail(i,l); return v!==undefined && get(tableOf(l),i,o,w)!==v; });
@@ -362,7 +468,7 @@
       if(!btn||!btn.classList.contains("restore")){btn=document.createElement("button");btn.type="button";
         btn.className="restore";btn.textContent="↺";inp.after(btn);}
       const refresh=()=>{const f=inp.dataset.f,off=+inp.dataset.o,w=+inp.dataset.w;
-        put(tableOf(f),i,off,w,+inp.value);
+        put(tableOf(f),i,off,w, inp.dataset.pct ? affByte(inp.value) : +inp.value);
         const ch=String(inp.value)!==String(inp.getAttribute("data-def"));
         inp.classList.toggle("changed",ch);btn.classList.toggle("show",ch);epending();};
       inp.addEventListener("input",refresh);
@@ -477,7 +583,7 @@
       }
       if(Object.keys(f).length) edits[String(i)]=f;
     }
-    return {format:PATCH_FORMAT,version:PATCH_VERSION,game:SERIAL,note:note||"",edits};
+    return {format:PATCH_FORMAT,version:PATCH_VERSION,game:serialOf(PRIMARY),note:note||"",edits};
   }
 
   function patchStats(doc){
@@ -587,25 +693,44 @@
     const rows=reviewRows();
     if(window.openReview && !(await window.openReview("Write to ISO — enemy tables", rows, "Apply & write to disc"))) return;
     const st=$("#estat");st.textContent="writing…";st.className="status";$("#esave").disabled=true;
-    try{
-      if((await handle.queryPermission({mode:"readwrite"}))!=="granted")
-        await handle.requestPermission({mode:"readwrite"});
-      if($("#ebak").checked && !backedUp){
-        st.textContent="backing up (this copies the whole disc)…";
-        const src=await handle.getFile();
-        const bh=await window.showSaveFilePicker({suggestedName:src.name+".bak"});
-        const bw=await bh.createWritable();await bw.write(src);await bw.close();backedUp=true;
-      }
-      let total=0;
-      const w=await handle.createWritable({keepExistingData:true});
-      for(const T of [S,R]){
-        for(const [s,e] of diffRuns(T)){await w.write({type:"write",position:T.base+s,data:T.buf.slice(s,e)});total++;}
-      }
-      await w.close();
+    const targets=targetDiscs();
+    // The SAME edit buffer goes to every target, each at its own bases — that is
+    // what keeps the discs in sync. A per-disc failure is reported rather than
+    // silently leaving one disc written and the other not.
+    const done=[], failed=[];
+    for(const n of targets){
+      const d=DISCS[n];
+      try{
+        if((await d.handle.queryPermission({mode:"readwrite"}))!=="granted")
+          await d.handle.requestPermission({mode:"readwrite"});
+        if($("#ebak").checked && !d.backedUp){
+          st.textContent="backing up disc "+n+" (this copies the whole disc)…";
+          const src=await d.handle.getFile();
+          const bh=await window.showSaveFilePicker({suggestedName:src.name+".bak"});
+          const bw=await bh.createWritable();await bw.write(src);await bw.close();d.backedUp=true;
+        }
+        st.textContent="writing disc "+n+"…";
+        let runs=0;
+        const w=await d.handle.createWritable({keepExistingData:true});
+        for(const [T,base] of [[S,d.sBase],[R,d.rBase]]){
+          for(const [s,e] of diffRuns(T)){
+            await w.write({type:"write",position:base+s,data:T.buf.slice(s,e)}); runs++;
+          }
+        }
+        await w.close();
+        done.push(n+" ("+runs+" run"+(runs===1?"":"s")+")");
+      }catch(e){ failed.push("disc "+n+": "+e); }
+    }
+    if(failed.length){
+      st.textContent="✗ "+failed.join("; ")+(done.length?"  — wrote disc "+done.join(", "):"");
+      st.className="status err"; toastFn("✗ "+failed[0],true);
+    } else {
+      // only clear the pending state once every target actually took the write
       S.orig=S.buf.slice();R.orig=R.buf.slice();
       loadEnemy();
-      st.textContent="✓ wrote "+total+" run(s) to ISO";st.className="status ok";toastFn("✓ Enemy tables saved to ISO");
-    }catch(e){st.textContent="✗ "+e;st.className="status err";toastFn("✗ "+e,true);}
+      st.textContent="✓ wrote disc "+done.join(", disc ");st.className="status ok";
+      toastFn("✓ Enemy tables saved to "+(done.length>1?"both discs":"disc "+targets[0]));
+    }
     epending();
   }
 })();

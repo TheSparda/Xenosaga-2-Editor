@@ -46,19 +46,10 @@ class PatchCase(unittest.TestCase):
 
 
 class TestAffinities(PatchCase):
-    def test_slots_are_readable_and_writable(self):
-        p = self.fresh("aff.iso")
-        with X.Iso(p) as iso:
-            rec = X.read_enemy(iso, 4)
-        for label, _off, _w, _k in F.ENEMY_AFFINITY_FIELDS:
-            self.assertEqual(rec[label], F.ENEMY_AFFINITY_NORMAL)
-        with X.Iso(p, write=True) as iso:
-            self.assertEqual(X.write_enemy(iso, 4, {"Aff1": 0, "Aff8": 200}), 2)
-        with X.Iso(p) as iso:
-            rec = X.read_enemy(iso, 4)
-        self.assertEqual(rec["Aff1"], 0)
-        self.assertEqual(rec["Aff8"], 200)
-        self.assertEqual(rec["Aff2"], F.ENEMY_AFFINITY_NORMAL)
+    """+0x58, eight signed bytes, percent = byte * 5 (verified against 71 guide
+    entries). Note these bytes run four past the nominal 0x5C record — an
+    affinity block is the last four bytes of one record plus the first four of
+    the next — so the write path has to address them absolutely."""
 
     def test_slots_sit_where_the_notes_say(self):
         offs = [off for (_l, off, _w, _k) in F.ENEMY_AFFINITY_FIELDS]
@@ -66,27 +57,78 @@ class TestAffinities(PatchCase):
                                           F.ENEMY_AFFINITY_OFF + 8)))
         for _l, _o, w, _k in F.ENEMY_AFFINITY_FIELDS:
             self.assertEqual(w, 1)
+        self.assertEqual([l for (l, *_r) in F.ENEMY_AFFINITY_FIELDS],
+                         list(F.AFFINITY_ELEMENTS))
+
+    def test_percent_codec_round_trips_including_negatives(self):
+        for pct in (-200, -100, 0, 5, 100, 150, 250, 300, 400):
+            self.assertEqual(F.affinity_pct(F.affinity_byte(pct)), pct, pct)
+        self.assertEqual(F.affinity_byte(-200), 0xD8)      # -40 as a signed byte
+        self.assertEqual(F.affinity_pct(0xD8), -200)
+        self.assertEqual(F.affinity_byte(100), 20)
+        # off-step input snaps to the nearest representable 5%
+        self.assertEqual(F.affinity_pct(F.affinity_byte(102)), 100)
+
+    def test_slots_are_readable_and_writable(self):
+        p = self.fresh("aff.iso")
+        first = F.AFFINITY_ELEMENTS[0]
+        last = F.AFFINITY_ELEMENTS[-1]
+        with X.Iso(p, write=True) as iso:
+            self.assertEqual(X.write_enemy(iso, 4, {first: F.affinity_byte(0),
+                                                    last: F.affinity_byte(250)}), 2)
+        with X.Iso(p) as iso:
+            rec = X.read_enemy(iso, 4)
+        self.assertEqual(F.affinity_pct(rec[first]), 0)      # immune
+        self.assertEqual(F.affinity_pct(rec[last]), 250)     # takes extra
+
+    def test_a_negative_affinity_survives_the_round_trip(self):
+        p = self.fresh("affneg.iso")
+        el = F.AFFINITY_ELEMENTS[3]
+        with X.Iso(p, write=True) as iso:
+            X.write_enemy(iso, 5, {el: F.affinity_byte(-200)})
+        with X.Iso(p) as iso:
+            self.assertEqual(F.affinity_pct(X.read_enemy(iso, 5)[el]), -200)
 
     def test_writing_one_slot_leaves_the_stats_alone(self):
         p = self.fresh("aff2.iso")
+        el = F.AFFINITY_ELEMENTS[2]
         with X.Iso(p) as iso:
             before = X.read_enemy(iso, 6)
         with X.Iso(p, write=True) as iso:
-            X.write_enemy(iso, 6, {"Aff3": 50})
+            X.write_enemy(iso, 6, {el: F.affinity_byte(50)})
         with X.Iso(p) as iso:
             after = X.read_enemy(iso, 6)
-        self.assertEqual(after["Aff3"], 50)
+        self.assertEqual(F.affinity_pct(after[el]), 50)
         for label in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL",
                       "EXP", "SP", "CP"):
             self.assertEqual(after[label], before[label], label)
 
-    def test_cli_warns_that_the_slots_are_unverified(self):
-        out = self.run_cli("enemy-set", self.fresh("aff3.iso"), "6", "--set", "Aff1=0")
-        self.assertIn("NOT been confirmed", out)
+    def test_a_block_write_does_not_disturb_the_next_records_stats(self):
+        """The straddle makes this worth pinning: enemy 6's affinity bytes 4..7
+        physically sit inside record 7, so a careless implementation would
+        corrupt record 7's stats."""
+        p = self.fresh("affstraddle.iso")
+        with X.Iso(p) as iso:
+            before7 = X.read_enemy(iso, 7)
+        with X.Iso(p, write=True) as iso:
+            X.write_enemy(iso, 6, {el: F.affinity_byte(45)
+                                   for el in F.AFFINITY_ELEMENTS})
+        with X.Iso(p) as iso:
+            after7 = X.read_enemy(iso, 7)
+            self.assertTrue(all(F.affinity_pct(X.read_enemy(iso, 6)[el]) == 45
+                                for el in F.AFFINITY_ELEMENTS))
+        for label in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL"):
+            self.assertEqual(after7[label], before7[label], label)
+
+    def test_cli_notes_how_the_scale_works(self):
+        out = self.run_cli("enemy-set", self.fresh("aff3.iso"), "6",
+                           "--set", F.AFFINITY_ELEMENTS[0] + "=0")
+        self.assertIn("5% steps", out)
 
     def test_cli_shows_them_only_when_asked(self):
-        self.assertNotIn("Aff1", self.run_cli("enemies", self.iso, "--csv"))
-        self.assertIn("Aff1", self.run_cli("enemies", self.iso, "--csv", "--affinities"))
+        el = F.AFFINITY_ELEMENTS[0]
+        self.assertNotIn(el, self.run_cli("enemies", self.iso, "--csv"))
+        self.assertIn(el, self.run_cli("enemies", self.iso, "--csv", "--affinities"))
 
 
 class TestRetailComparison(PatchCase):
@@ -107,7 +149,7 @@ class TestRetailComparison(PatchCase):
     def test_affinities_are_not_compared(self):
         p = self.fresh("affdiff.iso")
         with X.Iso(p, write=True) as iso:
-            X.write_enemy(iso, 6, {"Aff1": 0})
+            X.write_enemy(iso, 6, {F.AFFINITY_ELEMENTS[0]: 0})
         with X.Iso(p) as iso:
             self.assertEqual(X.diff_vanilla(iso), {},
                              "affinities have no retail baseline to compare with")
@@ -194,14 +236,16 @@ class TestPatchFiles(PatchCase):
         p = self.fresh("affpatch.iso")
         out = os.path.join(self.dir, "aff.json")
         with open(out, "w") as f:
-            json.dump(X.make_patch({6: {"Aff1": 0, "Aff2": 200}}), f)
+            json.dump(X.make_patch({6: {F.AFFINITY_ELEMENTS[0]: F.affinity_byte(0),
+                                        F.AFFINITY_ELEMENTS[1]: F.affinity_byte(250)}}), f)
         self.run_cli("apply-patch", p, out)
         with X.Iso(p) as iso:
             rec = X.read_enemy(iso, 6)
-        self.assertEqual((rec["Aff1"], rec["Aff2"]), (0, 200))
+        self.assertEqual((F.affinity_pct(rec[F.AFFINITY_ELEMENTS[0]]),
+                          F.affinity_pct(rec[F.AFFINITY_ELEMENTS[1]])), (0, 250))
 
     def test_round_trip_through_make_and_parse(self):
-        edits = {6: {"HP": 1, "EXP": 2}, 100: {"Aff4": 3}}
+        edits = {6: {"HP": 1, "EXP": 2}, 100: {F.AFFINITY_ELEMENTS[3]: 3}}
         self.assertEqual(X.parse_patch(X.make_patch(edits)), edits)
 
     def test_rejects_malformed_patches(self):

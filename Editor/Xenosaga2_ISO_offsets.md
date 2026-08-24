@@ -617,6 +617,66 @@ heights the model *has*, not which ones Break it.
 16 of the 125 records have an empty sequence: the guide's `Cannot` entries
 (mechanisms and scripted fights).
 
+### 2026-08-23 — DAMAGE AFFINITIES SOLVED (and the old +0x04 slots were wrong)
+
+**`+0x58`, eight SIGNED bytes, percent = byte × 5.** Element order is the guide's
+column order: **Beam, Aura, Thunder, Fire, Ice, Pierce, Slash, Hit**.
+100% normal, below resists, above takes extra, 0% immune, **negative absorbs**.
+Verified against 71 guide entries with complete damage rows: **71/71 exact**.
+Byte-identical on both discs.
+
+Values seen on disc: -200, -100, 5, 25, 50, 75, 85, 100, 110, 115, 120, 125, 135,
+150, 175, 200, 225, 250, 300, 400 — all multiples of 5, which is what the ×5
+encoding buys. Only one record is outside the guide's range (rec 5 Svarozic,
+-200% Fire: it heals for double).
+
+#### The block straddles the record boundary
+
+Enemy `i`'s eight bytes live at `base + i*0x5C + 0x58`, which runs **four bytes
+past** the nominal `0x5C` record. So a block is the last four bytes of record `i`
+plus the first four of record `i+1`. Verified, not assumed: record `i`'s
+`+0x00..0x03` equals enemy `i-1`'s elements 4..7 for **all 124 pairs**, and the
+value distribution there is affinity-shaped (20=100%, 15=75%, 236=-100%). The
+last record's block lands in the 52-byte gap before the name table, and reads a
+flat 100%.
+
+Consequences:
+- `+0x00..0x03` was never "unknown" — it is affinity data. Removed from
+  `F.ENEMY_UNMAPPED`, which is now 52 bytes.
+- No special handling is needed for read/write (the path computes `base + off`,
+  so offsets `0x58..0x5F` address the right bytes), but **a scanner that slices
+  `0x5C` per record cannot see a whole block** — which is exactly why the
+  in-record search for these percentages came up empty at first.
+- A write to enemy `i` touches bytes inside record `i+1`. Pinned by tests in both
+  `x2selftest.py` and `tests/test_patch.py`.
+
+#### The previous definition was wrong
+
+Up to v1.4.0 this project exposed eight "damage affinity" slots at **`+0x04`**,
+labelled `Aff1..Aff8` behind an opt-in and documented as "unverified". They are
+not affinities at all: `+0x04..+0x0B` reads `0x64 0x64 …` (100%) in **124 of the
+125 records**, with ASCII in the one exception. A field that never varies per
+enemy cannot be the per-enemy table the guide describes — and the guide's rows
+vary heavily (70 of 72 mapped entries have a non-100 value), which is what
+exposed it. `+0x04..+0x0B` is now recorded as a constant block of unknown
+purpose (`F.ENEMY_CONST64_OFF`) and is no longer editable.
+
+Lesson: "unverified" was too generous a label. The slots had the right *shape*
+(eight bytes, 100 in vanilla) and that was mistaken for weak evidence of the
+right *identity*. Shape is not identity — the guide data was available the whole
+time and would have falsified it immediately.
+
+### 2026-08-23 — Multi-disc editing
+
+`F.enemy_tables(disc)` gives per-disc bases; `x2patch.sync_discs(src, dst)` copies
+every verified field (stats, rewards, affinities, zone mask, break sequence) from
+one disc to the other, and is the single primitive behind both
+`x2patch.py sync` and `--also` on `rebalance` / `apply-patch` / `restore` /
+`enemy-set`. The web editor loads both discs and mirrors one edit buffer into
+each disc's own bases on save, so there is no code path that can write different
+values to the two discs; if the two images disagree when the second one opens, it
+says so and makes the user pick a source of truth rather than guessing.
+
 #### Exposed as
 
 `F.ZONE_FIELDS` (`Zones`, `Brk1..Brk4`), with `F.encode_break_seq()` /
