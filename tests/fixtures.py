@@ -334,15 +334,23 @@ def write_fake_disc(path, enemies=None):
         for i in range(F.ENEMY_COUNT):
             rec = bytearray(F.ENEMY_STRIDE)
             rec[0x04:0x0C] = bytes([0x64] * 8)           # element affinities
-            # the 0x0063 constant between HP and STR is part of the 17-byte
-            # signature the table locator searches for, so a faithful stand-in
-            # has to carry it
-            struct.pack_into("<H", rec, 0x3A, 0x0063)
+            # +0x3A is part of the 17-byte run the table locator searches for, so
+            # a faithful stand-in has to carry it — including the eleven records
+            # that hold something other than 99. Writing 99 across the board (as
+            # this fixture used to) hides any comparison that wrongly treats the
+            # raw run as a retail-value check.
+            struct.pack_into("<H", rec, F.ENEMY_UNK3A_OFF, F.enemy_unk3a(i))
             over = (enemies or {}).get(i, {})
             for label, off, width, _k in F.ENEMY_FIELDS:
                 v = over.get(label, (i + 1) * 7 % (1 << (8 * width)))
                 rec[off:off + width] = int(v).to_bytes(width, "little")
             struct.pack_into("<H", rec, 0x52, 500 + i)
+            # verified break/zone fields: one-hot sequence slots + a zone mask
+            # covering exactly the zones the sequence uses
+            slots = F.encode_break_seq(("BB", "CB", "CC", "CBB", "", "AA")[i % 6])
+            for n, v in enumerate(slots):
+                rec[F.BREAK_SEQ_OFF + n] = v
+            rec[F.ENEMY_ZONE_MASK_OFF] = slots[0] | slots[1] | slots[2] | slots[3]
             f.seek(F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE)
             f.write(bytes(rec))
 

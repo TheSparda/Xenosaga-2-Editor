@@ -78,6 +78,8 @@
     ],
     "affinityNormal": 100,
     "base": 33551856,
+    "breakSeqOff": 84,
+    "breakSeqSlots": 4,
     "count": 125,
     "fields": [
       ["HP", 54, 4],
@@ -91,7 +93,32 @@
     ],
     "idOff": 82,
     "namesOff": 33563408,
-    "stride": 92
+    "stride": 92,
+    "zoneBits": {
+      "A": 1,
+      "B": 2,
+      "C": 4
+    },
+    "zoneFields": [
+      ["Zones", 76, 1],
+      ["Brk1", 84, 1],
+      ["Brk2", 85, 1],
+      ["Brk3", 86, 1],
+      ["Brk4", 87, 1]
+    ],
+    "zoneMaskOff": 76
+  },
+  "enemyTables": {
+    "1": {
+      "names": 33563408,
+      "rewards": 33622348,
+      "stats": 33551856
+    },
+    "2": {
+      "names": 33561360,
+      "rewards": 33620300,
+      "stats": 33549808
+    }
   },
   "fieldCaps": {
     "AGL": 255,

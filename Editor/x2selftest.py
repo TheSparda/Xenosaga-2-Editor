@@ -17,6 +17,7 @@ verified in Xenosaga2_ISO_offsets.md against the real discs.
     python3 x2selftest.py --keep DIR # leave the fixture behind for poking at
 """
 import argparse, os, struct, sys, tempfile, shutil
+from pathlib import Path
 
 import x2fields as F
 import x2patch as X
@@ -28,6 +29,15 @@ PLANT_TABLE_BASE, PLANT_TABLE_STRIDE, PLANT_TABLE_FIELD = 0x1FF0000, 0x10, 3
 
 ZONE_STRINGS = ["BB", "CB", "CC", "AB", "BCBB", "AC", "BA"]
 SYMBOL = {"A": 1, "B": 2, "C": 3}
+
+# Break sequences written into the fixture at the VERIFIED offsets (+0x54..+0x57,
+# one-hot, 0 = end) with a matching hittable-zone mask at +0x4C. Deliberately
+# includes an empty one, so "cannot be broken" is covered too.
+BREAK_SEQS = ["BB", "CB", "CC", "CBB", "BCBC", "AA", "", "CBAA", "AB"]
+
+def break_for(i):
+    """Deterministic per-record break sequence for the fixture."""
+    return BREAK_SEQS[i % len(BREAK_SEQS)]
 
 
 def zones_for(i):
@@ -43,16 +53,24 @@ def encode_zones(s):
     return v
 
 
-def build_fixture(path):
-    """Write a synthetic disc holding the structures the engine reads."""
+SERIAL_LINE = {1: b"SLUS_208.92", 2: b"SLUS_211.33"}
+
+
+def build_fixture(path, disc=1):
+    """Write a synthetic disc holding the structures the engine reads.
+
+    `disc` picks which image to imitate. Both retail discs carry the enemy
+    tables — disc 2's copy sits 0x800 lower — so the fixture takes its bases from
+    F.enemy_tables(disc) rather than hardcoding disc 1's."""
     cat = F.enemy_catalog()
-    end = F.REWARD_TABLE_OFF + F.ENEMY_COUNT * F.REWARD_STRIDE + 0x800
+    t = F.enemy_tables(disc)
+    end = t["rewards"] + F.ENEMY_COUNT * F.REWARD_STRIDE + 0x800
     with open(path, "wb") as f:
         f.truncate(end)                                   # sparse — costs no real disk
         f.seek(16 * 2048 + 40)
         f.write(b"XENOSAGA_II".ljust(32, b" "))           # PVD volume id
         f.seek(0x9000)
-        f.write(b"BOOT2 = cdrom0:\\SLUS_208.92;1\r\n")    # SYSTEM.CNF serial line
+        f.write(b"BOOT2 = cdrom0:\\" + SERIAL_LINE[disc] + b";1\r\n")
 
         # planted parallel table (row = record index), for the region-sweep test
         for i in range(F.ENEMY_COUNT):
@@ -64,16 +82,24 @@ def build_fixture(path):
             r = cat[i]
             rec[0x04:0x0C] = bytes([0x64] * 8)            # element affinities
             rec[PLANT_OFF] = encode_zones(zones_for(i))   # <- the answer the scanner must find
-            struct.pack_into("<IH", rec, 0x36, r["hp"], 0x0063)
+            # +0x3A carries the real per-record value, not a flat 99 — eleven
+            # retail records differ, and a fixture that flattens them hides any
+            # retail-value check that wrongly compares the raw 17-byte run.
+            struct.pack_into("<IH", rec, 0x36, r["hp"], F.enemy_unk3a(i))
             struct.pack_into("<HHHH", rec, 0x3C, r["str"], r["vit"], r["eatk"], r["edef"])
             rec[0x44], rec[0x45], rec[0x46] = r["dex"], r["eva"], r["agl"]
             struct.pack_into("<H", rec, 0x52, r["id"])
-            f.seek(F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE)
+            # break sequence + a zone mask that covers exactly the zones it uses
+            slots = F.encode_break_seq(break_for(i))
+            for n, v in enumerate(slots):
+                rec[F.BREAK_SEQ_OFF + n] = v
+            rec[F.ENEMY_ZONE_MASK_OFF] = slots[0] | slots[1] | slots[2] | slots[3]
+            f.seek(t["stats"] + i * F.ENEMY_STRIDE)
             f.write(rec)
 
             row = bytearray(F.REWARD_STRIDE)
             struct.pack_into("<IHH", row, 0x00, r["exp"], r["sp"], r["cp"])
-            f.seek(F.REWARD_TABLE_OFF + i * F.REWARD_STRIDE)
+            f.seek(t["rewards"] + i * F.REWARD_STRIDE)
             f.write(row)
     return path
 
@@ -105,7 +131,9 @@ def t_identify(iso, _tmp):
 def t_confirm(iso, _tmp):
     matched, checked = X._confirm_base(iso, F.enemy_catalog(), F.ENEMY_TABLE_OFF)
     eq(checked, F.ENEMY_COUNT, "records checked")
-    eq(matched, F.ENEMY_COUNT, "records matching the 17-byte signature")
+    # all 125, including the eleven whose undecoded +0x3A isn't 99: this compares
+    # verified fields, not the raw 17-byte run
+    eq(matched, F.ENEMY_COUNT, "records holding retail values")
     eq(X.disc_is_pristine(iso), True, "pristine-disc anchor")
 
 
@@ -248,6 +276,106 @@ def t_truth(_iso, tmp):
     eq(unmatched, [], "no unmatched rows")
 
 
+@check("break sequence round-trips through the record", path=True)
+def t_break(iso_path, _tmp):
+    """+0x54..+0x57 hold the break sequence one-hot, 0 = end; +0x4C is the
+    hittable-zone mask. Verified on disc against 46 published sequences — this
+    covers the codec and the write path."""
+    for text, want in (("CBB", (4, 2, 2, 0)), ("BCBC", (2, 4, 2, 4)),
+                       ("A", (1, 0, 0, 0)), ("", (0, 0, 0, 0)),
+                       ("c-b-a-a", (4, 2, 1, 1))):
+        got = F.encode_break_seq(text)
+        eq(got, want, f"encode {text!r}")
+        eq(F.decode_break_seq(got), text.upper().replace("-", ""), f"decode {text!r}")
+    for bad in ("ABCDE", "X", "AB C D E"):
+        try:
+            F.encode_break_seq(bad)
+            raise AssertionError(f"accepted a bad sequence: {bad!r}")
+        except ValueError:
+            pass
+    eq(F.zone_mask_text(0b110), "BC", "mask 6 names its zones")
+    eq(F.zone_mask_text(0), "", "mask 0 has no zones")
+
+    with X.Iso(iso_path) as iso:
+        for i in range(F.ENEMY_COUNT):
+            eq(X.break_seq_of(X.read_enemy(iso, i)), break_for(i),
+               f"record {i} reads back the fixture's sequence")
+        # the fixture's mask covers exactly the zones its sequence uses
+        rec = X.read_enemy(iso, 3)
+        eq(F.zone_mask_text(rec["Zones"]), "BC", "record 3 zone mask")
+
+    with X.Iso(iso_path, write=True) as iso:
+        slots = F.encode_break_seq("AB")
+        X.write_enemy(iso, 3, {f"Brk{n + 1}": v for n, v in enumerate(slots)})
+    with X.Iso(iso_path) as iso:
+        eq(X.break_seq_of(X.read_enemy(iso, 3)), "AB", "sequence after write")
+        # a shorter sequence must clear the trailing slots, not leave a tail
+        eq(X.read_enemy(iso, 3)["Brk3"], 0, "third slot cleared")
+
+
+@check("disc 2 resolves its own table bases end to end", path=True)
+def t_disc2(_iso_path, tmp):
+    """Both retail discs carry the enemy tables, disc 2's 0x800 lower. A
+    rebalance written only to disc 1 reverts at the disc swap, so the engine has
+    to find disc 2's copy from the disc itself — no flag, no caller hint.
+
+    This builds a synthetic disc 2 and drives the whole path: serial detection,
+    base resolution, read, pristine check, and a write that lands in disc 2's
+    table and nowhere near disc 1's offsets."""
+    p = os.path.join(tmp, "synthetic-disc2.iso")
+    build_fixture(p, disc=2)
+    t1, t2 = F.enemy_tables(1), F.enemy_tables(2)
+    eq(t2["stats"], t1["stats"] - 0x800, "disc 2 stat base sits 0x800 lower")
+
+    cat = F.enemy_catalog()
+    with X.Iso(p) as iso:
+        eq(iso.disc, 2, "serial detected as disc 2")
+        eq(iso.tables["stats"], t2["stats"], "resolved stat base")
+        eq(X.read_enemy(iso, 6)["HP"], cat[6]["hp"], "reads Perun's HP off disc 2")
+        eq(X.read_enemy_id(iso, 6), cat[6]["id"], "reads the record's enemy id")
+        eq(X.disc_is_pristine(iso), True, "fresh disc 2 reads as pristine")
+        # nothing should be readable at disc 1's base on a disc-2 image
+        m, _c = X._confirm_base(iso, cat, t1["stats"])
+        eq(m, 0, "disc 1's base holds nothing on a disc-2 image")
+
+    with X.Iso(p, write=True) as iso:
+        eq(X.write_enemy(iso, 6, {"HP": 4242}), 1, "one field written")
+    with X.Iso(p) as iso:
+        eq(X.read_enemy(iso, 6)["HP"], 4242, "write landed in disc 2's table")
+        eq(X.disc_is_pristine(iso), False, "edit is detected on disc 2")
+
+
+@check("a disc-1 patch replays onto disc 2", path=True)
+def t_cross_disc(_iso_path, tmp):
+    """The recommended way to keep both discs in step: rebalance one, export a
+    patch, apply it to the other. The patch records values, not offsets, so it
+    has to land at disc 2's bases — and the serial mismatch must be a warning,
+    not a refusal, or the workflow is impossible."""
+    d1 = build_fixture(os.path.join(tmp, "pair-d1.iso"), disc=1)
+    d2 = build_fixture(os.path.join(tmp, "pair-d2.iso"), disc=2)
+
+    with X.Iso(d1, write=True) as iso:
+        X.apply_rebalance(iso, X.plan_rebalance(iso, F.profile("faster")))
+    with X.Iso(d1) as iso:
+        delta = X.diff_vanilla(iso)
+    if not delta:
+        raise AssertionError("rebalance left disc 1 matching retail")
+    # the disc's own value is element 0 — element 1 is what retail held
+    doc = X.make_patch({i: {k: have for k, (have, _wanted) in f.items()}
+                        for i, f in delta.items()}, serial="SLUS-20892")
+
+    with X.Iso(d2, write=True) as iso:
+        recs, _fields = X.apply_patch(iso, X.parse_patch(doc))
+    eq(recs, len(delta), "records applied to disc 2")
+
+    with X.Iso(d1) as a, X.Iso(d2) as b:
+        eq(a.disc, 1, "first image is disc 1")
+        eq(b.disc, 2, "second image is disc 2")
+        for i in range(F.ENEMY_COUNT):
+            if X.read_enemy(a, i) != X.read_enemy(b, i):
+                raise AssertionError(f"record {i} differs between the patched discs")
+
+
 @check("web ISO editor mirrors the Python profiles")
 def t_web_parity(_iso, _tmp):
     """Two editors that rebalance discs differently would be a bad bug, so the
@@ -276,7 +404,7 @@ def t_web_parity(_iso, _tmp):
         for group in ("regular", "major"):
             eq(web["profiles"][key][group], prof[group], f"{key}.{group} scaling")
 
-    src = open(iso_js, encoding="utf-8").read()
+    src = Path(iso_js).read_text(encoding="utf-8")
     eq("tables.json" in src, True, "iso.js fetches tables.json")
     for name in ("PROFILES", "MAJOR_HP", "CAPS"):
         if f"const {name}=" in src:

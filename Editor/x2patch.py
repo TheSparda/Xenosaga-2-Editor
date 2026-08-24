@@ -34,6 +34,23 @@ class Iso:
         self.f.seek(0, os.SEEK_END)
         self.size = self.f.tell()
         self.f.seek(0)
+        self._disc = None
+
+    @property
+    def disc(self):
+        """Which disc this image is (1 or 2), from SYSTEM.CNF. Detected once and
+        cached, and it decides every enemy-table offset below — disc 2 carries
+        the same tables 0x800 lower. Unrecognized images fall back to disc 1,
+        which is what the CLI's require_version() has already rejected by the
+        time any write happens."""
+        if self._disc is None:
+            self._disc = F.disc_of(detect_serial(self)) or 1
+        return self._disc
+
+    @property
+    def tables(self):
+        """This disc's enemy table bases: {'stats','names','rewards'}."""
+        return F.enemy_tables(self.disc)
 
     def read(self, off, n):
         self.f.seek(off)
@@ -183,17 +200,19 @@ def backup(path):
 
 
 # ---------------------------------------------------------------------------
-# ENEMY read/write (disc 1, VERIFIED). Stat records at F.ENEMY_TABLE_OFF and a
-# parallel rewards table at F.REWARD_TABLE_OFF — both indexed by record number.
+# ENEMY read/write (VERIFIED, both discs). Stat records and a parallel rewards
+# table, both indexed by record number. The bases come from the disc itself
+# (iso.tables) because disc 2 holds the same tables 0x800 lower.
 # ---------------------------------------------------------------------------
-def _enemy_tables(i):
-    return ((F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE,
-             F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS),
-            (F.REWARD_TABLE_OFF + i * F.REWARD_STRIDE, F.REWARD_FIELDS))
+def _enemy_tables(iso, i):
+    t = iso.tables
+    return ((t["stats"] + i * F.ENEMY_STRIDE,
+             F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.ZONE_FIELDS),
+            (t["rewards"] + i * F.REWARD_STRIDE, F.REWARD_FIELDS))
 
 def read_enemy(iso, i):
     out = {}
-    for base, fields in _enemy_tables(i):
+    for base, fields in _enemy_tables(iso, i):
         for (lbl, off, w, _k) in fields:
             out[lbl] = int.from_bytes(iso.read(base + off, w), "little")
     return out
@@ -201,7 +220,7 @@ def read_enemy(iso, i):
 def read_enemy_id(iso, i):
     """The record's own enemy id (+0x52). Read from the disc rather than taken
     from the shipped catalog so a partly-modified disc still classifies right."""
-    off = F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE + F.ENEMY_ID_OFF
+    off = iso.tables["stats"] + i * F.ENEMY_STRIDE + F.ENEMY_ID_OFF
     return int.from_bytes(iso.read(off, 2), "little")
 
 def is_boss(enemy_id):
@@ -261,7 +280,8 @@ def parse_patch(doc):
     if version != PATCH_VERSION:
         raise ValueError(f"patch version {version!r} is not supported "
                          f"(this build reads version {PATCH_VERSION})")
-    known = {f[0] for f in F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.REWARD_FIELDS}
+    known = {f[0] for f in F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
+             F.ZONE_FIELDS + F.REWARD_FIELDS}
     out = {}
     for key, fields in (doc.get("edits") or {}).items():
         try:
@@ -297,7 +317,7 @@ def write_enemy(iso, i, edits):
     """Write edited fields for enemy record `i` (stats and/or rewards).
     edits = {field_label: value}, clamped to field width. Returns fields written."""
     n = 0
-    for base, fields in _enemy_tables(i):
+    for base, fields in _enemy_tables(iso, i):
         for (lbl, off, w, _k) in fields:
             if lbl in edits and edits[lbl] is not None:
                 v = max(0, min(int(edits[lbl]), (1 << (8 * w)) - 1))
@@ -308,7 +328,7 @@ def write_enemy(iso, i, edits):
 def read_enemy_record(iso, i, base=None):
     """Raw 0x5C stat record bytes for index `i` (research helper — includes the
     65 bytes we haven't decoded yet)."""
-    base = F.ENEMY_TABLE_OFF if base is None else base
+    base = iso.tables["stats"] if base is None else base
     return iso.read(base + i * F.ENEMY_STRIDE, F.ENEMY_STRIDE)
 
 
@@ -335,10 +355,10 @@ def disc_is_pristine(iso, base=None):
     pointed at an arbitrary `base` (so the disc-2 hunt can reuse it), while
     diff_vanilla() reports field-by-field what changed at the known base."""
     cat = F.enemy_catalog()
-    matched, checked = _confirm_base(iso, cat, base or F.ENEMY_TABLE_OFF)
+    matched, checked = _confirm_base(iso, cat, base or iso.tables["stats"])
     if not checked or matched != checked:
         return False
-    blob = iso.read(F.REWARD_TABLE_OFF, F.ENEMY_COUNT * F.REWARD_STRIDE)
+    blob = iso.read(iso.tables["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE)
     for i, rec in cat.items():
         p = i * F.REWARD_STRIDE
         if struct.unpack_from("<IHH", blob, p) != (rec["exp"], rec["sp"], rec["cp"]):
@@ -391,14 +411,35 @@ def apply_rebalance(iso, plan):
 # ---------------------------------------------------------------------------
 # TABLE VERIFICATION — find the enemy stat table on *any* disc by signature.
 #
-# Disc 1's table base is verified, but disc 2 (SLUS-21133) has never been
-# checked: if it carries its own copy, a rebalance applied to disc 1 alone
-# silently stops working at the disc swap. The signature is the contiguous
-# 17-byte run at record+0x36 (HP u32, the 0x0063 constant, STR/VIT/EATK/EDEF
-# u16, DEX/EVA/AGL u8) — the same multi-field signature that solved the table.
+# Both discs carry the tables (disc 2's copy is 0x800 lower, byte-identical), so
+# a rebalance has to be written to both or it stops at the disc swap.
+#
+# Two different questions live here, and they need two different comparisons:
+#
+#   "where is the table?"    -> enemy_signature(), the contiguous 17-byte run at
+#                               record+0x36. Being one long run is the point: it
+#                               makes a cheap, specific needle for a 4.6 GB scan.
+#   "does it still hold the
+#    retail values?"         -> _confirm_base(), which compares only the VERIFIED
+#                               fields (F.ENEMY_FIELDS).
+#
+# The distinction is load-bearing. The 17-byte run spans +0x3A, a halfword this
+# project has never decoded, and it is NOT the constant it looks like: 114 of the
+# 125 records hold 99 there, but eleven real enemies (Kfuga Lily, E2 Hauser,
+# Yacud Cannon, Stole Marine, the four Cera records, Executus Arma and the two
+# U-TIC Soldiers) hold 0, 1, 2 or 10 — on both discs. Using the run to answer the
+# second question therefore reports 114/125 on a *pristine* retail disc, which
+# read as "this disc was already edited" and made `rebalance` refuse to run on
+# genuine retail media. Comparing the verified fields gives a true 125/125.
+#
+# Keeping 0x0063 in the needle is still correct — every anchor record holds it,
+# and the extra two bytes buy specificity — it just must not be mistaken for a
+# retail-value check.
 # ---------------------------------------------------------------------------
 def enemy_signature(rec):
-    """The 17-byte +0x36..+0x46 run implied by a catalog record."""
+    """The 17-byte +0x36..+0x46 run implied by a catalog record — the search
+    needle. Assumes 0x0063 at +0x3A, which holds for every anchor record but not
+    for all 125; use _confirm_base() to ask whether values are retail."""
     return (struct.pack("<IH", rec["hp"], 0x0063) +
             struct.pack("<HHHH", rec["str"], rec["vit"], rec["eatk"], rec["edef"]) +
             bytes((rec["dex"], rec["eva"], rec["agl"])))
@@ -431,8 +472,12 @@ def locate_enemy_table(iso, anchors=ANCHOR_RECORDS, confirm=8, region=None):
     return None
 
 def _confirm_base(iso, cat, base):
-    """How many catalog records match at a candidate base (reads the whole table
-    once). Returns (matched, checked)."""
+    """How many catalog records hold their retail values at a candidate base
+    (reads the whole table once). Returns (matched, checked).
+
+    Compares the VERIFIED fields only — never the raw +0x36..+0x46 run, which
+    includes the undecoded +0x3A halfword that eleven real records don't set to
+    99. See the section comment above."""
     span = F.ENEMY_COUNT * F.ENEMY_STRIDE
     if base + span > iso.size:
         return 0, 0
@@ -442,8 +487,10 @@ def _confirm_base(iso, cat, base):
         if "hp" not in rec:
             continue
         checked += 1
-        p = i * F.ENEMY_STRIDE + 0x36
-        if blob[p:p + 17] == enemy_signature(rec):
+        p = i * F.ENEMY_STRIDE
+        if all(int.from_bytes(blob[p + off:p + off + w], "little")
+               == rec[F.ENEMY_CATALOG_KEY[lbl]]
+               for (lbl, off, w, _k) in F.ENEMY_FIELDS):
             matched += 1
     return matched, checked
 
@@ -466,8 +513,9 @@ def _confirm_base(iso, cat, base):
 #                                                      or a length, not the seq)
 # ---------------------------------------------------------------------------
 def read_records(iso, base=None, count=None, stride=None):
-    """All raw stat records as a list of bytes."""
-    base = F.ENEMY_TABLE_OFF if base is None else base
+    """All raw stat records as a list of bytes. Defaults to THIS disc's base —
+    hardcoding disc 1's would read 22 records off on a disc-2 image."""
+    base = iso.tables["stats"] if base is None else base
     count = F.ENEMY_COUNT if count is None else count
     stride = F.ENEMY_STRIDE if stride is None else stride
     blob = iso.read(base, count * stride)
@@ -704,9 +752,16 @@ def _summary_cols():
 def _affinity_cols():
     return [f[0] for f in F.ENEMY_AFFINITY_FIELDS]
 
+def _zone_cols():
+    return [f[0] for f in F.ZONE_FIELDS]
+
 def _enemy_field_names():
     """Every writable field, including the unverified affinity slots."""
-    return _summary_cols() + _affinity_cols()
+    return _summary_cols() + _affinity_cols() + _zone_cols()
+
+def break_seq_of(rec):
+    """The record's break sequence as text ('CBB'), or '' if it can't be broken."""
+    return F.decode_break_seq([rec[f"Brk{n + 1}"] for n in range(F.BREAK_SEQ_SLOTS)])
 
 AFFINITY_WARNING = (
     f"note: Aff1..Aff{F.ENEMY_AFFINITY_COUNT} are damage-affinity percentages "
@@ -743,6 +798,11 @@ def cmd_enemy_get(a):
         van = vanilla_enemy(a.index).get(c)
         mark = "" if van is None or van == rec[c] else f"   (retail {van:,})"
         print(f"  {c:<5} {rec[c]:>10,}{mark}")
+    seq = break_seq_of(rec)
+    print(f"  {'zones':<5} {F.zone_mask_text(rec['Zones']) or '(none)':>10}"
+          f"   (which heights this enemy can be hit at)")
+    print(f"  {'break':<5} {seq or '(cannot)':>10}"
+          f"   (hit these zones in order to Break it)")
     print("  affinities " + " ".join(f"{rec[c]}" for c in _affinity_cols()))
     print(f"  {AFFINITY_WARNING}")
 
@@ -759,6 +819,13 @@ def cmd_enemy_set(a):
             raise SystemExit(f"unknown field {k!r}; known: "
                              f"{', '.join(_enemy_field_names())}")
         edits[known[k.upper()]] = int(v, 0)
+    if a.break_seq is not None:
+        # friendlier than four --set Brk1=4 pairs, and it validates the sequence
+        try:
+            slots = F.encode_break_seq(a.break_seq)
+        except ValueError as e:
+            raise SystemExit(f"--break: {e}")
+        edits.update({f"Brk{n + 1}": v for n, v in enumerate(slots)})
     if not edits:
         raise SystemExit("nothing to do — pass at least one --set FIELD=VALUE")
     if any(k in _affinity_cols() for k in edits):
@@ -881,8 +948,12 @@ def cmd_rebalance(a):
         prof[grp] = scales
     with Iso(a.iso, write=not a.dry_run) as iso:
         ok, serial, disc, _vol = check_version(iso)
-        if not ok or disc != 1:
-            raise SystemExit(f"need Xenosaga II disc 1 (SLUS-20892); this is {serial}")
+        if not ok:
+            raise SystemExit(f"need a Xenosaga II (USA) disc; this is {serial}")
+        print(f"disc    : {serial} (disc {disc}), tables at 0x{iso.tables['stats']:X}")
+        if disc == 1:
+            print("note    : disc 2 carries the same tables — run the same profile on it "
+                  "too, or enemies revert to retail at the disc swap.")
         if not disc_is_pristine(iso):
             print("! the enemy tables no longer match their verified retail values — this "
                   "disc was already edited; scaling again compounds the previous pass.")
@@ -909,7 +980,7 @@ def cmd_rebalance(a):
     return 0
 
 def cmd_verify_tables(a):
-    """Confirm the enemy table on disc 1 — or find out whether disc 2 has one."""
+    """Confirm the enemy table at this disc's known base, or hunt for it."""
     with Iso(a.iso) as iso:
         ok, serial, disc, vol = check_version(iso)
         print(f"disc    : {serial} (disc {disc}) volume={vol!r}")
@@ -917,24 +988,27 @@ def cmd_verify_tables(a):
             print("✗ not a recognized Xenosaga II image")
             return 2
         cat = F.enemy_catalog()
-        matched, checked = _confirm_base(iso, cat, F.ENEMY_TABLE_OFF)
-        print(f"known base 0x{F.ENEMY_TABLE_OFF:X}: {matched}/{checked} catalog records match")
+        known = iso.tables["stats"]
+        matched, checked = _confirm_base(iso, cat, known)
+        print(f"known base 0x{known:X} (disc {disc}): "
+              f"{matched}/{checked} catalog records hold retail values")
         if matched >= 8:
             print("✓ enemy stat table present at the known offset — edits apply here")
+            if matched != checked:
+                print(f"  ! {checked - matched} record(s) already differ from retail — "
+                      f"this disc has been edited (see `diff`)")
             return 0
         print("… not at the known offset; signature-scanning the whole image "
               "(one pass, a few minutes on a 4.6 GB disc)")
         hit = locate_enemy_table(iso)
         if not hit:
-            print("✗ no enemy stat table on this disc — nothing here to rebalance.\n"
-                  "  If this is disc 2, the disc-1 edits are the whole story: record "
-                  "that result in Xenosaga2_ISO_offsets.md.")
+            print("✗ no enemy stat table on this disc — nothing here to rebalance.")
             return 1
         print(f"✓ FOUND at base 0x{hit['base']:X} (stride 0x{hit['stride']:X}, "
               f"anchor rec {hit['anchor']}, {hit['matched']}/{hit['checked']} records match)")
-        if hit["base"] != F.ENEMY_TABLE_OFF:
-            print(f"  → different base from disc 1 (0x{F.ENEMY_TABLE_OFF:X}). This disc needs "
-                  f"its own ENEMY_TABLE_OFF before the editor can patch it.")
+        if hit["base"] != known:
+            print(f"  → not the base recorded for disc {disc} (0x{known:X}). Update "
+                  f"F.ENEMY_TABLES[{disc}] before the editor patches this image.")
         return 0
 
 def cmd_enemy_columns(a):
@@ -1057,6 +1131,9 @@ def main():
     sp = sub.add_parser("enemy-set", help="write fields of one enemy (e.g. --set HP=5000)")
     sp.add_argument("iso"); sp.add_argument("index", type=lambda x: int(x, 0))
     sp.add_argument("--set", action="append", metavar="FIELD=VALUE")
+    sp.add_argument("--break", dest="break_seq", metavar="SEQ",
+                    help="set the Break sequence, e.g. CB or C-B-B (max "
+                         "4 hits, zones A/B/C; empty string = cannot be broken)")
     sp.add_argument("--backup", action="store_true", help="copy the ISO to .bak first")
     sp.set_defaults(fn=cmd_enemy_set)
 

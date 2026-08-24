@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import fixtures as FX
 import x2fields as F
@@ -147,10 +148,10 @@ class TestRetailComparison(PatchCase):
         p = self.fresh("restore3.iso")
         with X.Iso(p, write=True) as iso:
             X.write_enemy(iso, 6, {"HP": 5})
-        before = open(p, "rb").read()
+        before = Path(p).read_bytes()
         out = self.run_cli("restore", p, "--dry-run")
         self.assertIn("dry run", out)
-        self.assertEqual(open(p, "rb").read(), before)
+        self.assertEqual(Path(p).read_bytes(), before)
 
 
 class TestPatchFiles(PatchCase):
@@ -173,7 +174,7 @@ class TestPatchFiles(PatchCase):
             X.write_enemy(iso, 6, {"HP": 999, "EXP": 1})
         out = os.path.join(self.dir, "small.json")
         self.run_cli("export-patch", p, "--out", out, "--note", "tiny")
-        doc = json.load(open(out))
+        doc = json.loads(Path(out).read_text())
         self.assertEqual(doc["format"], X.PATCH_FORMAT)
         self.assertEqual(doc["version"], X.PATCH_VERSION)
         self.assertEqual(doc["note"], "tiny")
@@ -185,9 +186,9 @@ class TestPatchFiles(PatchCase):
         out = os.path.join(self.dir, "d.json")
         with open(out, "w") as f:
             json.dump(X.make_patch({6: {"HP": 3}}, note="n"), f)
-        before = open(p, "rb").read()
+        before = Path(p).read_bytes()
         self.assertIn("dry run", self.run_cli("apply-patch", p, out, "--dry-run"))
-        self.assertEqual(open(p, "rb").read(), before)
+        self.assertEqual(Path(p).read_bytes(), before)
 
     def test_patches_can_carry_affinities(self):
         p = self.fresh("affpatch.iso")
@@ -238,9 +239,9 @@ class TestPatchFiles(PatchCase):
         with open(out, "w") as f:
             json.dump({"format": X.PATCH_FORMAT, "version": 1,
                        "edits": {"6": {"HP": 1}, "9999": {"HP": 2}}}, f)
-        before = open(p, "rb").read()
+        before = Path(p).read_bytes()
         self.run_cli("apply-patch", p, out, expect=1)
-        self.assertEqual(open(p, "rb").read(), before,
+        self.assertEqual(Path(p).read_bytes(), before,
                          "a patch that fails validation must not half-apply")
 
 

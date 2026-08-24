@@ -13,7 +13,16 @@
   // disc rather than fall back to a possibly-stale copy.
   let SBASE, STRIDE, COUNT, RBASE, RSTRIDE, SFIELDS, RFIELDS, SEND, REND, BOSS_ID_MIN, ID_OFF;
   let AFIELDS, AFF_NORMAL, CATKEYS, SERIAL, CAPS, PROFILES, MAJOR_HP;
+  // break/zone data: a hittable-zone mask and BRK_SLOTS one-hot sequence slots
+  let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM;
   let TABLES=null;
+  // Both retail discs carry the enemy tables and disc 2's copy sits 0x800 lower,
+  // so the bases can't be fixed at load time — they're resolved from the serial
+  // once a disc is open (setDisc). Editing only disc 1 leaves the second half of
+  // the game on retail values, so the UI has to say so.
+  let ETABLES=null, SERIALMAP=null, DISC=1;
+  // the dotted form as it appears in SYSTEM.CNF, for the byte scan
+  const SERIAL_ASCII={1:"SLUS_208.92", 2:"SLUS_211.33"};
   // Patch files are interchangeable with `x2patch.py export-patch/apply-patch`.
   const PATCH_FORMAT="x2-enemy-patch", PATCH_VERSION=1;
 
@@ -22,15 +31,28 @@
     const r=await fetch("tables.json",{cache:"no-cache"});
     if(!r.ok) throw new Error("tables.json ("+r.status+")");
     const t=await r.json();
-    SBASE=t.enemy.base; STRIDE=t.enemy.stride; COUNT=t.enemy.count;
+    STRIDE=t.enemy.stride; COUNT=t.enemy.count;
     SFIELDS=t.enemy.fields; ID_OFF=t.enemy.idOff;
     AFIELDS=t.enemy.affinityFields||[]; AFF_NORMAL=t.enemy.affinityNormal;
-    RBASE=t.reward.base; RSTRIDE=t.reward.stride; RFIELDS=t.reward.fields;
-    SEND=SBASE+COUNT*STRIDE; REND=RBASE+COUNT*RSTRIDE;
+    ZMASK_OFF=t.enemy.zoneMaskOff; BRK_OFF=t.enemy.breakSeqOff;
+    BRK_SLOTS=t.enemy.breakSeqSlots||4; ZBITS=t.enemy.zoneBits||{A:1,B:2,C:4};
+    ZSYM={}; for(const k in ZBITS) ZSYM[ZBITS[k]]=k;
+    RSTRIDE=t.reward.stride; RFIELDS=t.reward.fields;
     BOSS_ID_MIN=t.bossIdMin; CATKEYS=t.catalogKeys||{};
     CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{}; MAJOR_HP=t.majorHpThreshold;
-    SERIAL=Object.keys(t.serials||{}).find(k=>t.serials[k]===1)||"SLUS-20892";
+    ETABLES=t.enemyTables||{"1":{stats:t.enemy.base,rewards:t.reward.base}};
+    SERIALMAP=t.serials||{};
+    setDisc(1);
     return (TABLES=t);
+  }
+
+  // Point every offset at one disc's tables. Called once per opened disc, before
+  // any slice is read, so S/R can never be filled from the wrong base.
+  function setDisc(n){
+    const e=ETABLES[String(n)]; if(!e) throw new Error("no tables for disc "+n);
+    DISC=n; SBASE=e.stats; RBASE=e.rewards;
+    SEND=SBASE+COUNT*STRIDE; REND=RBASE+COUNT*RSTRIDE;
+    SERIAL=Object.keys(SERIALMAP||{}).find(k=>SERIALMAP[k]===n)||"SLUS-20892";
   }
 
   // Placeholder/debug rows (13 of them: GNO013, CRE006/018, UMA013, MON001-4,
@@ -45,6 +67,24 @@
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const toastFn=(m,e)=>{try{window.toast&&window.toast(m,e);}catch(_){}};
+
+  // ---- break sequence: BRK_SLOTS one-hot bytes, 0 = end of sequence ----
+  // Mirrors x2fields.decode_break_seq / encode_break_seq.
+  function breakSeq(i){
+    let s="";
+    for(let n=0;n<BRK_SLOTS;n++){
+      const sym=ZSYM[get(S,i,BRK_OFF+n,1)];
+      if(!sym) break;
+      s+=sym;
+    }
+    return s;
+  }
+  function setBreakSeq(i,text){
+    const syms=String(text).toUpperCase().split("").filter(c=>c in ZBITS).slice(0,BRK_SLOTS);
+    for(let n=0;n<BRK_SLOTS;n++) put(S,i,BRK_OFF+n,1, n<syms.length?ZBITS[syms[n]]:0);
+    return syms.join("");
+  }
+  const zoneMaskText=(m)=>Object.keys(ZBITS).filter(k=>m&ZBITS[k]).join("");
 
   function get(T,i,off,w){const a=i*(T===S?STRIDE:RSTRIDE)+off;
     return w===4?T.dv.getUint32(a,true):w===2?T.dv.getUint16(a,true):T.buf[a];}
@@ -76,11 +116,13 @@
     catch(e){ root.innerHTML='<div class="card blocked"><b>Could not load the disc table definitions</b>'+
       ' — '+esc(String(e))+'. Try ↻ Force refresh in the footer.</div>'; root.dataset.init=""; return; }
     await loadCat();
-    root.innerHTML='<div class="card"><h2>1 · Open disc 1 ISO</h2>'+
+    root.innerHTML='<div class="card"><h2>1 · Open a disc ISO</h2>'+
       '<button id="isoPick" class="btn primary">Choose ISO…</button> '+
       '<span id="isoStatus" class="status"></span>'+
-      '<div id="isoRecent"></div>'+
-      '<p class="note">Xenosaga II (USA) <b>Disc 1</b> — SLUS-20892. Enemy edits apply to a new game. '+
+      '<div id="isoRecent"></div><div id="isoPair"></div>'+
+      '<p class="note">Xenosaga II (USA) — <b>either disc</b> (SLUS-20892 or SLUS-21133). '+
+      'Both discs carry the same enemy tables, so <b>apply the same edits to both</b> or '+
+      'enemies revert to retail values after the disc swap. Enemy edits apply to a new game. '+
       'Edits write in place; work on a copy or tick backup. Your last disc is remembered for '+
       'one-tap reopening (only the file reference is stored — never the disc itself).</p></div>'+
       '<div id="isoEdit"></div>';
@@ -128,9 +170,12 @@
       for(let i=0;i<head.length-t.length;i++){let m=true;for(let j=0;j<t.length;j++)if(head[i+j]!==t[j]){m=false;break;}if(m){o=i;break;}}return o;};
     const vol=new TextDecoder().decode(head.slice(0x8028,0x8028+11));
     if(vol!=="XENOSAGA_II"){ st.textContent="✗ Not a Xenosaga II disc (volume "+esc(vol)+")"; st.className="status err"; return; }
-    if(asc("SLUS_208.92")<0){
-      st.textContent = asc("SLUS_211.33")>=0 ? "✗ This is Disc 2 — the enemy tables are on Disc 1."
-                                             : "✗ Unrecognized Xenosaga II serial."; st.className="status err"; return; }
+    // Both discs are editable, each from its own bases. Resolve which one this
+    // is BEFORE slicing, or the edits land at the other disc's offsets.
+    const disc = asc(SERIAL_ASCII[1])>=0 ? 1 : asc(SERIAL_ASCII[2])>=0 ? 2 : 0;
+    if(!disc){ st.textContent="✗ Unrecognized Xenosaga II serial."; st.className="status err"; return; }
+    try{ setDisc(disc); }
+    catch(e){ st.textContent="✗ No table offsets known for disc "+disc+"."; st.className="status err"; return; }
     const sb=new Uint8Array(await f.slice(SBASE,SEND).arrayBuffer());
     const rb=new Uint8Array(await f.slice(RBASE,REND).arrayBuffer());
     S={buf:sb,orig:sb.slice(),dv:new DataView(sb.buffer),base:SBASE};
@@ -139,13 +184,25 @@
     // sanity anchor: Perun (rec 6) HP must match the bestiary on an unmodified disc
     const [,hpO,hpW]=SFIELDS.find(f=>f[0]==="HP");
     const perun=get(S,6,hpO,hpW), want=retail(6,"HP");
-    st.textContent="✓ Disc 1 loaded ("+f.name+")"+
+    st.textContent="✓ Disc "+DISC+" loaded ("+f.name+")"+
       (want!==undefined&&perun!==want?" — note: "+esc(cat[6]?cat[6].name:"record 6")+" HP reads "+
         perun.toLocaleString()+" not "+want.toLocaleString()+" (modified disc?)":"");
     st.className="status ok";
-    rememberIso(f.name||"disc1.iso",handle);   // one-tap reopen next visit
+    showPairNote();
+    rememberIso(f.name||("disc"+DISC+".iso"),handle);   // one-tap reopen next visit
     renderEnemy();
     showLastIso();
+  }
+
+  // A rebalance applied to one disc only is the easiest way to get a half-modded
+  // playthrough, and nothing in the game warns you. Say it on the disc that's open.
+  function showPairNote(){
+    const el=$("#isoPair"); if(!el) return;
+    const other=DISC===1?2:1;
+    el.innerHTML='<p class="note warn">Editing <b>disc '+DISC+'</b>. Disc '+other+
+      ' holds its own copy of these tables — apply the same changes there too, or the '+
+      'second half of the game keeps retail values. A patch file (below) replays the '+
+      'exact same edits onto the other disc.</p>';
   }
 
   function renderEnemy(){
@@ -169,6 +226,16 @@
         'experiment; the retail comparison and patch export handle them separately because '+
         'the bestiary has no baseline for them.</p>'+
         '<table><tbody><tr id="erow3"></tr></tbody></table></details>'+
+      '<div class="brkbox"><div class="fl">Break sequence</div>'+
+        '<input id="ebrk" type="text" maxlength="'+BRK_SLOTS+'" spellcheck="false" '+
+          'autocapitalize="characters" placeholder="e.g. CBB" style="width:8ch;text-transform:uppercase">'+
+        '<button type="button" class="restore" id="ebrkrev" title="Restore">↺</button>'+
+        '<span id="ebrkinfo" class="muted small"></span>'+
+        '<p class="note">The zones you must hit, <b>in order</b>, to Break this enemy — the combo '+
+        'loop’s actual gate. Zones are attack heights: <b>A</b> above 3&nbsp;m (○), '+
+        '<b>B</b> 1–3&nbsp;m (□), <b>C</b> below 1&nbsp;m (△). Up to '+BRK_SLOTS+' hits; '+
+        'clear it to make the enemy unbreakable. Shortening a boss’s 4-hit sequence is the '+
+        'single biggest cut to how long its fight drags.</p></div>'+
       '<p class="note">Stats + battle rewards, verified against guide data (74/76 exact matches). '+
       'Writes only the changed bytes back at their exact offsets.</p></div>'+
       '<div class="card"><h2>3 · Battle pacing (all '+COUNT+' enemies)</h2>'+
@@ -301,7 +368,42 @@
       inp.addEventListener("input",refresh);
       btn.onclick=()=>{inp.value=inp.getAttribute("data-def");refresh();};refresh();
     });
+    wireBreak(i);
     epending();
+  }
+
+  // The break sequence is one text box over BRK_SLOTS bytes, so it can't use the
+  // generic per-field cell wiring above.
+  function wireBreak(i){
+    const inp=$("#ebrk"), rev=$("#ebrkrev"), info=$("#ebrkinfo");
+    if(!inp) return;
+    // "as opened" value, so ↺ and the amber marker mean the same as elsewhere
+    let def="";
+    for(let n=0;n<BRK_SLOTS;n++){
+      const sym=ZSYM[getOrig(S,i,BRK_OFF+n,1)];
+      if(!sym) break;
+      def+=sym;
+    }
+    inp.value=breakSeq(i);
+    const paint=()=>{
+      const cur=breakSeq(i), mask=get(S,i,ZMASK_OFF,1);
+      const zones=zoneMaskText(mask);
+      // a sequence can only use zones the enemy actually has
+      const bad=cur.split("").filter(c=>!(mask&ZBITS[c]));
+      info.textContent = (cur?cur.split("").join("→"):"cannot be broken")+
+        "   ·   zones on this enemy: "+(zones||"none")+
+        (bad.length?"   ⚠ uses zone "+[...new Set(bad)].join("/")+" which this enemy doesn't have":"");
+      info.className="muted small"+(bad.length?" warntext":"");
+      const ch=cur!==def;
+      inp.classList.toggle("changed",ch); rev.classList.toggle("show",ch);
+    };
+    inp.oninput=()=>{
+      const cleaned=setBreakSeq(i,inp.value);
+      if(inp.value!==cleaned) inp.value=cleaned;   // drop anything that isn't a zone
+      paint(); epending();
+    };
+    rev.onclick=()=>{ inp.value=setBreakSeq(i,def); paint(); epending(); };
+    paint();
   }
 
   // Scale every record per its group. Always reads from `orig` (the disc as

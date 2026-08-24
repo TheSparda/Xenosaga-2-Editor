@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import threading
 import unittest
+from pathlib import Path
 from http.server import ThreadingHTTPServer
 
 import fixtures as FX
@@ -75,18 +76,18 @@ class TestHostGuard(AppCase):
                 self.assertEqual(status, 403)
 
     def test_writes_are_rejected_too(self):
-        before = open(self.psv, "rb").read()
+        before = Path(self.psv).read_bytes()
         status, _ = self.request("POST", "/api/write", host="evil.example.com",
                                  body={"i": 0, "edits": {"gold": 1}})
         self.assertEqual(status, 403)
-        self.assertEqual(open(self.psv, "rb").read(), before)
+        self.assertEqual(Path(self.psv).read_bytes(), before)
 
     def test_enemy_writes_are_rejected_too(self):
-        before = open(self.iso, "rb").read()
+        before = Path(self.iso).read_bytes()
         status, _ = self.request("POST", "/api/enemy_write", host="evil.example.com",
                                  body={"i": 0, "edits": {"HP": 1}})
         self.assertEqual(status, 403)
-        self.assertEqual(open(self.iso, "rb").read(), before)
+        self.assertEqual(Path(self.iso).read_bytes(), before)
 
 
 class TestSaveApi(AppCase):

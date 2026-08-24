@@ -8,6 +8,7 @@ import shutil
 import struct
 import tempfile
 import unittest
+from pathlib import Path
 
 import fixtures as FX
 import x2fields as F
@@ -118,9 +119,9 @@ class TestMemcard(TempFileCase):
 
     def test_write_hits_only_the_named_slot(self):
         p = self.put("card.ps2", FX.x2_memcard(n_slots=3, gold=1000))
-        before = open(p, "rb").read()
+        before = Path(p).read_bytes()
         SV.write_save(p, {"gold": 55555}, make_backup=False, slot=1)
-        after = open(p, "rb").read()
+        after = Path(p).read_bytes()
         self.assertEqual(len(before), len(after))
         self.assertEqual(SV.decode_save(p, slot=0)["gold"], 1000)
         self.assertEqual(SV.decode_save(p, slot=1)["gold"], 55555)
@@ -206,9 +207,9 @@ class TestAllContainers(TempFileCase):
                 original = build(FX.gamedata(gold=111))
                 p = self.put(name, original)
                 SV.write_save(p, {"gold": 222}, make_backup=True)
-                self.assertEqual(open(p + ".bak", "rb").read(), original)
+                self.assertEqual(Path(p + ".bak").read_bytes(), original)
                 SV.write_save(p, {"gold": 333}, make_backup=True)
-                self.assertEqual(open(p + ".bak", "rb").read(), original)
+                self.assertEqual(Path(p + ".bak").read_bytes(), original)
                 self.assertEqual(SV.decode_save(p)["gold"], 333)
 
     def test_container_size_is_preserved(self):
