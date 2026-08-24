@@ -325,12 +325,47 @@
     }
   }
 
+  // ---- enemy picker + filter ----
+  // 125 records is too many to scroll, so the dropdown is filtered rather than
+  // replaced: the selection survives typing as long as it still matches, and an
+  // empty result leaves the loaded enemy alone instead of blanking the sheet.
+  const enemyKeys=()=>Object.keys(cat).sort((a,b)=>+a-+b);
+  function enemyMatches(q){
+    q=String(q||"").trim().toLowerCase();
+    if(!q) return enemyKeys();
+    return enemyKeys().filter(i=>{
+      const r=cat[i]||{};
+      return String(i)===q
+          || String(i).padStart(3,"0").indexOf(q)>=0
+          || String(r.id||"").indexOf(q)>=0
+          || String(r.name||"").toLowerCase().indexOf(q)>=0;
+    });
+  }
+  function optionHtml(i){
+    return '<option value="'+i+'">'+String(i).padStart(3,"0")+' · '+esc(cat[i].name)+'</option>';
+  }
+  function paintEnemyList(){
+    const sel=$("#esel"), box=$("#esearch"), cnt=$("#ecount");
+    if(!sel||!box) return;
+    const q=box.value, keys=enemyMatches(q), prev=sel.value;
+    if(cnt) cnt.textContent = !q.trim() ? "" :
+      (keys.length ? keys.length+" of "+enemyKeys().length : "no match");
+    if(cnt) cnt.className = "muted small"+(keys.length?"":" warntext");
+    if(!keys.length) return;             // keep the current enemy loaded
+    sel.innerHTML=keys.map(optionHtml).join("");
+    if(keys.indexOf(prev)>=0){ sel.value=prev; }
+    else { sel.value=keys[0]; loadEnemy(); }
+  }
+
   function renderEnemy(){
-    const opts=Object.keys(cat).sort((a,b)=>+a-+b).map(i=>'<option value="'+i+'">'+
-      String(i).padStart(3,"0")+' · '+esc(cat[i].name)+'</option>').join("");
+    const opts=enemyKeys().map(optionHtml).join("");
     $("#isoEdit").innerHTML=
       '<div class="card"><h2>2 · Enemy</h2>'+
       '<div class="toolbar"><label>Enemy</label> <select id="esel">'+opts+'</select>'+
+      '<span class="findbox"><input type="search" id="esearch" placeholder="find by name, index or id" '+
+        'autocomplete="off" spellcheck="false"><button type="button" id="eclear" '+
+        'class="chip mini" title="Clear search" aria-label="Clear search">✕</button></span>'+
+      '<span id="ecount" class="muted small"></span>'+
       '<label style="margin-left:8px"><input type="checkbox" id="ebak"> back up ISO first</label>'+
       '<span style="flex:1"></span>'+
       '<button id="erev" class="btn" disabled>Revert all</button>'+
@@ -416,6 +451,12 @@
       'with this editor holds the verified retail numbers, the editor can also tell you exactly how '+
       'your disc differs from an unmodified one — and put it back.</p></div>';
     $("#esel").onchange=loadEnemy;
+    $("#esearch").addEventListener("input",paintEnemyList);
+    $("#esearch").addEventListener("keydown",e=>{
+      if(e.key==="Escape"){ $("#esearch").value=""; paintEnemyList(); }
+      if(e.key==="Enter"){ e.preventDefault(); loadEnemy(); }
+    });
+    $("#eclear").onclick=()=>{ $("#esearch").value=""; paintEnemyList(); $("#esearch").focus(); };
     $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);loadEnemy();epending();};
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
