@@ -14,6 +14,7 @@ import fixtures as FX
 import x2fields as F
 import x2mc as MC
 import x2save as SV
+import x2lzari as LZ
 
 
 class TempFileCase(unittest.TestCase):
@@ -295,3 +296,84 @@ class TestScan(TempFileCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLzariCodec(unittest.TestCase):
+    """LZARI is bit-exact or it is nothing — a stream that decodes for a while
+    and then diverges is the normal failure mode, so these check whole payloads
+    rather than prefixes."""
+
+    def test_round_trip_over_awkward_payloads(self):
+        cases = {
+            "empty": b"",
+            "one byte": b"A",
+            "long run": b"\x00" * 5000,
+            "repeating text": b"the quick brown fox " * 300,
+            "incompressible": bytes((i * 7919 + i // 251) % 256 for i in range(4000)),
+            "match at the very end": b"x" * 100 + b"abcabcabc",
+            "window sized": bytes(range(256)) * 16,
+        }
+        for name, payload in cases.items():
+            with self.subTest(name):
+                self.assertEqual(LZ.decompress(LZ.compress(payload), len(payload)),
+                                 payload)
+
+    def test_overlapping_match_round_trips(self):
+        """A run encodes as a match whose length exceeds its distance, which the
+        decoder resolves byte by byte as it writes. Comparing against a ring
+        buffer instead of the emitted output gets this wrong."""
+        payload = b"ab" + b"c" * 200 + b"ababababababab"
+        self.assertEqual(LZ.decompress(LZ.compress(payload), len(payload)), payload)
+
+    def test_a_real_gamedata_payload_round_trips(self):
+        gd = FX.gamedata()
+        self.assertEqual(LZ.decompress(LZ.compress(gd), len(gd)), gd)
+
+
+class TestMaxContainer(TempFileCase):
+    def test_reads_gamedata(self):
+        p = self.put("s.max", FX.max_save())
+        self.assertEqual(SV.extract_gamedata(p), FX.gamedata())
+        self.assertEqual(SV.sniff_format(p), "max")
+
+    def test_entries_are_found_despite_irregular_padding(self):
+        """Real .max files pad entries by 2 bytes in one place and 12 in another,
+        so the reader scans for headers instead of assuming an alignment. The
+        fixture uses a third, different padding to keep that honest."""
+        p = self.put("pad.max", FX.max_save())
+        _gd, off = SV._max_gamedata(Path(p).read_bytes())
+        self.assertGreater(off, 0)
+        self.assertEqual(SV.extract_gamedata(p), FX.gamedata())
+
+    def test_write_preserves_the_other_files_and_the_header(self):
+        p = self.put("w.max", FX.max_save())
+        original = Path(p).read_bytes()
+        SV.write_save(p, {"gold": 42}, make_backup=False)
+        edited = Path(p).read_bytes()
+        self.assertEqual(SV.decode_gamedata(SV.extract_gamedata(p))["gold"], 42)
+        # name fields, file count and decompressed length all survive
+        self.assertEqual(original[0x10:0x50], edited[0x10:0x50])
+        self.assertEqual(struct.unpack_from("<I", original, 0x54),
+                         struct.unpack_from("<I", edited, 0x54))
+        self.assertEqual(struct.unpack_from("<I", original, 0x58),
+                         struct.unpack_from("<I", edited, 0x58))
+        # the size field has to track the re-compressed body
+        self.assertEqual(SV.MAX_HDR + struct.unpack_from("<I", edited, 0x50)[0],
+                         len(edited))
+        # only the gamedata entry changed inside the payload
+        before, _c, _d = SV._max_payload(original)
+        after, _c2, _d2 = SV._max_payload(edited)
+        self.assertEqual(len(before), len(after))
+        _gd, off = SV._max_gamedata(edited)
+        self.assertEqual(before[:off], after[:off])
+        end = off + F.GAMEDATA_SIZE
+        self.assertEqual(before[end:], after[end:])
+
+    def test_unidentified_checksum_is_preserved(self):
+        """The 0x0C field matches no CRC-32 variant or sum we tried, and mymc
+        writes 0 there, so it is evidently unenforced — we leave it alone rather
+        than invent a value."""
+        p = self.put("c.max", FX.max_save(checksum=0xCAFEBABE))
+        SV.write_save(p, {"gold": 7}, make_backup=False)
+        self.assertEqual(struct.unpack_from("<I", Path(p).read_bytes(), 0x0C)[0],
+                         0xCAFEBABE)

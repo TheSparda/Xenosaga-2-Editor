@@ -26,11 +26,39 @@ Save-folder prefixes on the memory card:
 import struct, os, glob, re
 import x2fields as F
 import x2mc as MC
+import x2lzari as LZ
 
 # --- container magics --------------------------------------------------------
 MC_MAGIC   = b"Sony PS2 Memory Card Format"
 PSV_MAGIC  = b"\x00VSP"
 MAX_MAGIC  = b"Ps2PowerSave"
+
+# --- .max (AR Max / MAX Drive) ---------------------------------------------
+# Header is 0x58 bytes, then `compressedSize` bytes whose first u32 is the
+# DECOMPRESSED length and the rest is an LZARI stream:
+#
+#   0x00 12s  "Ps2PowerSave"
+#   0x0C u32  checksum — see below
+#   0x10 32s  directory name  ("BASLUS-20892Xeno203")
+#   0x30 32s  display name    ("XenosagaEPII-03[ 3:27]")
+#   0x50 u32  compressed size, counted from 0x58
+#   0x54 u32  file count
+#   0x58 u32  decompressed size
+#   0x5C ...  LZARI bitstream
+#
+# Decompressed, it is a flat run of entries: u32 size, char name[32], data, then
+# padding to an alignment we have NOT pinned down (2 bytes after one entry, 12
+# after the next, across every sample). We therefore never rebuild the entry
+# stream — writes splice the gamedata in place at the offset it was found, which
+# keeps whatever padding the original had.
+#
+# The 0x0C checksum is UNIDENTIFIED. It is not CRC-32 (nor BZIP2/MPEG2/POSIX/
+# JAMCRC/CRC-32C), nor a byte or word sum, over the compressed data, the
+# decompressed data or the header, across all eight local samples. Notably mymc —
+# the reference PS2 save tool — writes literal 0 there and the results work, so
+# it is evidently not enforced. We preserve whatever the file already had.
+MAX_HDR = 0x58
+MAX_ENTRY_HDR = 36            # u32 size + char name[32]
 SPS_MAGIC  = b"SharkPortSave"
 CBS_MAGIC  = b"CFU\x00"
 
@@ -347,10 +375,9 @@ def extract_gamedata(path, fmt=None, slot=0):
     """Return the raw 20,832-byte Xenosaga II save payload from a container.
 
     Supports memory-card images (.ps2/.mcd), EMS exports (.psu), PS3 exports
-    (.psv), SharkPort (.sps/.xps) and CodeBreaker (.cbs). `slot` selects which
-    save to read out of a memory card (see list_slots); it is ignored by the
-    single-save containers. The .max (Ps2PowerSave) container uses LZARI
-    compression and isn't decoded yet."""
+    (.psv), SharkPort (.sps/.xps), CodeBreaker (.cbs) and AR Max (.max). `slot`
+    selects which save to read out of a memory card (see list_slots); it is
+    ignored by the single-save containers."""
     fmt = fmt or sniff_format(path)
     data = _read(path)
     if fmt == "psv":
@@ -368,7 +395,7 @@ def extract_gamedata(path, fmt=None, slot=0):
     elif fmt == "cbs":
         gd = _pick_gamedata(_load_cbs(data))
     elif fmt == "max":
-        raise NotImplementedError("`.max` (Ps2PowerSave/LZARI) not decoded yet")
+        gd = _max_gamedata(data)[0]
     else:
         raise NotImplementedError(f"gamedata extraction for {fmt!r} not implemented")
     if gd is None:
@@ -457,6 +484,46 @@ def _sharkport_gd_span(data):
         f.read(flen)
     raise ValueError("gamedata not found in SharkPort save")
 
+def _max_payload(data):
+    """(decompressed blob, compressed size, decompressed size) for a .max file."""
+    if not data.startswith(MAX_MAGIC):
+        raise ValueError("not a Ps2PowerSave (.max) container")
+    csize, nfiles = struct.unpack_from("<II", data, 0x50)
+    if MAX_HDR + csize > len(data):
+        raise ValueError(f".max claims {csize} compressed bytes, file holds "
+                         f"{len(data) - MAX_HDR}")
+    declen = struct.unpack_from("<I", data, MAX_HDR)[0]
+    blob = LZ.decompress(data[MAX_HDR + 4:MAX_HDR + csize], declen)
+    if len(blob) != declen:
+        raise ValueError(f".max decompressed to {len(blob)} bytes, header says {declen}")
+    return blob, csize, declen
+
+
+def _max_gamedata(data):
+    """(gamedata bytes, offset within the decompressed blob) from a .max file.
+
+    Walks the entry stream by name/size rather than by a padding rule — the
+    padding between entries is not a constant alignment in the samples we have,
+    so each entry header is located by scanning forward for the next plausible
+    one."""
+    blob, _csize, _declen = _max_payload(data)
+    off = 0
+    while off + MAX_ENTRY_HDR <= len(blob):
+        size = struct.unpack_from("<I", blob, off)[0]
+        name = blob[off + 4:off + MAX_ENTRY_HDR]
+        plausible = (0 < size <= len(blob) - off - MAX_ENTRY_HDR
+                     and name[:1].isalnum()
+                     and all(c == 0 or 0x20 <= c < 0x7F for c in name))
+        if plausible:
+            if size == F.GAMEDATA_SIZE:
+                start = off + MAX_ENTRY_HDR
+                return blob[start:start + size], start
+            off += MAX_ENTRY_HDR + size
+            continue
+        off += 1                       # padding — step to the next header
+    raise ValueError(f"no {F.GAMEDATA_SIZE}-byte gamedata found in .max container")
+
+
 def _splice_gamedata(container, fmt, new_gd, slot=0):
     """Return a new container image with its gamedata replaced (length preserved).
 
@@ -480,6 +547,16 @@ def _splice_gamedata(container, fmt, new_gd, slot=0):
         card = MC.Ps2Card(container)
         _folder, gd_ent = _pick_slot(_card_slots(card), slot, "memory card")
         return card.write_file(gd_ent, new_gd)
+    if fmt == "max":
+        blob, _csize, declen = _max_payload(container)
+        _gd, off = _max_gamedata(container)
+        patched = blob[:off] + new_gd + blob[off + len(new_gd):]
+        comp = LZ.compress(patched)
+        head = bytearray(container[:MAX_HDR])
+        # 0x50 counts from 0x58 and includes the 4-byte decompressed length
+        struct.pack_into("<I", head, 0x50, len(comp) + 4)
+        # 0x0C is preserved deliberately — see the note by MAX_MAGIC
+        return bytes(head) + struct.pack("<I", declen) + comp
     if fmt == "cbs":
         import zlib
         hlen = struct.unpack_from("<L", container, 8)[0]
@@ -516,9 +593,10 @@ def write_save(path, edits, make_backup=True, fmt=None, slot=0):
     if len(new_gd) != len(gd):
         raise ValueError("edited gamedata size mismatch; aborting")
     new_container = _splice_gamedata(container, fmt, new_gd, slot)
-    # Every container but cbs is patched byte-for-byte, so a size change there
-    # means the splice went wrong. cbs is legitimately re-compressed.
-    if fmt != "cbs" and len(new_container) != len(container):
+    # The uncompressed containers are patched byte-for-byte, so a size change
+    # there means the splice went wrong. cbs and max are legitimately
+    # re-compressed, so their size tracks how well the new payload packs.
+    if fmt not in ("cbs", "max") and len(new_container) != len(container):
         raise ValueError(
             f"container size changed ({len(container)} -> {len(new_container)}); "
             f"refusing to write")

@@ -110,7 +110,7 @@ async function bootPyodide(){
   const py = await loadPyodide();
   bootProgress(55,"Loading save engine…");
   const grab = async u=>{const r=await fetch(u);if(!r.ok)throw new Error("fetch "+u+" ("+r.status+")");return r.text();};
-  for(const f of ["x2fields.py","x2mc.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json"])
+  for(const f of ["x2fields.py","x2mc.py","x2lzari.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json"])
     py.FS.writeFile(f, await grab("../Editor/"+f));
   bootProgress(80,"Wiring adapters…");
   py.runPython(`
@@ -406,7 +406,7 @@ async function pickupShared(){
 }
 
 // ---- PWA staleness self-heal (B17) ----
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.6.0";
 $("#forceRefresh")?.addEventListener("click", async ()=>{
   try{ if("serviceWorker" in navigator)
     for(const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();

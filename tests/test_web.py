@@ -162,6 +162,16 @@ class TestDomReferences(unittest.TestCase):
         for needed in ("tables.json", "../Editor/x2mc.py", "../Editor/x2enemies.json"
                        .replace("x2enemies", "x2_enemies")):
             self.assertIn(needed, urls, f"{needed} is not precached")
+        # Every engine file the Pyodide boot loop fetches must also be precached,
+        # or the save editor works online and breaks offline — a split that is
+        # invisible in normal testing.
+        boot = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
+        self.assertTrue(boot, "could not find the engine file list in app.js")
+        for name in re.findall(r'"([^"]+)"', boot.group(1)):
+            with self.subTest(engine=name):
+                self.assertIn("../Editor/" + name, urls,
+                              f"app.js loads Editor/{name} but the service worker "
+                              f"does not precache it — offline would break")
 
     def test_versions_agree(self):
         page = re.search(r'id="appver">([^<]+)<', read("index.html")).group(1).strip()
