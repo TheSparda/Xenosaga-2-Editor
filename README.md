@@ -16,12 +16,19 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   **`.sps`/`.xps`** (SharkPort), **`.cbs`** (CodeBreaker) and **`.max`** (AR Max / MAX
   Drive). Powered by the real Python engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
-  one**. Every enemy's **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle
-  rewards** (EXP, SP, CP), **damage affinities**, **status resistances**, **item drops** and
-  **Break sequences** for all 125 records, written **in place** into your disc images — plus
-  one-click **battle-pacing profiles**, **bulk Break shortening**, **JSON export/import** for
-  spreadsheet-scale edits, **shareable patch files**, and a **compare-to-retail** view that
-  shows exactly how your disc differs from an unmodified one (and can restore it).
+  one**, in two tabs:
+  - **Enemies** — **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle rewards**
+    (EXP, SP, CP), **damage affinities**, **status resistances**, **item drops**, **Break
+    sequences** and **breakable zones** for all 125 records, with search, one-click
+    **battle-pacing profiles**, **bulk Break shortening**, and **JSON export/import** for
+    spreadsheet-scale edits.
+  - **Skills** — **EP cost, power and element** for all 86 Ether and Double skills, with the
+    name, description and target alongside.
+
+  Everything writes **in place** into your disc images. Share your work as a readable
+  **patch file** or a standard **`.xdelta`** patch, and use **compare-to-retail** to see
+  exactly how your disc differs from an unmodified one — across *every* editable field —
+  and to put it back.
 - **Reference** — searchable bestiary (verified stats & rewards, filter by ID band or major
   fights, sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc.
 - **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
@@ -38,19 +45,29 @@ Working today:
 - **Save editing** — gold + the full character sheet, across **every** common container:
   PCSX2 memory-card images (one entry per in-game slot), `.psu`, `.psv`, SharkPort,
   CodeBreaker and AR Max `.max`.
-- **ISO enemy editing** — stats, rewards and **Break sequences** for all 125 records, on
-  **both discs**, plus battle-pacing profiles, patch files, and comparison against the retail
-  values (with restore). The enemy tables are verified against two independent sources: 74/76
-  enemies from a strategy guide match the disc **exactly** on an 8-field signature, and all 46
-  published Break sequences decode exactly from the disc bytes (see
+- **ISO enemy editing** — stats, rewards, drops, affinities, resistances and **Break
+  sequences** for all 125 records, on **both discs**, plus battle-pacing profiles, patch
+  files, and comparison against the retail values (with restore). The enemy tables are
+  verified against two independent sources: 74/76 enemies from a strategy guide match the
+  disc **exactly** on an 8-field signature, and all 46 published Break sequences decode
+  exactly from the disc bytes (see
   [`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md) for both derivations).
+- **ISO skill editing** — EP, element, power and the status-effect fields for the 86 Ether
+  and Double skills, in the web editor as well as the CLI.
 - **Reference** — bestiary + item / key-item / E.S.-gear catalogs.
 
 Two things worth stating plainly:
 
 - The in-game **save checksum isn't cracked yet**, so an edited *save* may be rejected by
   the game until it is. ISO edits are unaffected. A `.bak` is always kept.
-- The enemy record still has **52 undecoded bytes**. Nothing is written there.
+- The enemy record still has **52 undecoded bytes**. Nothing is written there — which
+  matters more than it sounds: the character and E.S. name table physically occupies the
+  leading bytes of enemy record 0.
+- **Breakability is not the same as having a Break sequence.** 16 records carry no sequence,
+  and every one of those the guide covers is confirmed unbreakable — but the guide also lists
+  15 enemies as unbreakable that *do* carry sequence bytes and live zones. So the disc holds
+  a breakable flag we haven't found, and the editor can currently give an enemy a sequence
+  the game may still refuse to honour.
 
 Next reverse-engineering targets: pairing the **tech blocks** with their name pools and
 working out their record layout (mapped but unexposed), then the save checksum, party, and
@@ -111,11 +128,17 @@ we haven't identified, so they aren't shown.
 
 Two ways to change a lot at once:
 
-- **Shorten every Break sequence** by 1–3 hits, from the battle-pacing card. It shows exactly
-  which enemies it touches and what each becomes before you commit. Trimming takes hits off
-  the *end*, so the opening zone you already know stays right; a 1-hit sequence is left alone
-  and an unbreakable enemy stays unbreakable, because emptying a sequence makes a fight
-  harder, not faster.
+- **Shorten every Break sequence** by 1–3 hits, from the battle-pacing card. Before you press
+  anything it compares all three options side by side — how many enemies each touches, what
+  each length becomes (`4→3  3→2  2→1`), and the total break hits a full pass through the
+  bestiary costs — then lists every affected enemy. Trimming takes hits off the *end*, so the
+  opening zone you already know stays right, and an already-unbreakable enemy is never
+  touched.
+
+  A **"Keep every enemy breakable"** shield is on by default. Emptying a sequence doesn't
+  shorten the break, it *removes* it, and with the shield off `−2 hits` would strand 84 of
+  the 125 records. You can turn it off deliberately; the editor then tells you exactly how
+  many enemies it would make unbreakable.
 - **Export the whole table as JSON**, edit it in a text editor or spreadsheet, and import it
   back. Values are in readable units — affinities as signed percentages, Break as zone
   letters, drops with the item name alongside the id. Import is strict on purpose: an unknown
@@ -169,10 +192,38 @@ late-game field enemies in with bosses. Debug/unused records are never touched.
 **Break sequences are editable too** — the combo loop's actual gate, rather than a stat
 multiplier. Every enemy stores the zones you must hit *in order* to Break it (zones are
 attack heights: **A** above 3 m, **B** 1–3 m, **C** below 1 m), and the editor exposes it as
-a short text box: turn a boss's `C-B-A-A` into `C-B`, or clear it so the enemy can't be
-broken at all. Shortening a 4-hit sequence is the single biggest cut to how long a fight
-drags. The field was found by mapping a guide's published sequences onto records by exact
+a short text box: turn a boss's `C-B-A-A` into `C-B`. Shortening a 4-hit sequence is the
+single biggest cut to how long a fight drags. Clearing a sequence outright is possible but
+guarded, because it removes the Break rather than shortening it. The field was found by mapping a guide's published sequences onto records by exact
 stat signature — all 46 of them decode from the disc bytes exactly.
+
+### Sharing your work
+
+Two formats, for two jobs.
+
+A **patch file** names fields — `record 6, HP, 22400 → 1337`. It's readable, it applies onto
+a disc that already has other edits, and every field is validated before anything is written.
+That's the one to share, and it's interchangeable between the web editor and the CLI.
+
+An **`.xdelta` patch** is bytes at offsets — it can carry anything, and any VCDIFF decoder
+applies it:
+
+```bash
+xdelta3 -d -s "<pristine ISO>" patch.xdelta out.iso
+```
+
+The CLI diffs two images with `xdelta3`. The web editor never holds a pristine copy, so it
+*synthesizes* the patch from the byte runs it already has staged — nothing reads the 4.6 GB
+image, and a handful of field edits comes out around 14 KB. Two consequences, which the
+editor states rather than leaving you to find out: it's **one patch per disc** (disc 2's
+tables sit `0x800` lower, so one file can't serve both), and there's **no integrity
+checksum**, because computing one means hashing the whole disc — apply it only to a pristine
+image, or use the patch-file format, which is source-verified.
+
+```bash
+python3 x2patch.py xdelta-make "…edited.iso" --pristine "…pristine.iso" --out mymod.xdelta
+python3 x2patch.py xdelta-apply mymod.xdelta --pristine "…pristine.iso" --out patched.iso
+```
 
 ## Desktop app (optional)
 
@@ -211,16 +262,20 @@ cd tests && python3 -m unittest discover
 ## Layout
 
 ```
-web/            hosted browser PWA (Pyodide save editor + ISO enemy editor + reference)
+web/            hosted browser PWA (Pyodide save editor + ISO enemy/skill editor + reference)
+  vcdiff.js     VCDIFF (.xdelta) encoder, shared with the Node tests
+  tests/        front-end tests (VCDIFF round-trip, incl. a cross-check vs real xdelta3)
 Editor/
   x2editor.py   local web app (desktop)
   x2save.py     save engine (container decode + edit, gamedata layout)
   x2mc.py       PS2 memory-card filesystem (PS2MFS + ECC) and .psu containers
   x2lzari.py    LZARI codec for AR Max (.max) saves
-  x2patch.py    ISO engine + CLI (verify / extract / enemy read-write / rebalance / zone hunt)
+  x2patch.py    ISO engine + CLI (verify / extract / enemy + skill read-write / rebalance /
+                patches / xdelta / zone hunt)
   x2fields.py   verified offsets + schema + battle-pacing profiles
   x2selftest.py engine self-test against a synthetic disc (needs no game data)
-  gen_web_tables.py  generates web/tables.json from x2fields (CI checks for drift)
+  gen_web_tables.py    generates web/tables.json from x2fields (CI checks for drift)
+  gen_enemy_catalog.py rebuilds the retail baseline from both discs (cross-checked)
   x2_*.json     reference data (items / key items / E.S. gear / verified bestiary)
   x2_zones_template.csv      ground-truth template for the weak-zone hunt
   Xenosaga2_ISO_offsets.md   reverse-engineering notes
