@@ -1,0 +1,1436 @@
+{
+ "33594200": {
+  "desc": "Low HP recovery relative to Ether Attack.",
+  "ep": 2,
+  "name": "Medica",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33594266": {
+  "desc": "Mid HP recovery relative to Ether Attack.",
+  "ep": 4,
+  "name": "Medica 2",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33594334": {
+  "desc": "Low HP recovery relative to Ether Attack.",
+  "ep": 10,
+  "name": "Medica All",
+  "tags": [],
+  "target": "All allies"
+ },
+ "33594407": {
+  "desc": "Clear L-type status effect based on caster's Eatk.",
+  "ep": 4,
+  "name": "Refresh L",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33594485": {
+  "desc": "Clear H-type status effect based on caster's Eatk.",
+  "ep": 6,
+  "name": "Refresh H",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33594563": {
+  "desc": "Clear status effects using half of current HP.",
+  "ep": 8,
+  "name": "Cleanse",
+  "tags": [],
+  "target": "Self"
+ },
+ "33594631": {
+  "desc": "Revive character with 25% HP.",
+  "ep": 20,
+  "name": "Revert",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33594686": {
+  "desc": "Raise status effect resistance 10%.",
+  "ep": 6,
+  "name": "Vaccine",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33594747": {
+  "desc": "Lower Dexterity and Evasion of B or G enemy.",
+  "ep": 4,
+  "name": "Down Dex",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33594819": {
+  "desc": "Lower Physical Attack of B or G enemy.",
+  "ep": 4,
+  "name": "Down Force",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33594887": {
+  "desc": "Lower Physical Defense of B or G enemy.",
+  "ep": 4,
+  "name": "Down P Def",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33594956": {
+  "desc": "Lower Ether Attack of B or G enemy.",
+  "ep": 4,
+  "name": "Down Ether",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595021": {
+  "desc": "Lower Ether Defense of B or G enemy.",
+  "ep": 4,
+  "name": "Down E Def",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595087": {
+  "desc": "Lower Dexterity and Evasion of M enemy.",
+  "ep": 4,
+  "name": "Break Sensors",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595159": {
+  "desc": "Lower Physical Attack of M enemy.",
+  "ep": 4,
+  "name": "Break Arms",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595222": {
+  "desc": "Lower Physical Defense of M enemy.",
+  "ep": 4,
+  "name": "Break Armor",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595287": {
+  "desc": "Lower Ether Attack of M enemy.",
+  "ep": 4,
+  "name": "Break Beam",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595347": {
+  "desc": "Lower Ether Defense of M enemy.",
+  "ep": 4,
+  "name": "Break Shield",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595410": {
+  "desc": "20% chance to cancel M enemy's action.",
+  "ep": 4,
+  "name": "Junk Beam",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595477": {
+  "desc": "Lower status resistance of B or G enemy.",
+  "ep": 4,
+  "name": "Infection",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595546": {
+  "desc": "Block B or G enemy's Ether skills.",
+  "ep": 6,
+  "name": "Misty",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33595605": {
+  "desc": "Reduce thunder damage 25%.",
+  "ep": 4,
+  "name": "Thunder Veil",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33595662": {
+  "desc": "Reduce fire damage 25%.",
+  "ep": 4,
+  "name": "Flame Veil",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33595714": {
+  "desc": "Reduce ice damage 25%.",
+  "ep": 4,
+  "name": "Ice Veil",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33595763": {
+  "desc": "Reduce aura and beam damage 25%.",
+  "ep": 4,
+  "name": "Aura Veil",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33595883": {
+  "desc": "Add fire to non-elemental attacks.",
+  "ep": 4,
+  "name": "Flame Sword",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33595947": {
+  "desc": "Add thunder to non-elemental attacks.",
+  "ep": 4,
+  "name": "Thunder Sword",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33596016": {
+  "desc": "Add ice to non-elemental attacks.",
+  "ep": 4,
+  "name": "Ice Sword",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33596077": {
+  "desc": "Add aura to non-elemental attacks.",
+  "ep": 4,
+  "name": "Aura Sword",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33596140": {
+  "desc": "Fire Ether attack.",
+  "ep": 6,
+  "name": "Flame Blast",
+  "tags": [
+   "E",
+   "Fire"
+  ],
+  "target": "One enemy"
+ },
+ "33596196": {
+  "desc": "Ice Ether attack.",
+  "ep": 6,
+  "name": "Ice Blast",
+  "tags": [
+   "E",
+   "Ice"
+  ],
+  "target": "One enemy"
+ },
+ "33596248": {
+  "desc": "Thunder Ether attack.",
+  "ep": 6,
+  "name": "Thunder Blast",
+  "tags": [
+   "E",
+   "Thunder"
+  ],
+  "target": "One enemy"
+ },
+ "33596312": {
+  "desc": "Aura Ether attack.",
+  "ep": 6,
+  "name": "Aura Blast",
+  "tags": [
+   "E",
+   "Aura"
+  ],
+  "target": "One enemy"
+ },
+ "33596367": {
+  "desc": "Non-elemental Ether attack.",
+  "ep": 8,
+  "name": "Miracle Star",
+  "tags": [
+   "E"
+  ],
+  "target": "One enemy"
+ },
+ "33596433": {
+  "desc": "Aura Ether attack.",
+  "ep": 18,
+  "name": "Heaven's Rain",
+  "tags": [
+   "E",
+   "Aura"
+  ],
+  "target": "All enemies"
+ },
+ "33596494": {
+  "desc": "Non-elemental Ether attack & clear status effects.",
+  "ep": 18,
+  "name": "Annihilation",
+  "tags": [
+   "E"
+  ],
+  "target": "One enemy"
+ },
+ "33596584": {
+  "desc": "Receive a heavenly gift.",
+  "ep": 16,
+  "name": "Prayer",
+  "tags": [],
+  "target": "Self"
+ },
+ "33596630": {
+  "desc": "Increase Stock count by one.",
+  "ep": 4,
+  "name": "Stock 1",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33596684": {
+  "desc": "Increase Boost count by one.",
+  "ep": 8,
+  "name": "Boost 1",
+  "tags": [],
+  "target": "Self"
+ },
+ "33596734": {
+  "desc": "Increase turns 25%.",
+  "ep": 10,
+  "name": "Quick",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33596778": {
+  "desc": "Analyze enemy.",
+  "ep": 4,
+  "name": "Analyze",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33596819": {
+  "desc": "Steal an item.",
+  "ep": 4,
+  "name": "Psycho Pocket",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33596866": {
+  "desc": "Double HP regeneration (1 time).",
+  "ep": 4,
+  "name": "Charge Time",
+  "tags": [],
+  "target": "Self"
+ },
+ "33596924": {
+  "desc": "Enemy takes as much damage as it causes.",
+  "ep": 18,
+  "name": "Curse",
+  "tags": [],
+  "target": "One enemy"
+ },
+ "33596990": {
+  "desc": "Survive with one HP (1 time).",
+  "ep": 20,
+  "name": "Safety Level",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33597051": {
+  "desc": "Auto revive and recover all HP (1 time).",
+  "ep": 60,
+  "name": "Best Ally",
+  "tags": [],
+  "target": "One ally"
+ },
+ "33597120": {
+  "desc": "Raise Physical Attack and lower Physical Defense.",
+  "ep": 4,
+  "name": "Attacker",
+  "tags": [],
+  "target": "Self"
+ },
+ "33597192": {
+  "desc": "Lower Physical Attack and raise Physical Defense.",
+  "ep": 4,
+  "name": "Defender",
+  "tags": [],
+  "target": "Self"
+ },
+ "33597264": {
+  "desc": "Raise Ether Attack and lower Ether Defense.",
+  "ep": 4,
+  "name": "Ether Spear",
+  "tags": [],
+  "target": "Self"
+ },
+ "33597333": {
+  "desc": "Lower Ether Attack and raise Ether Defense.",
+  "ep": 4,
+  "name": "Ether Shield",
+  "tags": [],
+  "target": "Self"
+ },
+ "33597403": {
+  "desc": "Ether power from Erde Kaiser arms.",
+  "ep": 8,
+  "name": "Erde Storm",
+  "tags": [
+   "E"
+  ],
+  "target": "All enemies"
+ },
+ "33597476": {
+  "desc": "Ether power from Erde Kaiser head.",
+  "ep": 8,
+  "name": "Erde Beam",
+  "tags": [
+   "E",
+   "Beam"
+  ],
+  "target": "All enemies"
+ },
+ "33597548": {
+  "desc": "Ether power from Erde Kaiser legs.",
+  "ep": 8,
+  "name": "Erde Quake",
+  "tags": [
+   "E"
+  ],
+  "target": "All enemies"
+ },
+ "33597621": {
+  "desc": "Erde Kaiser Fury with the Kaiser Sword (1 time).",
+  "ep": 50,
+  "name": "Erde Kaiser Fury",
+  "tags": [
+   "E",
+   "Slash"
+  ],
+  "target": "All enemies"
+ },
+ "33597716": {
+  "desc": "Erde Kaiser Fury with the Arm Drill (1 time).",
+  "ep": 50,
+  "name": "Erde Kaiser Fury",
+  "tags": [
+   "E",
+   "Piercing"
+  ],
+  "target": "All enemies"
+ },
+ "33597811": {
+  "desc": "Erde Kaiser Fury with the Kaiser Rifle (1 time).",
+  "ep": 50,
+  "name": "Erde Kaiser Fury",
+  "tags": [
+   "E",
+   "Thunder"
+  ],
+  "target": "All enemies"
+ },
+ "33597936": {
+  "desc": "Low HP recovery.",
+  "ep": null,
+  "name": "Double Medica",
+  "tags": [],
+  "target": "All allies (Medica × 2)"
+ },
+ "33597993": {
+  "desc": "Mid HP recovery.",
+  "ep": null,
+  "name": "Double Medica 2",
+  "tags": [],
+  "target": "All allies (Medica 2 × 2)"
+ },
+ "33598054": {
+  "desc": "Remove L status effect.",
+  "ep": null,
+  "name": "Double Refresh L",
+  "tags": [],
+  "target": "All allies (Refresh L × 2)"
+ },
+ "33598124": {
+  "desc": "Remove H status effect.",
+  "ep": null,
+  "name": "Double Refresh H",
+  "tags": [],
+  "target": "All allies (Refresh H × 2)"
+ },
+ "33598194": {
+  "desc": "Lower Dexterity and Evasion of B or G enemies.",
+  "ep": null,
+  "name": "XSB Dex",
+  "tags": [],
+  "target": "All enemies (Down Dex × 2)"
+ },
+ "33598278": {
+  "desc": "Lower Physical Attack of B or G enemies.",
+  "ep": null,
+  "name": "XSB Force",
+  "tags": [],
+  "target": "All enemies (Down Force × 2)"
+ },
+ "33598360": {
+  "desc": "Lower Physical Defense of B or G enemies.",
+  "ep": null,
+  "name": "XSB P Def",
+  "tags": [],
+  "target": "All enemies (Down P Def × 2)"
+ },
+ "33598443": {
+  "desc": "Lower Ether Attack of B or G enemies.",
+  "ep": null,
+  "name": "XSB Ether",
+  "tags": [],
+  "target": "All enemies (Down Ether × 2)"
+ },
+ "33598522": {
+  "desc": "Lower Ether Defense of B or G enemies.",
+  "ep": null,
+  "name": "XSB E Def",
+  "tags": [],
+  "target": "All enemies (Down E Def × 2)"
+ },
+ "33598602": {
+  "desc": "Lower Dexterity and Evasion of M enemies.",
+  "ep": null,
+  "name": "XBK Sensors",
+  "tags": [],
+  "target": "All enemies (Break Sensors × 2)"
+ },
+ "33598690": {
+  "desc": "Lower Physical Attack of M enemies.",
+  "ep": null,
+  "name": "XBK Arms",
+  "tags": [],
+  "target": "All enemies (Break Arms × 2)"
+ },
+ "33598766": {
+  "desc": "Lower Physical Defense of M enemies.",
+  "ep": null,
+  "name": "XBK Armor",
+  "tags": [],
+  "target": "All enemies (Break Armor × 2)"
+ },
+ "33598845": {
+  "desc": "Lower Ether Attack of M enemies.",
+  "ep": null,
+  "name": "XBK Beam",
+  "tags": [],
+  "target": "All enemies (Break Beam × 2)"
+ },
+ "33598918": {
+  "desc": "Lower Ether Defense of M enemies.",
+  "ep": null,
+  "name": "XBK Shield",
+  "tags": [],
+  "target": "All enemies (Break Shield × 2)"
+ },
+ "33598996": {
+  "desc": "20% chance to cancel M enemies' actions.",
+  "ep": null,
+  "name": "Junk Blast",
+  "tags": [],
+  "target": "All enemies (Junk Beam × 2)"
+ },
+ "33599078": {
+  "desc": "Block B or G enemies' Ether skills.",
+  "ep": null,
+  "name": "Lost Mist",
+  "tags": [],
+  "target": "All enemies (Misty × 2)"
+ },
+ "33599150": {
+  "desc": "Reduce thunder damage 25%.",
+  "ep": null,
+  "name": "Thunder Wall",
+  "tags": [],
+  "target": "All allies (Thunder Veil × 2)"
+ },
+ "33599222": {
+  "desc": "Reduce fire damage 25%.",
+  "ep": null,
+  "name": "Flame Wall",
+  "tags": [],
+  "target": "All allies (Flame Veil × 2)"
+ },
+ "33599287": {
+  "desc": "Reduce ice damage 25%.",
+  "ep": null,
+  "name": "Ice Wall",
+  "tags": [],
+  "target": "All allies (Ice Veil × 2)"
+ },
+ "33599347": {
+  "desc": "Reduce aura and beam damage 25%.",
+  "ep": null,
+  "name": "Aura Wall",
+  "tags": [],
+  "target": "All allies (Aura Veil × 2)"
+ },
+ "33599419": {
+  "desc": "Fire Ether attack.",
+  "ep": null,
+  "name": "Flame Storm",
+  "tags": [
+   "E",
+   "Fire (Flame Blast × 2)"
+  ],
+  "target": "All enemies"
+ },
+ "33599489": {
+  "desc": "Thunder Ether attack.",
+  "ep": null,
+  "name": "Thunder Storm",
+  "tags": [
+   "E",
+   "Thunder (Thunder Blast × 2)"
+  ],
+  "target": "All enemies"
+ },
+ "33599569": {
+  "desc": "Ice Ether attack.",
+  "ep": null,
+  "name": "Ice Storm",
+  "tags": [
+   "E",
+   "Ice (Ice Blast × 2)"
+  ],
+  "target": "All enemies"
+ },
+ "33599633": {
+  "desc": "Aura Ether attack.",
+  "ep": null,
+  "name": "Aura Storm",
+  "tags": [
+   "E",
+   "Aura (Aura Blast × 2)"
+  ],
+  "target": "All enemies"
+ },
+ "33599701": {
+  "desc": "Non-elemental Ether attack.",
+  "ep": null,
+  "name": "Miracle Stars",
+  "tags": [
+   "E",
+   "None (Miracle Star × 2)"
+  ],
+  "target": "All enemies"
+ },
+ "33599783": {
+  "desc": "Concentrated fire Ether attack.",
+  "ep": null,
+  "name": "Flame Burst",
+  "tags": [
+   "E",
+   "Fire (Flame + Aura Blast)"
+  ],
+  "target": "One enemy"
+ },
+ "33599866": {
+  "desc": "Concentrated thunder Ether attack.",
+  "ep": null,
+  "name": "Thunder Burst",
+  "tags": [
+   "E",
+   "Thunder (Thunder + Aura Blast)"
+  ],
+  "target": "One enemy"
+ },
+ "33599959": {
+  "desc": "Concentrated ice Ether attack.",
+  "ep": null,
+  "name": "Ice Burst",
+  "tags": [
+   "E",
+   "Ice (Ice + Aura Blast)"
+  ],
+  "target": "One enemy"
+ },
+ "33600036": {
+  "desc": "Analyze enemy and steal rare item.",
+  "ep": null,
+  "name": "Pocket Rare",
+  "tags": [],
+  "target": "One enemy (Analyze + Psycho Pocket)"
+ },
+ "33602598": {
+  "desc": "Increase Physical Attack.",
+  "ep": null,
+  "name": "STR+2",
+  "tags": [],
+  "target": "Str +2"
+ },
+ "33602638": {
+  "desc": "Increase Physical Defense.",
+  "ep": null,
+  "name": "VIT+2",
+  "tags": [],
+  "target": "Vit +2"
+ },
+ "33602679": {
+  "desc": "Increase Dexterity.",
+  "ep": null,
+  "name": "DEX+2",
+  "tags": [],
+  "target": "Dex +2"
+ },
+ "33602713": {
+  "desc": "Increase Evasion.",
+  "ep": null,
+  "name": "EVA+2",
+  "tags": [],
+  "target": "Eva +2"
+ },
+ "33602745": {
+  "desc": "Increase Ether Attack.",
+  "ep": null,
+  "name": "EATK+2",
+  "tags": [],
+  "target": "Eatk +2"
+ },
+ "33602784": {
+  "desc": "Increase Ether Defense.",
+  "ep": null,
+  "name": "EDEF+2",
+  "tags": [],
+  "target": "Edef +2"
+ },
+ "33602919": {
+  "desc": "Increases critical hit rate 5%.",
+  "ep": null,
+  "name": "CRTC+5",
+  "tags": [],
+  "target": "Critical +5%."
+ },
+ "33603158": {
+  "desc": "(only after enemy individual attack).",
+  "ep": null,
+  "name": "Revenge Power",
+  "tags": [],
+  "target": "25% chance of Counterboost after taking a critical hit"
+ },
+ "33603266": {
+  "desc": "character icon is showing.",
+  "ep": null,
+  "name": "Combo Boost",
+  "tags": [],
+  "target": "Boost possible even when"
+ },
+ "33603484": {
+  "desc": "1 HP and full stock (1 time only).",
+  "ep": null,
+  "name": "Last Revenge",
+  "tags": [],
+  "target": "When knocked out, Counterboost with"
+ },
+ "33603569": {
+  "desc": "also doubles EP consumption.",
+  "ep": null,
+  "name": "Ether Burst",
+  "tags": [],
+  "target": "Doubles Ether attack damage, but"
+ },
+ "33603685": {
+  "desc": "when using the Stock command.",
+  "ep": null,
+  "name": "Rebound",
+  "tags": [],
+  "target": "50% chance to Counterboost after guard or evasion"
+ },
+ "33603774": {
+  "desc": "when using the Stock command.",
+  "ep": null,
+  "name": "Overload",
+  "tags": [],
+  "target": "50% chance of stock +2"
+ },
+ "33604216": {
+  "desc": "Additional 10-15% damage.",
+  "ep": null,
+  "name": "Swimsuit",
+  "tags": [
+   "Skill points +10%"
+  ],
+  "target": "Agl +1"
+ },
+ "33605076": {
+  "desc": "Increase Physical Defense.",
+  "ep": null,
+  "name": "Auxiliary Armor A",
+  "tags": [],
+  "target": "Arm +30"
+ },
+ "33605130": {
+  "desc": "Increase Physical Defense.",
+  "ep": null,
+  "name": "Auxiliary Armor B",
+  "tags": [],
+  "target": "Arm +40"
+ },
+ "33605214": {
+  "desc": "Increase Ether Defense.",
+  "ep": null,
+  "name": "EF Circuit A",
+  "tags": [],
+  "target": "Edef +20"
+ },
+ "33605261": {
+  "desc": "Increase Ether Defense.",
+  "ep": null,
+  "name": "EF Circuit B",
+  "tags": [],
+  "target": "Edef +30"
+ },
+ "33605651": {
+  "desc": "using the STOCK command.",
+  "ep": null,
+  "name": "Charge Recover",
+  "tags": [],
+  "target": "Recover 5% of maximum HP by"
+ },
+ "33612577": {
+  "desc": "with the number 2 written on it.",
+  "ep": null,
+  "name": "ZAZA's Clue 1",
+  "tags": [],
+  "target": "A memo left by Elsa's robot ZAZA"
+ },
+ "33612658": {
+  "desc": "with the number 5 written on it.",
+  "ep": null,
+  "name": "ZAZA's Clue 2",
+  "tags": [],
+  "target": "A memo left by Elsa's robot ZAZA"
+ },
+ "33612739": {
+  "desc": "with the number 8 written on it.",
+  "ep": null,
+  "name": "ZAZA's Clue 3",
+  "tags": [],
+  "target": "A memo left by Elsa's robot ZAZA"
+ },
+ "33612820": {
+  "desc": "with the number 7 written on it.",
+  "ep": null,
+  "name": "ZAZA's Clue 4",
+  "tags": [],
+  "target": "A memo left by Elsa's robot ZAZA"
+ },
+ "33612901": {
+  "desc": "with the number 6 written on it.",
+  "ep": null,
+  "name": "ZAZA's Clue 5",
+  "tags": [],
+  "target": "A memo left by Elsa's robot ZAZA"
+ },
+ "33612982": {
+  "desc": "with the number 4 written on it.",
+  "ep": null,
+  "name": "ZAZA's Clue 6",
+  "tags": [],
+  "target": "A memo left by Elsa's robot ZAZA"
+ },
+ "33613063": {
+  "desc": "with the number 3 written on it.",
+  "ep": null,
+  "name": "ZAZA's Clue 7",
+  "tags": [],
+  "target": "A memo left by Elsa's robot ZAZA"
+ },
+ "33613144": {
+  "desc": "a mail-order catalog.",
+  "ep": null,
+  "name": "Spade Letter",
+  "tags": [],
+  "target": "A letter shaped like a Spade which contains"
+ },
+ "33613224": {
+  "desc": "work-related documents.",
+  "ep": null,
+  "name": "Heart Letter",
+  "tags": [],
+  "target": "A letter shaped like a Heart which contains"
+ },
+ "33613306": {
+  "desc": "be from a niece to her aunt.",
+  "ep": null,
+  "name": "Club Letter",
+  "tags": [],
+  "target": "A letter shaped like a Club which appears to"
+ },
+ "33613393": {
+  "desc": "a description of days and nights on Second Miltia.",
+  "ep": null,
+  "name": "Diamond Letter",
+  "tags": [],
+  "target": "A letter shaped like a Diamond which appears to be"
+ },
+ "33614417": {
+  "desc": "accelerates the growth of plants.",
+  "ep": null,
+  "name": "Hyper Fertilizer",
+  "tags": [],
+  "target": "Second Miltia's natural fertilizer that"
+ },
+ "33614509": {
+  "desc": "the number 0813 written on it.",
+  "ep": null,
+  "name": "Vault Key",
+  "tags": [],
+  "target": "Key to Our Treasure's vault with"
+ },
+ "33614584": {
+  "desc": "filled with receipts for mice.",
+  "ep": null,
+  "name": "Secret Box",
+  "tags": [],
+  "target": "A box with 'Dominic' written on top and"
+ },
+ "33614895": {
+  "desc": "filled with entertainment information.",
+  "ep": null,
+  "name": "Entertainment Guide",
+  "tags": [],
+  "target": "A paper-based antique document"
+ },
+ "33614986": {
+  "desc": "filled with rules for high society living.",
+  "ep": null,
+  "name": "Rules of High Society",
+  "tags": [],
+  "target": "A paper-based antique document"
+ },
+ "33615289": {
+  "desc": "the Foundation that Janet was looking for.",
+  "ep": null,
+  "name": "Statue Blueprint",
+  "tags": [],
+  "target": "Blueprint for the stone statue on"
+ },
+ "33615496": {
+  "desc": "Pass code is '4949'.",
+  "ep": null,
+  "name": "Toy Store Key",
+  "tags": [],
+  "target": "Key to Toy's Universe warehouse. Can only be used once."
+ },
+ "33615588": {
+  "desc": "ravaged the Foundation's beaches.",
+  "ep": null,
+  "name": "Red Eye Fish Print",
+  "tags": [],
+  "target": "Fish print of the giant fish that"
+ },
+ "33615676": {
+  "desc": "composed by Margoyles.",
+  "ep": null,
+  "name": "Iron 4 Sheet Music",
+  "tags": [],
+  "target": "Sheet music of the Iron 4 theme song"
+ },
+ "33615756": {
+  "desc": "Number 3859 is written on it.",
+  "ep": null,
+  "name": "Unlock Code",
+  "tags": [],
+  "target": "Code that reveals the trick in the Foundation's stone statue."
+ },
+ "33615861": {
+  "desc": "Number 1857 is written on it.",
+  "ep": null,
+  "name": "King's Key",
+  "tags": [],
+  "target": "Key to King's secret storage."
+ },
+ "33615933": {
+  "desc": "The robot print on the back is amazing!",
+  "ep": null,
+  "name": "Geriatric Swimsuit",
+  "tags": [],
+  "target": "Swimsuit made from bio fibers to prevent drowning."
+ },
+ "33616102": {
+  "desc": "Take both arms to the Professor for an Ether skill!",
+  "ep": null,
+  "name": "Robot Part Right Arm",
+  "tags": [],
+  "target": "The right arm of a giant robot."
+ },
+ "33616208": {
+  "desc": "Take both arms to the Professor for an Ether skill!",
+  "ep": null,
+  "name": "Robot Part Left Arm",
+  "tags": [],
+  "target": "The left arm of a giant robot."
+ },
+ "33616312": {
+  "desc": "Take both legs to the Professor for an Ether skill!",
+  "ep": null,
+  "name": "Robot Part Right Leg",
+  "tags": [],
+  "target": "The right leg of a giant robot."
+ },
+ "33616418": {
+  "desc": "Take both legs to the Professor for an Ether skill!",
+  "ep": null,
+  "name": "Robot Part Left Leg",
+  "tags": [],
+  "target": "The left leg of a giant robot."
+ },
+ "33616522": {
+  "desc": "Take it to the Professor for an Ether skill!",
+  "ep": null,
+  "name": "Robot Part Head",
+  "tags": [],
+  "target": "The head of a giant robot."
+ },
+ "33616611": {
+  "desc": "Take it to the Professor for an Ether skill!",
+  "ep": null,
+  "name": "Robot Part Body",
+  "tags": [],
+  "target": "The body of a giant robot."
+ },
+ "33618960": {
+  "desc": "Ice sword slashes the enemy.",
+  "ep": null,
+  "name": "Ice Brand",
+  "tags": [
+   "P",
+   "Slash",
+   "Ice"
+  ],
+  "target": "Single enemy"
+ },
+ "33619025": {
+  "desc": "Doubles the effect of Veil Ether skills.",
+  "ep": null,
+  "name": "Burst Veil",
+  "tags": [
+   "Support (Burst Veil)"
+  ],
+  "target": "All allies"
+ },
+ "33619110": {
+  "desc": "Double aura attack.",
+  "ep": null,
+  "name": "Elemental Nocturne",
+  "tags": [
+   "E",
+   "Aura"
+  ],
+  "target": "All enemies"
+ },
+ "33619169": {
+  "desc": "Piercing rain of angel feathers.",
+  "ep": null,
+  "name": "Archangel's Requiem",
+  "tags": [
+   "P",
+   "Pierce"
+  ],
+  "target": "All enemies"
+ },
+ "33619244": {
+  "desc": "Reinforced Spell Ray.",
+  "ep": null,
+  "name": "Dual Spell Ray",
+  "tags": [
+   "E",
+   "Beam"
+  ],
+  "target": "Single enemy"
+ },
+ "33619302": {
+  "desc": "Power combination attack.",
+  "ep": null,
+  "name": "Cross Fist",
+  "tags": [
+   "P",
+   "Strike"
+  ],
+  "target": "Single enemy"
+ },
+ "33619362": {
+  "desc": "Gravity strike.",
+  "ep": null,
+  "name": "Gravity Bomb",
+  "tags": [
+   "P",
+   "Strike (L Slow)"
+  ],
+  "target": "Single enemy"
+ },
+ "33619423": {
+  "desc": "Chain of punishment.",
+  "ep": null,
+  "name": "Silver Duet",
+  "tags": [
+   "E",
+   "Non-elemental"
+  ],
+  "target": "Single enemy"
+ },
+ "33619486": {
+  "desc": "Ziggy's self-sacrificing attack.",
+  "ep": null,
+  "name": "Power Strike",
+  "tags": [
+   "P",
+   "Strike",
+   "Fire"
+  ],
+  "target": "Single enemy"
+ },
+ "33619560": {
+  "desc": "Exorcising sword.",
+  "ep": null,
+  "name": "Lion Heart",
+  "tags": [
+   "P",
+   "Slash"
+  ],
+  "target": "Single enemy"
+ },
+ "33619611": {
+  "desc": "Attack that uses the Hilbert Effect.",
+  "ep": null,
+  "name": "Cross Hilbert",
+  "tags": [
+   "Status (H Lost)"
+  ],
+  "target": "All enemies"
+ },
+ "33619691": {
+  "desc": "Auto revive.",
+  "ep": null,
+  "name": "Blessed Miracle",
+  "tags": [
+   "Support (Best Ally)"
+  ],
+  "target": "All allies"
+ },
+ "33619752": {
+  "desc": "KOS-MOS buster cannon.",
+  "ep": null,
+  "name": "Twin Buster",
+  "tags": [
+   "E",
+   "Beam"
+  ],
+  "target": "Single enemy"
+ },
+ "33619808": {
+  "desc": "Magnificent combination attack.",
+  "ep": null,
+  "name": "Grand Ronde",
+  "tags": [
+   "P",
+   "Strike"
+  ],
+  "target": "Single enemy"
+ },
+ "33619876": {
+  "desc": "Scorching rain of bullets.",
+  "ep": null,
+  "name": "Fiery Ritornelle",
+  "tags": [
+   "P",
+   "Pierce",
+   "Fire"
+  ],
+  "target": "All enemies"
+ },
+ "33619947": {
+  "desc": "Sword dance.",
+  "ep": null,
+  "name": "Phoenix Blade",
+  "tags": [
+   "E",
+   "Aura"
+  ],
+  "target": "Single enemy"
+ },
+ "33620332": {
+  "desc": "One-arm rocket punch.",
+  "ep": null,
+  "name": "Spiral Fist",
+  "tags": [
+   "Long",
+   "P",
+   "Strike"
+  ],
+  "target": "Single enemy"
+ },
+ "33620394": {
+  "desc": "Two-arm rocket punch.",
+  "ep": null,
+  "name": "Tornado Fist",
+  "tags": [
+   "Long",
+   "P",
+   "Thunder",
+   "Strike"
+  ],
+  "target": "Single enemy"
+ },
+ "33620465": {
+  "desc": "Slash enemy like a rising dragon.",
+  "ep": null,
+  "name": "Twin Dragons",
+  "tags": [
+   "Short",
+   "P",
+   "Slash"
+  ],
+  "target": "Single enemy"
+ },
+ "33620540": {
+  "desc": "Hit enemy with aura energy.",
+  "ep": null,
+  "name": "Chained Blast",
+  "tags": [
+   "Short",
+   "P",
+   "Aura",
+   "Strike"
+  ],
+  "target": "Single enemy"
+ },
+ "33620616": {
+  "desc": "Concentrated fireball attack.",
+  "ep": null,
+  "name": "Meteor Storm",
+  "tags": [
+   "Long",
+   "E",
+   "Fire"
+  ],
+  "target": "Single enemy"
+ },
+ "33620685": {
+  "desc": "Spread beam attack.",
+  "ep": null,
+  "name": "X-BUSTER",
+  "tags": [
+   "Long",
+   "E",
+   "Beam"
+  ],
+  "target": "All enemies"
+ },
+ "33620739": {
+  "desc": "Cut metal without even touching.",
+  "ep": null,
+  "name": "Iron Blade",
+  "tags": [
+   "Long",
+   "P",
+   "Aura",
+   "Slash"
+  ],
+  "target": "Single enemy"
+ },
+ "33620815": {
+  "desc": "Arrows of light rain from the sky.",
+  "ep": null,
+  "name": "Rain Arrow",
+  "tags": [
+   "Long",
+   "E",
+   "Pierce"
+  ],
+  "target": "All enemies"
+ },
+ "33620888": {
+  "desc": "Attack of light like a shooting star.",
+  "ep": null,
+  "name": "Starlight Arrow",
+  "tags": [
+   "Long",
+   "E",
+   "Pierce"
+  ],
+  "target": "Single enemy"
+ },
+ "33620970": {
+  "desc": "Divine arrow attack that also clears status effects.",
+  "ep": null,
+  "name": "Golden Bow",
+  "tags": [
+   "Long",
+   "E",
+   "Aura",
+   "Pierce"
+  ],
+  "target": "Single enemy"
+ },
+ "33621067": {
+  "desc": "Freezing kicks with the leg blades.",
+  "ep": null,
+  "name": "Ice Rondo",
+  "tags": [
+   "Short",
+   "P",
+   "Ice",
+   "Slash"
+  ],
+  "target": "Single enemy"
+ },
+ "33621145": {
+  "desc": "Furious rapid-fire attack.",
+  "ep": null,
+  "name": "Power Kick",
+  "tags": [
+   "Short",
+   "P",
+   "Fire",
+   "Strike"
+  ],
+  "target": "Single enemy"
+ },
+ "33621217": {
+  "desc": "Scatter beam attack.",
+  "ep": null,
+  "name": "Aird",
+  "tags": [
+   "Long",
+   "E",
+   "Beam"
+  ],
+  "target": "All enemies"
+ },
+ "33621268": {
+  "desc": "Giant meteor attack.",
+  "ep": null,
+  "name": "Meteor Blast",
+  "tags": [
+   "Long",
+   "E",
+   "Fire"
+  ],
+  "target": "Single enemy"
+ },
+ "33621328": {
+  "desc": "Fire a spear-like beam.",
+  "ep": null,
+  "name": "Shot Buster",
+  "tags": [
+   "Long",
+   "E",
+   "Beam"
+  ],
+  "target": "Single enemy"
+ },
+ "33621390": {
+  "desc": "Rapid-fire annihilation.",
+  "ep": null,
+  "name": "Gatling Blast",
+  "tags": [
+   "Long",
+   "P",
+   "Pierce"
+  ],
+  "target": "Single enemy"
+ },
+ "33621457": {
+  "desc": "Two beams of light slash enemy.",
+  "ep": null,
+  "name": "Wings of Light",
+  "tags": [
+   "Short",
+   "P",
+   "Aura",
+   "Slash"
+  ],
+  "target": "Single enemy"
+ },
+ "33621537": {
+  "desc": "A blast of ice and wind.",
+  "ep": null,
+  "name": "Ice Storm",
+  "tags": [
+   "Long",
+   "E",
+   "Ice"
+  ],
+  "target": "Single enemy"
+ },
+ "33621597": {
+  "desc": "A red-hot cannon shot from above.",
+  "ep": null,
+  "name": "Corona Buster",
+  "tags": [
+   "Long",
+   "E",
+   "Fire"
+  ],
+  "target": "Single enemy"
+ },
+ "33621671": {
+  "desc": "Shot synchronized to attacker's mind.",
+  "ep": null,
+  "name": "Odin Buster",
+  "tags": [
+   "Long",
+   "E",
+   "Beam"
+  ],
+  "target": "Single enemy"
+ },
+ "33621747": {
+  "desc": "A blast like moonlight flashing off a drawn sword.",
+  "ep": null,
+  "name": "Moonlight Blade",
+  "tags": [
+   "Long",
+   "E",
+   "Aura"
+  ],
+  "target": "All enemies"
+ },
+ "33622000": {
+  "desc": "Improved rapid-fire gatling gun.",
+  "ep": null,
+  "name": "MINIGUN",
+  "tags": [
+   "Long",
+   "P",
+   "Pierce"
+  ],
+  "target": "Single enemy"
+ },
+ "33622069": {
+  "desc": "Fire small missiles from both arms.",
+  "ep": null,
+  "name": "MICRO MISSILE",
+  "tags": [
+   "Long",
+   "P",
+   "Strike"
+  ],
+  "target": "All enemies"
+ },
+ "33622146": {
+  "desc": "Fire energy beam from rifle mode.",
+  "ep": null,
+  "name": "DRAGON BLADE",
+  "tags": [
+   "Long",
+   "E",
+   "Beam"
+  ],
+  "target": "Single enemy"
+ },
+ "33622219": {
+  "desc": "Abdominal spread beam weapon.",
+  "ep": null,
+  "name": "X-BUSTER",
+  "tags": [
+   "Long",
+   "E",
+   "Beam"
+  ],
+  "target": "All enemies in 120 deg. arc"
+ }
+}

@@ -617,6 +617,35 @@ heights the model *has*, not which ones Break it.
 16 of the 125 records have an empty sequence: the guide's `Cannot` entries
 (mechanisms and scripted fights).
 
+### 2026-08-23 — SKILL / TECH catalog extracted (174 skills)
+
+The skill table's text lives at **ISO `0x2009B58`..`0x20108D4`** as alternating
+NAME then DESCRIPTION strings, and the description's first line is *structured*:
+
+```
+"All enemies/Long/P/Pierce/Fire\nScorching rain of bullets."
+ target     range type element
+```
+
+with the cost carried inline as `(EP 4)` on the skills that have one. So
+targeting, physical-vs-ether, damage type, element and EP cost all come **off the
+disc directly** — the guide is not needed for any of it. Extracted to
+`Editor/x2_skills.json`: **174 skills, zero unparsed**, 56 with an EP cost, and a
+tag vocabulary of Long/Short, P/E, Beam/Strike/Slash/Pierce and
+Fire/Ice/Thunder/Aura.
+
+Gotcha worth recording: the text is ASCII **with occasional EUC-JP glyphs** —
+`0xA1 0xDF` is the multiplication sign, used in names like
+`All allies (Medica × 2)`. A naive ASCII-only string scan silently truncates 25
+of the 174 into fragments, which is exactly what the first pass did.
+
+`x2patch.py skills [--grep X] [--csv] [--verbose]` lists it.
+
+**Not yet located: the numeric table** behind these — raw power, cast time,
+accuracy. The catalog gives names, targets and EP; changing what a skill *does*
+needs that table, and finding it needs ground truth to anchor (the guide's SP
+costs per skill are the obvious lever).
+
 ### 2026-08-23 — ITEM DROPS SOLVED (the rest of the rewards row)
 
 The `0x10` rewards row is now fully accounted for:
