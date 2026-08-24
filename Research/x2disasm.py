@@ -177,6 +177,37 @@ def build_report(iso, overlay="OV01.OVL"):
     A("## Anchor cross-references\n")
     A("EE addresses the disc-1 pnach pokes that fall inside this overlay. The "
       "functions listed touch them directly — these are the breakpoint targets.\n")
+    A("\n## Densest battle-state functions\n")
+    A("Functions touching the most distinct addresses in the anchor neighbourhood "
+      "(`0xAC2400`-`0xAC2500`) — the battle-state struct the reward and slot codes "
+      "poke. Good places to break first.\n")
+    hot = collections.Counter()
+    for a, sites in ea.items():
+        if 0xAC2400 <= a <= 0xAC2500:
+            for site, _t in sites:
+                hot[owning_function(starts, site)] += 1
+    A("| function | refs | callers |")
+    A("|---|---|---|")
+    for fn, n in hot.most_common(12):
+        A(f"| `0x{fn:08X}` | {n} | {len(callers.get(fn, ()))} |")
+
+    A("\n## Using this in PCSX2\n")
+    A("1. Load disc 1 and reach any battle (the overlay is only resident then).")
+    A("2. Debugger -> Memory, add a **write breakpoint** on the counter you care "
+      "about. `0xAC2460` is the documented Event Slot; the reward accumulators at "
+      "`0xAC2478`/`247C`/`2480` are the easiest to trigger (win a fight).")
+    A("3. When it breaks, the PC will be inside one of the functions above. "
+      "Cross-check it here, then read outward for the comparison that clamps the "
+      "value — that is the constant.")
+    A("4. `va - 0x{:X} + 0x{:X}` converts the PC back to a file offset in "
+      "`OV01.OVL`, so the same instruction can be found statically and patched."
+      .format(va, foff))
+    A("\nStock/boost/break constants specifically: nothing in this overlay stores "
+      "them as data. The x1.5 break multiplier does not exist as a float anywhere "
+      "in either overlay, so it is integer math (`x*3/2` or `x + x>>1`) — an "
+      "instruction pattern. It has to be read out of the routine, which is why a "
+      "breakpoint beats any further data search.\n")
+
     for addr in sorted(PNACH_ANCHORS):
         note = PNACH_ANCHORS[addr]
         A(f"\n### `0x{addr:08X}` — {note}\n")
@@ -193,3 +224,22 @@ def build_report(iso, overlay="OV01.OVL"):
                 fn = owning_function(starts, site)
                 A(f"| `0x{a:08X}` | {a - addr:+d} | `0x{fn:08X}` | `{text}` |")
     return "\n".join(L), dict(insns=len(insns), funcs=len(starts), addrs=len(ea))
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[1])
+    ap.add_argument("--iso", required=True)
+    ap.add_argument("--overlay", default="OV01.OVL")
+    ap.add_argument("--report", default="OV01_map.md")
+    a = ap.parse_args()
+    with X.Iso(a.iso) as iso:
+        X.require_version(iso)
+        text, stats = build_report(iso, a.overlay)
+    with open(a.report, "w", encoding="utf-8") as f:
+        f.write(text + "\n")
+    print(f"{a.overlay}: {stats['insns']:,} instructions, {stats['funcs']:,} functions, "
+          f"{stats['addrs']:,} data addresses -> {a.report}")
+
+
+if __name__ == "__main__":
+    main()

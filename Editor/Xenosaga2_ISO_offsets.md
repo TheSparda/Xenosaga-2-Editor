@@ -1381,6 +1381,35 @@ likely the guide's ten STATUS RESISTANCE percentages** — ten consecutive bytes
 whose values cluster on 0/10/20/25/50/60/120, exactly the shape of that table.
 Not verified, so not exposed; the same signature method would confirm it.
 
+### Overlay load map + PCSX2 prep (2026-08-24)
+
+Both overlays are ELFs with a single RWX `PT_LOAD`, so their runtime EE address
+is known statically:
+
+| overlay | file offset | VA | size |
+|---|---|---|---|
+| `OV01.OVL` (battle) | `0x1000` | **`0xA80000`** | `0x6D088` (446,600 b) |
+| `OV02.OVL` | `0x0` | **`0xA7F000`** | `0x4E28` |
+
+`va -> file` = `va - 0xA80000 + 0x1000`.
+
+**The disc-1 pnach hands us free anchors.** Several of its codes poke addresses
+that land inside OV01's loaded range — `0xAC2460` (documented as the battle
+"Event Slot", whose listed effects include *1 = BST / Accelerated Boost Gauge*),
+`0xAC2478`/`247C`/`2480` (Exp / Skill Points / Class Points accumulators), and
+the item-use guards around `0xA9C768`. Someone already found the battle-state
+struct empirically; we just have to read code near it.
+
+`Research/x2disasm.py` (capstone; outside `Editor/` so the engine stays
+stdlib-only) disassembles the overlay — 111,650 instructions, 2,284 candidate
+functions, 805 reconstructed data addresses — reconstructs `lui`/`lo` address
+pairs, and reports which functions touch each anchor. `Research/OV01_map.md` is
+the generated output, with a shortlist of the densest battle-state functions
+(`0xA8A8B8`, `0xA914DC`, `0xA91624`, …) to break on first.
+
+**This is scaffolding, not a result** — nothing in it is verified against a
+running game.
+
 ### Tier 2 — BLOCKED on runtime: the global battle constants
 
 Stock cap, boost cost/regen, the ×1.5 break multiplier, AIR/DOWN doubling, and —
