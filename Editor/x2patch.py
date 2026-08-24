@@ -1130,19 +1130,25 @@ def cmd_verify_tables(a):
                   f"F.ENEMY_TABLES[{disc}] before the editor patches this image.")
         return 0
 
+def _skill_off(iso, i):
+    off = F.skill_record_off(iso.disc, i)
+    if off is None:
+        lo = F.skill_editable_indices(iso.disc)
+        raise SystemExit(
+            f"skill {i} has no verified numeric record. Editable indices are "
+            f"{lo[0]}..{lo[56]} and {lo[57]}..{lo[-1]} — the tech and "
+            f"combination blocks use a different record layout (see the notes).")
+    return off
+
 def read_skill(iso, i):
-    """Named numeric fields of ether-skill record `i` (0..56), from the disc."""
-    base = F.skill_table_off(iso.disc) + i * F.SKILL_STRIDE
-    rec = iso.read(base, F.SKILL_STRIDE)
+    """Named numeric fields of the skill at TEXT INDEX `i`."""
+    rec = iso.read(_skill_off(iso, i), F.SKILL_STRIDE)
     return {lbl: int.from_bytes(rec[off:off + w], "little")
             for (lbl, off, w, _k) in F.SKILL_NUM_FIELDS}
 
 def write_skill(iso, i, edits):
-    """Write named numeric fields of ether-skill record `i`. Returns count."""
-    if not 0 <= i < F.SKILL_VERIFIED_COUNT:
-        raise SystemExit(f"skill index {i} outside the verified block "
-                         f"0..{F.SKILL_VERIFIED_COUNT - 1}")
-    base = F.skill_table_off(iso.disc) + i * F.SKILL_STRIDE
+    """Write named numeric fields of the skill at TEXT INDEX `i`."""
+    base = _skill_off(iso, i)
     n = 0
     for (lbl, off, w, _k) in F.SKILL_NUM_FIELDS:
         if lbl in edits and edits[lbl] is not None:
@@ -1152,14 +1158,17 @@ def write_skill(iso, i, edits):
     return n
 
 def sync_skills(src, dst):
-    """Copy the verified ether-skill records from one disc to the other."""
-    sb, db = F.skill_table_off(src.disc), F.skill_table_off(dst.disc)
-    span = F.SKILL_VERIFIED_COUNT * F.SKILL_STRIDE
-    blob = src.read(sb, span)
-    if dst.read(db, span) == blob:
-        return 0
-    dst.write(db, blob)
-    return F.SKILL_VERIFIED_COUNT
+    """Copy every verified skill block from one disc to the other."""
+    moved = 0
+    sblocks = {b[0]: b for b in F.skill_blocks(src.disc)}
+    for name, dbase, count, _t0 in F.skill_blocks(dst.disc):
+        _n, sbase, scount, _s0 = sblocks[name]
+        span = min(count, scount) * F.SKILL_STRIDE
+        blob = src.read(sbase, span)
+        if dst.read(dbase, span) != blob:
+            dst.write(dbase, blob)
+            moved += min(count, scount)
+    return moved
 
 def cmd_skills(a):
     """List the skill/tech catalog extracted from the disc."""

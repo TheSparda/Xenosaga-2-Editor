@@ -53,8 +53,8 @@ Two things worth stating plainly:
   the game until it is. ISO edits are unaffected. A `.bak` is always kept.
 - The enemy record still has **52 undecoded bytes**. Nothing is written there.
 
-Next reverse-engineering targets: the per-character **tech blocks** (same 32-byte record as
-the ether skills, name pools located but not yet paired), then the save checksum, party, and
+Next reverse-engineering targets: pairing the **tech blocks** with their name pools and
+working out their record layout (mapped but unexposed), then the save checksum, party, and
 inventory, which need a PCSX2 session to anchor.
 **Every common save container is now supported**, `.max` included.
 
@@ -79,19 +79,27 @@ python3 x2patch.py sync "…(Disc 1).iso" "…(Disc 2).iso"     # copy tables di
 
 ### Skill editing
 
-The ether skills are **numerically editable**: EP cost, power, element and status-effect
-fields, for all 57 castable ethers (Medica through Erde Kaiser Fury), on both discs.
+**86 skills are numerically editable** — EP cost, power, element and status-effect fields —
+covering the 57 castable ethers (Medica through Erde Kaiser Fury) and the 29 combo/double
+skills (Double Medica through Pocket Rare), on both discs.
 
 ```bash
-python3 x2patch.py skills --grep blast                    # browse, with numbers
-python3 x2patch.py skill-set "…(Disc 1).iso" 30 --set Power=50 --set EP=2 --also "…(Disc 2).iso"
+python3 x2patch.py skills --grep storm                    # browse, with numbers
+python3 x2patch.py skill-set "…(Disc 1).iso" 79 --set Power=50 --set EP=2 --also "…(Disc 2).iso"
 ```
 
 The numeric table hid through two releases because the skill index space contains
-placeholder entries that our catalog silently skipped — with the true indices rebuilt, the
-EP costs printed in the skills' own descriptions matched a 32-byte-stride column **56 of 56**
-on the first scan, and every record carries its own 1-based name index (57/57 exact). The
-full 174-skill text catalog (targeting, range, element, descriptions) is browsable too.
+placeholder entries that our catalog silently skipped — with the true indices rebuilt, the EP
+costs printed in the skills' own descriptions matched a 32-byte-stride column **56 of 56** on
+the first scan. The doubles block was then confirmed independently: each double's EP equals
+that of the base skill named in its own description, **25 of 25**.
+
+The wider region holds more blocks of the same size — per-character techs, two-character
+combination attacks, E.S. craft techs — and they're mapped in the notes. They are *not*
+editable, on purpose: the 32-byte stride is shared but the field layout is not, so the combo
+block would read as sixteen identical 20-power skills under the ether layout. The editor
+refuses to address anything outside the two verified blocks. The full 174-skill text catalog
+(targeting, range, element, descriptions) is browsable regardless.
 
 ### Status resistances
 
@@ -206,4 +214,4 @@ ROM/ISO, saves, or audio** — only small reverse-engineered reference data (ser
 id→name maps, item descriptions) the editor needs to show meaningful labels. That's
 interoperability data, not the game.
 
-Made by **Sparda**. · **v1.8.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
+Made by **Sparda**. · **v1.8.1** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
