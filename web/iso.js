@@ -342,7 +342,7 @@
     const kbuf=new Uint8Array(await f.slice(kb,kb+KSPAN).arrayBuffer());
 
     DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,kBase:kb,
-                 backedUp:false};
+                 size:f.size,backedUp:false};
     rememberIso(disc,DISCS[disc].name,h);
 
     if(PRIMARY===null || PRIMARY===disc){
@@ -626,8 +626,9 @@
         '<span id="ebadge" class="badge"></span></button>'+
       '<span id="edirty" class="pill dirty" hidden></span>'+
       '<button id="erev" class="btn" disabled>↺ Revert all</button>'+
-      '<span id="enemyActions" class="barGroup">'+
       '<span class="sep"></span>'+
+      '<button id="pXdelta" class="btn">⬇ Export .xdelta…</button>'+
+      '<span id="enemyActions" class="barGroup">'+
       '<button id="pExport" class="btn">⬇ Export patch…</button>'+
       '<button id="pImport" class="btn">⬆ Import patch…</button>'+
       '<button id="tExport" class="btn">⬇ Export JSON…</button>'+
@@ -671,6 +672,7 @@
     $("#tImport").onclick=()=>$("#tFile").click();
     $("#tFile").onchange=importTable;
     $("#pExport").onclick=exportPatch;
+    $("#pXdelta").onclick=exportXdelta;
     $("#pImport").onclick=()=>$("#pFile").click();
     $("#pFile").onchange=e=>{const f=e.target.files[0]; e.target.value=""; if(f)importPatch(f);};
     $("#pDiff").onclick=showRetailDiff;
@@ -1194,6 +1196,59 @@
       if(Object.keys(f).length) edits[String(i)]=f;
     }
     return {format:PATCH_FORMAT,version:PATCH_VERSION,game:serialOf(PRIMARY),note:note||"",edits};
+  }
+
+  // A standard .xdelta (VCDIFF) patch, synthesized from the staged edits rather
+  // than diffed — we already know every changed byte range, so nothing has to
+  // read the 4.6 GB image. Apply with:
+  //     xdelta3 -d -s <pristine ISO> file.xdelta out.iso
+  //
+  // One patch PER DISC, because the same edit buffer lands at different bases on
+  // each (disc 2's tables are 0x800 lower): a single file could only ever be
+  // right for one of them, and applying disc 1's patch to disc 2 would write the
+  // enemy tables 0x800 into the wrong place.
+  function xdeltaEdits(d){
+    const runs=[];
+    for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase]])
+      for(const [s0,e0] of diffRuns(T)) runs.push({off:base+s0,data:T.buf.slice(s0,e0)});
+    return runs.sort((a,b)=>a.off-b.off);
+  }
+  async function exportXdelta(){
+    if(!diffCount()) return toastFn("Nothing staged to export",true);
+    if(typeof Vcdiff==="undefined") return toastFn("✗ VCDIFF module didn't load — force refresh",true);
+    const targets=targetDiscs();
+    if(!targets.length) return toastFn("No disc targeted",true);
+    const made=[];
+    for(const n of targets){
+      const d=DISCS[n]; if(!d||!d.size) continue;
+      const edits=xdeltaEdits(d);
+      const bytes=edits.reduce((a,e)=>a+e.data.length,0);
+      let patch;
+      try{ patch=Vcdiff.buildXdelta(d.size,edits); }
+      catch(e){ toastFn("✗ disc "+n+": "+e.message,true); return; }
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(new Blob([patch],{type:"application/octet-stream"}));
+      a.download=(d.name.replace(/\.[^.]+$/,"")||("xenosaga2-disc"+n))+".xdelta";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      made.push("disc "+n+" ("+bytes+" byte"+(bytes===1?"":"s")+")");
+      // give the browser a beat between downloads, or the second is dropped
+      if(targets.length>1) await new Promise(r=>setTimeout(r,400));
+    }
+    const msg="✓ Exported "+made.length+" .xdelta patch(es): "+made.join(", ");
+    $("#estat").textContent=msg; $("#estat").className="status ok";
+    toastFn(msg);
+    // No integrity check in the patch (that would mean hashing 4.6 GB), so say
+    // plainly what it must be applied to.
+    if(window.openInfo) await window.openInfo("Apply your .xdelta patch",
+      '<div class="note">Apply each patch to a <b>pristine</b> disc image with:</div>'+
+      '<pre class="cmd">xdelta3 -d -s "&lt;pristine ISO&gt;" patch.xdelta out.iso</pre>'+
+      '<div class="note">⚠ These patches carry <b>no integrity check</b> — applying one to an '+
+      'already-modified or wrong image corrupts it silently. Each patch is for the disc it was '+
+      'exported from: disc 2 keeps the same tables 0x800 lower, so the two are not '+
+      'interchangeable. If you want a source-verified, human-readable alternative, export a '+
+      '<b>patch file</b> instead — that one names fields rather than byte offsets, and the '+
+      'editor validates it on import.</div>');
   }
 
   function patchStats(doc){

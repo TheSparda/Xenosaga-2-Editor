@@ -55,6 +55,9 @@ jobs:
       - name: Front-end parses
         run: for f in web/*.js; do node --check "$f" || exit 1; done
 
+      - name: VCDIFF encoder round-trips
+        run: node web/tests/vcdiff.mjs
+
       - name: JSON is well formed
         run: |
           for f in web/*.json web/*.webmanifest Editor/*.json; do
