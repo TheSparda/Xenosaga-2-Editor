@@ -576,12 +576,18 @@
         '<button id="brkS2" class="btn">−2 hits</button>'+
         '<button id="brkS3" class="btn">−3 hits</button>'+
         '<span id="brkInfo" class="muted small"></span></div>'+
+        '<label class="brkguard"><input type="checkbox" id="brkKeep" checked> '+
+        'Keep every enemy breakable <span class="muted small">— never trim a sequence '+
+        'to nothing</span></label>'+
         '<div id="brkOpts"></div>'+
         '<div id="brkPreview"></div>'+
         '<p class="note">This is the loop\'s actual gate, not a stat: a 4-hit boss costs four correct '+
         'zone hits <i>per break, all fight</i>. Trimming takes hits off the <b>end</b>, so the opening '+
-        'zone you already know stays right. A 1-hit sequence is left alone and an enemy that '+
-        'can\'t be broken stays that way — emptying a sequence makes a fight harder, not faster.</p>'+
+        'zone you already know stays right. An enemy that already can\'t be broken is never touched.</p>'+
+        '<p class="note">The shield above is why a 1-hit sequence is left alone. Emptying a sequence '+
+        'doesn\'t shorten the break, it <b>removes</b> it: 16 retail enemies ship that way and 15 of '+
+        'them still have weak zones, so there are places to hit but no break to reach. Turn it off '+
+        'only if that is what you actually want.</p>'+
       '</div>'+
       '<p class="note">Staged into the same pending-changes set above — review everything before writing. '+
       'Scaling always starts from the values the disc had when it was opened, so re-staging replaces the '+
@@ -665,6 +671,7 @@
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
     // explicit selectors, not "#brkS"+n — a concatenated id is invisible to
     // anything that greps the source for it (tests/test_web.py checks that)
+    $("#brkKeep").onchange=paintBrkOpts;
     $("#brkS1").onclick=()=>stageShorten(1);
     $("#brkS2").onclick=()=>stageShorten(2);
     $("#brkS3").onclick=()=>stageShorten(3);
@@ -906,10 +913,18 @@
   }
 
   // ---- bulk break shortening (mirrors x2fields.shorten_break_seq) ----
-  const BREAK_MIN_LEN=1;
-  function shortenSeq(seq,steps){
+  // Emptying a sequence does not speed a fight up — it removes the break. 16
+  // retail enemies ship with no sequence and 15 of those still have a live zone
+  // mask, so "no sequence" is not "no weak zones": there is simply no break to
+  // reach, and the fight gets longer. The floor is on by default for that
+  // reason, but it is a balance choice, so it is a control rather than a
+  // constant. Mirrors x2fields.BREAK_MIN_LEN / BREAK_FLOOR_NONE.
+  const BREAK_MIN_LEN=1, BREAK_FLOOR_NONE=0;
+  const breakFloor=()=>{const c=$("#brkKeep"); return (!c||c.checked)?BREAK_MIN_LEN:BREAK_FLOOR_NONE;};
+  function shortenSeq(seq,steps,floor){
     if(!seq) return seq;
-    return seq.slice(0, Math.max(BREAK_MIN_LEN, seq.length-Math.max(0,steps|0)));
+    if(floor===undefined) floor=breakFloor();
+    return seq.slice(0, Math.max(floor, seq.length-Math.max(0,steps|0)));
   }
   // What each option would actually do, from the CURRENT staged state — so the
   // three buttons can be compared before pressing one, and the numbers update
@@ -917,7 +932,7 @@
   // number of correct zone hits a full clear costs, once per break per enemy.
   function breakStats(steps){
     const plan=planShorten(steps);
-    let before=0, after=0, longest=0;
+    let before=0, after=0, longest=0, emptied=0;
     const from={};
     for(let i=0;i<COUNT;i++){
       const old=breakSeq(i);
@@ -926,8 +941,9 @@
       before+=old.length; after+=nw.length;
       longest=Math.max(longest,nw.length);
       if(nw.length!==old.length) from[old.length]=nw.length;
+      if(!nw.length) emptied++;
     }
-    return {plan,affected:plan.length,before,after,longest,
+    return {plan,affected:plan.length,before,after,longest,emptied,
             cut: before?Math.round(100*(before-after)/before):0, from};
   }
   // The impact list is a claim about staged state: "these 108 enemies are set to
@@ -964,7 +980,14 @@
       }).join("")+'</tbody></table>'+
       '<p class="note" style="margin-top:6px">“Break hits to clear” is every enemy’s '+
       'sequence added up — one full pass through the bestiary. It is the size of the '+
-      'ritual, not of any one fight. Unbreakable enemies aren’t counted.</p>';
+      'ritual, not of any one fight. Unbreakable enemies aren’t counted.</p>'+
+      (rows.some(([,st])=>st.emptied)
+        ? '<p class="note warnnote">⚠ With the shield off, '+
+          rows.filter(([,st])=>st.emptied).map(([n,st])=>st.emptied+' enemy'+
+            (st.emptied===1?'':'s')+' at −'+n).join(", ")+
+          ' would lose their sequence entirely and become <b>unbreakable</b> — those '+
+          'fights get longer, not shorter.</p>'
+        : '');
   }
 
   function planShorten(steps){
@@ -996,7 +1019,9 @@
         '<span class="bs">'+old+' → '+nw+'</span></div>'
       ).join("")+'</div>';
     loadEnemy(); epending(); paintBrkOpts();
-    toastFn("✓ Break sequences shortened for "+plan.length+" enemies — review & Save");
+    const gone=plan.filter(([,,nw])=>!nw).length;
+    toastFn("✓ Break sequences shortened for "+plan.length+" enemies"+
+      (gone?" — ⚠ "+gone+" now UNBREAKABLE":"")+" — review & Save", !!gone);
   }
 
   // ---- full-table JSON (mirrors x2patch.enemy_json / parse_enemy_json) ----

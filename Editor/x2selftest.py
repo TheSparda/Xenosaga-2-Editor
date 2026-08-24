@@ -360,6 +360,30 @@ def t_shorten(_iso, _tmp):
     eq(F.plan_break_shortening(after, 1), [(1, "CBA", "CB")], "second pass keeps going")
     eq(F.plan_break_shortening({0: "B", 1: "", 2: "C"}, 1), [], "at the floor: no-op")
 
+    # The floor is a balance choice, not a correctness one, so it can be lowered
+    # deliberately — but only deliberately. Turning it off is what lets a
+    # sequence be emptied, which REMOVES the break rather than shortening it.
+    none = F.BREAK_FLOOR_NONE
+    eq(F.shorten_break_seq("C", 1, none), "", "shield off: 1 -> unbreakable")
+    eq(F.shorten_break_seq("CB", 2, none), "", "shield off: 2 -> unbreakable")
+    eq(F.shorten_break_seq("CBAA", 99, none), "", "shield off: over-shortening empties")
+    eq(F.shorten_break_seq("", 1, none), "", "shield off still never resurrects an empty one")
+    eq(F.plan_break_shortening({0: "C", 1: ""}, 1, none), [(0, "C", "")],
+       "shield off: the 1-hit is now in the plan, the empty one still isn't")
+
+    # and on the real retail distribution, the default must never empty anything
+    cat = F.enemy_catalog()
+    seqs = {i: F.decode_break_seq([r[f"brk{n + 1}"] for n in range(F.BREAK_SEQ_SLOTS)])
+            for i, r in cat.items()}
+    for steps in (1, 2, 3):
+        emptied = [i for i, _o, n in F.plan_break_shortening(seqs, steps) if not n]
+        eq(emptied, [], f"retail data, -{steps}: nothing is emptied with the shield on")
+    # with it off, -2 would silently make most of the bestiary unbreakable —
+    # which is exactly why the default is on
+    off2 = [i for i, _o, n in F.plan_break_shortening(seqs, 2, none) if not n]
+    eq(len(off2) > 50, True,
+       f"shield off at -2 empties {len(off2)} sequences — that is exactly what it guards")
+
 
 @check("enemy table JSON round-trips and validates", path=True)
 def t_table_json(_shared, tmp):

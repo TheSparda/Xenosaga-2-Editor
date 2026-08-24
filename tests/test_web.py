@@ -160,6 +160,17 @@ class TestDomReferences(unittest.TestCase):
                 self.assertNotIn("SFIELDS.concat(RFIELDS)", m.group(0),
                                  f"{fn} is back to comparing stats and rewards only")
 
+    def test_break_shortening_shield_is_present_and_defaults_on(self):
+        # Emptying a sequence removes the break instead of shortening it. With
+        # the shield off, "-2 hits" makes most of the bestiary unbreakable, so
+        # the default matters as much as the control existing.
+        iso = read("iso.js")
+        m = re.search(r'<input type="checkbox" id="brkKeep"([^>]*)>', iso)
+        self.assertTrue(m, "the break-shortening shield checkbox is gone")
+        self.assertIn("checked", m.group(1), "the shield must default to on")
+        self.assertIn("breakFloor()", iso,
+                      "shortenSeq must consult the shield, not a hardcoded floor")
+
     def test_engine_files_the_boot_loop_fetches_all_exist(self):
         m = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
         self.assertTrue(m, "could not find the engine file list in app.js")
