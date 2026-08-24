@@ -15,6 +15,9 @@
   let AFIELDS, AFF_NORMAL, AFF_SCALE, AFF_ELEMENTS, CATKEYS, CAPS, PROFILES, MAJOR_HP;
   // break/zone data: a hittable-zone mask and BRK_SLOTS one-hot sequence slots
   let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM, ZFIELDS;
+  // verified battle flags: enemy type (+0x50 bits 0-1) and zone targeting off
+  // (+0x51 bit 3). The second decides breakability along with the sequence.
+  let GFIELDS, TYPE_OFF, TYPE_MASK, TYPE_NAMES, NOZONE_OFF, NOZONE_BIT;
   // item drops share the rewards row: rate, category and 1-based id per slot
   let DFIELDS, DROPCATS, DROP_CONSUMABLE, DROPBASE, RFIELDS_RES, ITEMS=null;
   // Ether + Double skill numeric records: two disjoint blocks per disc, read as
@@ -44,6 +47,8 @@
     AFIELDS=t.enemy.affinityFields||[]; AFF_NORMAL=t.enemy.affinityNormal;
     AFF_SCALE=t.enemy.affinityScale||5; AFF_ELEMENTS=t.enemy.affinityElements||[];
     ZFIELDS=t.enemy.zoneFields||[];
+    GFIELDS=t.enemy.flagFields||[]; TYPE_OFF=t.enemy.typeOff; TYPE_MASK=t.enemy.typeMask;
+    TYPE_NAMES=t.enemy.typeNames||{}; NOZONE_OFF=t.enemy.noZoneOff; NOZONE_BIT=t.enemy.noZoneBit;
     ZMASK_OFF=t.enemy.zoneMaskOff; BRK_OFF=t.enemy.breakSeqOff;
     BRK_SLOTS=t.enemy.breakSeqSlots||4; ZBITS=t.enemy.zoneBits||{A:1,B:2,C:4};
     ZSYM={}; for(const k in ZBITS) ZSYM[ZBITS[k]]=k;
@@ -94,6 +99,15 @@
 
   // ---- break sequence: BRK_SLOTS one-hot bytes, 0 = end of sequence ----
   // Mirrors x2fields.decode_break_seq / encode_break_seq.
+  // Verified 57/57 against the guide on both discs: an enemy is unbreakable when
+  // zone targeting is off OR it has no sequence. 15 records carry a hittable
+  // `BB` whose bytes are inert because the bit is set — trimming those changes
+  // nothing the game reads.
+  const noZone=(i)=>!!(get(S,i,NOZONE_OFF,1) & NOZONE_BIT);
+  const enemyType=(i)=>TYPE_NAMES[String(get(S,i,TYPE_OFF,1) & TYPE_MASK)] ||
+                       ("type "+(get(S,i,TYPE_OFF,1)&TYPE_MASK));
+  const canBreak=(i)=>!noZone(i) && !!breakSeq(i);
+
   function breakSeq(i){
     let s="";
     for(let n=0;n<BRK_SLOTS;n++){
@@ -136,7 +150,7 @@
   const tableOf=(f)=>(RFIELDS.some(x=>x[0]===f)||DFIELDS.some(x=>x[0]===f))?R:S;
   // ZFIELDS (Zones, Brk1..Brk4) must be in here or a JSON import silently drops
   // break-sequence edits — specOf() would return undefined and the write is skipped
-  const allFields=()=>SFIELDS.concat(AFIELDS,RFIELDS_RES,ZFIELDS,RFIELDS,DFIELDS);
+  const allFields=()=>SFIELDS.concat(AFIELDS,RFIELDS_RES,ZFIELDS,GFIELDS,RFIELDS,DFIELDS);
   const specOf=(f)=>allFields().find(x=>x[0]===f);
   // retail value of one field, from the verified bestiary (affinities have none)
   const retail=(i,label)=>{
@@ -511,6 +525,7 @@
       '<label style="margin-left:8px"><input type="checkbox" id="ebak"> back up ISO first</label>'+
       '</div>'+
       '<table id="etbl"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
+      '<div id="eflags" class="note"></div>'+
       '<div id="eretail" class="note"></div>'+
       '<div class="affbox"><div class="fl">Item drops</div>'+
         '<table><tbody><tr id="erow4"></tr></tbody></table>'+
@@ -757,6 +772,16 @@
       cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("");
     $("#erow3").innerHTML=AFIELDS.map(([l,o,w])=>
       cellHtml(l,o,w,affPct(get(S,i,o,w)),affPct(getOrig(S,i,o,w)),true)).join("");
+    // type, and whether the game will honour a break sequence at all
+    const fl=$("#eflags");
+    if(fl) fl.innerHTML="Type: <b>"+esc(enemyType(i))+"</b> · "+
+      (canBreak(i)
+        ? "breakable"
+        : noZone(i)
+          ? "<b>cannot be broken</b> — zone targeting is off for this enemy"+
+            (breakSeq(i)?" , so its <code>"+esc(breakSeq(i))+"</code> sequence is inert":"")
+          : "<b>cannot be broken</b> — it has no Break sequence");
+
     // how this record compares with an unmodified disc
     const off=retailDiffs(i);
     $("#eretail").innerHTML = off.length
@@ -936,7 +961,7 @@
     const from={};
     for(let i=0;i<COUNT;i++){
       const old=breakSeq(i);
-      if(!old) continue;                       // unbreakable: not part of the tax
+      if(!old || noZone(i)) continue;          // unbreakable: not part of the tax
       const nw=shortenSeq(old,steps);
       before+=old.length; after+=nw.length;
       longest=Math.max(longest,nw.length);
@@ -980,7 +1005,9 @@
       }).join("")+'</tbody></table>'+
       '<p class="note" style="margin-top:6px">“Break hits to clear” is every enemy’s '+
       'sequence added up — one full pass through the bestiary. It is the size of the '+
-      'ritual, not of any one fight. Unbreakable enemies aren’t counted.</p>'+
+      'ritual, not of any one fight. Unbreakable enemies aren’t counted — including the '+
+      'ones whose sequence bytes are <i>inert</i> because zone targeting is off for them '+
+      '(15 on a retail disc). Trimming those would change bytes the game never reads.</p>'+
       (rows.some(([,st])=>st.emptied)
         ? '<p class="note warnnote">⚠ With the shield off, '+
           rows.filter(([,st])=>st.emptied).map(([n,st])=>st.emptied+' enemy'+
@@ -993,6 +1020,7 @@
   function planShorten(steps){
     const plan=[];
     for(let i=0;i<COUNT;i++){
+      if(noZone(i)) continue;              // cannot be broken whatever the bytes say
       const old=breakSeq(i), nw=shortenSeq(old,steps);
       if(nw!==old) plan.push([i,old,nw]);
     }

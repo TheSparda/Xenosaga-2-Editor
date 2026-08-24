@@ -458,6 +458,57 @@ ENEMY_ZONE_MASK_OFF = 0x4C
 BREAK_SEQ_OFF = 0x54
 BREAK_SEQ_SLOTS = 4
 # exposed as ordinary editable fields so the generic read/write path covers them
+# ---------------------------------------------------------------------------
+# BATTLE FLAGS (VERIFIED 2026-08-24) — two bytes at +0x50/+0x51.
+#
+# Found by partition scan against a strategy guide's per-enemy property columns,
+# with the guide's enemy TYPE used as a positive control (if the scan could not
+# recover a property that certainly exists, a null result would have meant "not
+# in this record" rather than "no such field").
+#
+#   +0x50 bits 0-1  enemy type: 0 = Bio, 1 = Gnosis, 2 = Mechanism
+#                   57/57 exact against the guide's "Enemy type" column.
+#   +0x51 bit 3     zone targeting off — 57/57 exact against the guide's
+#                   "Hit zone: None" column, on both discs.
+#
+# The second one closes a real gap. Breakability is NOT just "does the record
+# hold a break sequence": 15 enemies carry a perfectly hittable `BB` whose bytes
+# are inert because this bit is set. So:
+#
+#     unbreakable  ==  zone targeting off  OR  no break sequence
+#
+# That composite rule reproduces the guide's "Break: Cannot" column 57/57 on both
+# discs, and puts the unbreakable set at 36 of 125 records rather than the 16 you
+# get from the sequence bytes alone.
+#
+# Deliberately named for what was verified. The guide column this matches is
+# "Hit zone", so the flag is recorded as zone targeting rather than as a
+# break flag, even though breakability is what it decides — the same caution
+# the +0x04 affinity retraction earned. The other bits of both bytes are NOT
+# identified: nothing else reached 100% against any guide column (counter-boost,
+# air and down effects all topped out well below), so they stay unexposed.
+ENEMY_TYPE_OFF, ENEMY_TYPE_MASK = 0x50, 0x03
+ENEMY_TYPE_NAMES = {0: "Bio", 1: "Gnosis", 2: "Mechanism"}
+ENEMY_NOZONE_OFF, ENEMY_NOZONE_BIT = 0x51, 0x08
+
+def enemy_type_text(byte):
+    """+0x50 -> 'Mechanism'. Unknown codes are shown raw rather than guessed."""
+    v = byte & ENEMY_TYPE_MASK
+    return ENEMY_TYPE_NAMES.get(v, f"type {v}")
+
+def zone_targeting_off(nozone_byte):
+    """True when +0x51 bit 3 is set — the guide's 'Hit zone: None'."""
+    return bool(nozone_byte & ENEMY_NOZONE_BIT)
+
+def is_breakable(nozone_byte, seq):
+    """The composite rule, verified 57/57 against the guide on both discs."""
+    return not zone_targeting_off(nozone_byte) and bool(seq)
+
+FLAG_FIELDS = [
+    ("Type",   ENEMY_TYPE_OFF,   1, "num"),
+    ("NoZone", ENEMY_NOZONE_OFF, 1, "num"),
+]
+
 ZONE_FIELDS = ([("Zones", ENEMY_ZONE_MASK_OFF, 1, "num")] +
                [(f"Brk{n + 1}", BREAK_SEQ_OFF + n, 1, "num")
                 for n in range(BREAK_SEQ_SLOTS)])
@@ -513,14 +564,21 @@ def shorten_break_seq(seq, steps=1, floor=BREAK_MIN_LEN):
     n = max(max(0, int(floor)), len(seq) - max(0, int(steps)))
     return seq[:n]
 
-def plan_break_shortening(sequences, steps=1, floor=BREAK_MIN_LEN):
+def plan_break_shortening(sequences, steps=1, floor=BREAK_MIN_LEN, nozone=None):
     """[(index, old, new), ...] for every record the shortening would change.
 
     `sequences` is {record index: sequence text}. Records already at the floor,
     or unbreakable, are omitted — so the caller can show exactly what it touches
-    before writing anything."""
+    before writing anything.
+
+    `nozone` is {record index: +0x51 byte}. When given, records whose zone
+    targeting is off are skipped too: they cannot be broken whatever their
+    sequence bytes say, so trimming those bytes changes nothing the game reads.
+    15 retail records are in exactly that state."""
     plan = []
     for i in sorted(sequences):
+        if nozone is not None and zone_targeting_off(nozone.get(i, 0)):
+            continue
         old = sequences[i] or ""
         new = shorten_break_seq(old, steps, floor)
         if new != old:
@@ -654,7 +712,7 @@ DROP_FIELDS = [
 # resistances and drops, keyed by the lowercased field label.
 ENEMY_CATALOG_KEY.update(
     {label: label.lower()
-     for label, _off, _w, _k in (ZONE_FIELDS + ENEMY_AFFINITY_FIELDS
+     for label, _off, _w, _k in (ZONE_FIELDS + FLAG_FIELDS + ENEMY_AFFINITY_FIELDS
                                  + STATUS_RES_FIELDS + DROP_FIELDS)})
 
 DROP_CAT_NONE, DROP_CAT_CONSUMABLE, DROP_CAT_ES = 0, 1, 2
@@ -750,7 +808,7 @@ def enemy_record_tail():
     Slash/Hit and every resistance as blank-and-modified. Callers must add this
     many bytes to the span they read."""
     reach = max(off + w for (_l, off, w, _k) in
-                (ENEMY_FIELDS + ENEMY_AFFINITY_FIELDS + ZONE_FIELDS
+                (ENEMY_FIELDS + ENEMY_AFFINITY_FIELDS + ZONE_FIELDS + FLAG_FIELDS
                  + STATUS_RES_FIELDS))
     return max(0, reach - ENEMY_STRIDE)
 
@@ -884,6 +942,12 @@ def web_tables():
             # break/zone data (verified): the hittable-zone mask and the four
             # one-hot break-sequence slots
             "zoneFields": fields(ZONE_FIELDS),
+            # verified battle flags: enemy type (+0x50 bits 0-1) and zone
+            # targeting off (+0x51 bit 3) — see the BATTLE FLAGS block
+            "flagFields": fields(FLAG_FIELDS),
+            "typeOff": ENEMY_TYPE_OFF, "typeMask": ENEMY_TYPE_MASK,
+            "typeNames": {str(k): v for k, v in sorted(ENEMY_TYPE_NAMES.items())},
+            "noZoneOff": ENEMY_NOZONE_OFF, "noZoneBit": ENEMY_NOZONE_BIT,
             "zoneMaskOff": ENEMY_ZONE_MASK_OFF,
             "breakSeqOff": BREAK_SEQ_OFF,
             "breakSeqSlots": BREAK_SEQ_SLOTS,

@@ -131,6 +131,53 @@ class TestAffinities(PatchCase):
         self.assertIn(el, self.run_cli("enemies", self.iso, "--csv", "--affinities"))
 
 
+class TestBreakability(unittest.TestCase):
+    """Breakability is not just "does the record hold a sequence".
+
+    +0x51 bit 3 (the guide's "Hit zone: None") makes an enemy unbreakable
+    whatever its sequence bytes say — 15 retail records carry a perfectly
+    hittable BB that the game never reads.
+    """
+
+    def test_the_composite_rule(self):
+        for nozone, seq, want in (
+            (0x00, "BB", True),    # zones on, has a sequence
+            (0x08, "BB", False),   # zone targeting off => the BB is inert
+            (0x00, "",   False),   # no sequence
+            (0x08, "",   False),   # both
+            (0x0C, "CB", False),   # bit 3 set alongside other bits
+            (0x04, "CB", True),    # other bits set, bit 3 clear
+        ):
+            with self.subTest(nozone=hex(nozone), seq=seq):
+                self.assertEqual(F.is_breakable(nozone, seq), want)
+
+    def test_shortening_skips_records_it_cannot_affect(self):
+        seqs = {0: "BB", 1: "CBB", 2: "CC"}
+        plain = F.plan_break_shortening(seqs, 1)
+        self.assertEqual([i for i, _o, _n in plain], [0, 1, 2])
+        # record 1 has zone targeting off: trimming it would write bytes the
+        # game never reads, so it must drop out of the plan entirely
+        gated = F.plan_break_shortening(seqs, 1, nozone={0: 0, 1: 0x08, 2: 0})
+        self.assertEqual([i for i, _o, _n in gated], [0, 2])
+
+    def test_enemy_type_decodes(self):
+        self.assertEqual(F.enemy_type_text(0x62), "Mechanism")   # bits 0-1 = 2
+        self.assertEqual(F.enemy_type_text(0x20), "Bio")
+        self.assertEqual(F.enemy_type_text(0x21), "Gnosis")
+        self.assertIn("type 3", F.enemy_type_text(0x03))         # never guessed
+
+    def test_retail_unbreakable_set_is_bigger_than_the_sequence_bytes_suggest(self):
+        cat = F.enemy_catalog()
+        def seq(r):
+            return F.decode_break_seq([r[f"brk{n + 1}"] for n in range(F.BREAK_SEQ_SLOTS)])
+        no_seq = [i for i, r in cat.items() if not seq(r)]
+        unbreakable = [i for i, r in cat.items() if not F.is_breakable(r["nozone"], seq(r))]
+        self.assertEqual(len(no_seq), 16, "records with no sequence bytes")
+        self.assertEqual(len(unbreakable), 36, "records the game will not let you break")
+        self.assertTrue(set(no_seq) < set(unbreakable),
+                        "the sequence-less records are a strict subset")
+
+
 class TestRetailBaseline(unittest.TestCase):
     """The root cause: a field became writable without becoming comparable."""
 

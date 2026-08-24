@@ -27,6 +27,7 @@
     "Hit": "hit",
     "Ice": "ice",
     "Junk": "junk",
+    "NoZone": "nozone",
     "Pierce": "pierce",
     "RareCat": "rarecat",
     "RareItem": "rareitem",
@@ -37,6 +38,7 @@
     "Slash": "slash",
     "Slow": "slow",
     "Thunder": "thunder",
+    "Type": "type",
     "VIT": "vit",
     "Weak": "weak",
     "Zones": "zones"
@@ -120,8 +122,14 @@
       ["EVA", 69, 1],
       ["AGL", 70, 1]
     ],
+    "flagFields": [
+      ["Type", 80, 1],
+      ["NoZone", 81, 1]
+    ],
     "idOff": 82,
     "namesOff": 33563408,
+    "noZoneBit": 8,
+    "noZoneOff": 81,
     "recordTail": 27,
     "statusResFields": [
       ["Slow", 108, 1],
@@ -134,6 +142,13 @@
       ["Junk", 118, 1]
     ],
     "stride": 92,
+    "typeMask": 3,
+    "typeNames": {
+      "0": "Bio",
+      "1": "Gnosis",
+      "2": "Mechanism"
+    },
+    "typeOff": 80,
     "zoneBits": {
       "A": 1,
       "B": 2,
