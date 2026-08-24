@@ -131,6 +131,69 @@ class TestAffinities(PatchCase):
         self.assertIn(el, self.run_cli("enemies", self.iso, "--csv", "--affinities"))
 
 
+class TestExplainDiff(unittest.TestCase):
+    """Reading a third-party mod's bytes rather than trusting its description."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="x2diff-")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _pair(self, base, edits):
+        a = os.path.join(self.dir, "a.bin")
+        b = os.path.join(self.dir, "b.bin")
+        Path(a).write_bytes(base)
+        mod = bytearray(base)
+        for off, data in edits:
+            mod[off:off + len(data)] = data
+        Path(b).write_bytes(bytes(mod))
+        return a, b
+
+    def test_finds_runs_including_the_awkward_ones(self):
+        # a flat byte loop over 4.6 GB is billions of iterations, so the scan is
+        # hierarchical — which makes block boundaries the thing to get wrong
+        for what, edits, want in (
+            ("single byte",        [(500, b"Z")],                 [(500, 1)]),
+            ("adjacent bytes",     [(500, b"ZZZZ")],              [(500, 4)]),
+            ("two separate runs",  [(10, b"ZZ"), (9000, b"ZZZ")], [(10, 2), (9000, 3)]),
+            ("across a 4K block",  [(4094, b"ZZZZZZ")],           [(4094, 6)]),
+            ("at offset zero",     [(0, b"ZZZ")],                 [(0, 3)]),
+            ("at the very end",    [(9997, b"ZZZ")],              [(9997, 3)]),
+        ):
+            with self.subTest(what):
+                a, b = self._pair(b"A" * 10000, edits)
+                self.assertEqual(X.diff_images(a, b, chunk=8192, block=4096), want)
+
+    def test_identical_files_report_nothing(self):
+        a, b = self._pair(b"A" * 10000, [])
+        self.assertEqual(X.diff_images(a, b), [])
+
+    def test_a_longer_file_reports_the_tail(self):
+        a = os.path.join(self.dir, "a.bin"); Path(a).write_bytes(b"A" * 100)
+        b = os.path.join(self.dir, "b.bin"); Path(b).write_bytes(b"A" * 100 + b"B" * 5)
+        self.assertEqual(X.diff_images(a, b), [(100, 5)])
+
+    def test_offsets_resolve_to_named_fields(self):
+        t = F.enemy_tables(1)
+        hp_off = next(o for lbl, o, _w, _k in F.ENEMY_FIELDS if lbl == "HP")
+        cases = [
+            (t["stats"] + 6 * F.ENEMY_STRIDE + hp_off, "enemy stats", "record 6 HP"),
+            (t["stats"] + 6 * F.ENEMY_STRIDE + F.ENEMY_NOZONE_OFF,
+             "enemy stats", "record 6 NoZone"),
+            (t["rewards"] + 40 * F.REWARD_STRIDE, "enemy rewards", "record 40 EXP"),
+            (F.skill_base(1) + 6, "skill blocks", "skill 0 EP"),
+        ]
+        for off, region, what in cases:
+            with self.subTest(hex(off)):
+                self.assertEqual(X._locate(off, 1), (region, what))
+
+    def test_an_offset_outside_every_known_table_is_unmapped(self):
+        # the honest answer to "can this editor reproduce that mod?" is no for
+        # anything here, so it must never be silently bucketed as understood
+        self.assertEqual(X._locate(0x1FF8000, 1), (None, None))
+
+
 class TestBreakability(unittest.TestCase):
     """Breakability is not just "does the record hold a sequence".
 

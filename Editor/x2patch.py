@@ -1221,6 +1221,151 @@ def cmd_shorten_breaks(a):
         _sync_to(a.iso, a.also)
     return 0
 
+# ---------------------------------------------------------------------------
+# "What does this mod actually change?"
+#
+# The honest way to answer whether this editor can reproduce someone else's mod
+# is to read their bytes, not their description. Given a pristine image and a
+# modified one, this walks every differing byte run and says which known table it
+# lands in — down to the record and field where we have one — and, more usefully,
+# what lands OUTSIDE everything we understand.
+#
+# A run in "unmapped" is the interesting part: it is either a table we have not
+# reverse-engineered, or code. Either way it is the honest answer to "can we edit
+# everything it does": no, not that part, and here is where it is.
+# ---------------------------------------------------------------------------
+def _regions(disc):
+    t = F.enemy_tables(disc)
+    kb = F.skill_base(disc)
+    return [
+        ("enemy stats",   t["stats"],   F.ENEMY_COUNT * F.ENEMY_STRIDE
+                                        + F.enemy_record_tail(), "stat"),
+        ("enemy rewards", t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE, "reward"),
+        ("enemy names",   t["names"],   0x4000, None),
+        ("skill blocks",  kb,           F.skill_span(disc), "skill"),
+    ]
+
+def _locate(off, disc):
+    """('enemy stats', 'record 6 HP') for a byte offset, or (None, None)."""
+    for name, base, size, kind in _regions(disc):
+        if not base <= off < base + size:
+            continue
+        if kind == "stat":
+            i, r = divmod(off - base, F.ENEMY_STRIDE)
+            for lbl, fo, w, _k in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS
+                                   + F.ZONE_FIELDS + F.FLAG_FIELDS
+                                   + F.STATUS_RES_FIELDS):
+                if fo <= r < fo + w:
+                    return name, f"record {i} {lbl}"
+            return name, f"record {i} +0x{r:02X} (undecoded)"
+        if kind == "reward":
+            i, r = divmod(off - base, F.REWARD_STRIDE)
+            for lbl, fo, w, _k in F.REWARD_FIELDS + F.DROP_FIELDS:
+                if fo <= r < fo + w:
+                    return name, f"record {i} {lbl}"
+            return name, f"record {i} +0x{r:02X} (undecoded)"
+        if kind == "skill":
+            for _n, b, count, t0 in F.skill_blocks(disc):
+                if b <= off < b + count * F.SKILL_STRIDE:
+                    i, r = divmod(off - b, F.SKILL_STRIDE)
+                    for lbl, fo, w, _k in F.SKILL_NUM_FIELDS:
+                        if fo <= r < fo + w:
+                            return name, f"skill {t0 + i} {lbl}"
+                    return name, f"skill {t0 + i} +0x{r:02X} (undecoded)"
+            return name, "between blocks"
+        return name, None
+    return None, None
+
+def diff_images(pristine, modded, chunk=1 << 22, block=4096):
+    """[(offset, length), ...] byte runs that differ. Streams both files.
+
+    Hierarchical on purpose: a flat Python byte loop over a 4.6 GB pair is
+    billions of iterations. Compare whole chunks first, then 4 KB blocks within a
+    differing chunk, and only fall to per-byte scanning inside a block that
+    actually differs. A real mod touches a few hundred bytes, so almost
+    everything is settled by the two `!=` comparisons on bytes objects, which run
+    in C.
+    """
+    runs = []
+    pending = None            # (start, end) of a run still being extended
+
+    def add(start, end):
+        nonlocal pending
+        if pending and pending[1] == start:
+            pending = (pending[0], end)
+        else:
+            if pending:
+                runs.append((pending[0], pending[1] - pending[0]))
+            pending = (start, end)
+
+    with open(pristine, "rb") as a, open(modded, "rb") as b:
+        pos = 0
+        while True:
+            x, y = a.read(chunk), b.read(chunk)
+            if not x and not y:
+                break
+            n = max(len(x), len(y))
+            x = x.ljust(n, b"\0")
+            y = y.ljust(n, b"\0")
+            if x != y:
+                for bs in range(0, n, block):
+                    bx, by = x[bs:bs + block], y[bs:bs + block]
+                    if bx == by:
+                        continue
+                    start = None
+                    for k in range(len(bx)):
+                        if bx[k] != by[k]:
+                            if start is None:
+                                start = k
+                        elif start is not None:
+                            add(pos + bs + start, pos + bs + k)
+                            start = None
+                    if start is not None:
+                        add(pos + bs + start, pos + bs + len(bx))
+            pos += n
+    if pending:
+        runs.append((pending[0], pending[1] - pending[0]))
+    return runs
+
+def cmd_explain_diff(a):
+    """Say what a modified disc changes, and whether this editor could do it."""
+    with Iso(a.pristine) as iso:
+        serial, disc = require_version(iso)
+    print(f"comparing against {serial} (disc {disc})…")
+    runs = diff_images(a.pristine, a.iso)
+    if not runs:
+        print("identical — nothing changed")
+        return 0
+    total = sum(n for _o, n in runs)
+    print(f"{len(runs):,} changed byte run(s), {total:,} byte(s) total\n")
+    buckets = collections.OrderedDict()
+    for off, n in runs:
+        region, what = _locate(off, disc)
+        buckets.setdefault(region or "unmapped", []).append((off, n, what))
+    for region, items in buckets.items():
+        nb = sum(n for _o, n, _w in items)
+        print(f"  {region:<15} {len(items):>5} run(s)  {nb:>8,} byte(s)"
+              + ("   <-- this editor cannot reach it" if region == "unmapped" else ""))
+    print()
+    editable = sum(len(v) for k, v in buckets.items() if k != "unmapped")
+    print(f"reproducible with this editor: {editable} of {len(runs)} run(s)")
+    if "unmapped" in buckets:
+        print("\nunmapped runs (a table we have not decoded, or code):")
+        for off, n, _w in buckets["unmapped"][:a.show]:
+            print(f"  0x{off:09X}  {n:,} byte(s)")
+        if len(buckets["unmapped"]) > a.show:
+            print(f"  … {len(buckets['unmapped']) - a.show} more (use --show)")
+    if a.verbose:
+        for region, items in buckets.items():
+            if region == "unmapped":
+                continue
+            print(f"\n{region}:")
+            for off, n, what in items[:a.show]:
+                print(f"  0x{off:09X}  {n:>4}B  {what or ''}")
+            if len(items) > a.show:
+                print(f"  … {len(items) - a.show} more")
+    return 0
+
 def cmd_export_json(a):
     """Dump the whole enemy table as readable JSON for bulk editing."""
     with Iso(a.iso) as iso:
@@ -1671,6 +1816,15 @@ def main():
     sp.add_argument("--also", metavar="OTHER_ISO",
                     help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_apply_patch)
+
+    sp = sub.add_parser("explain-diff",
+                        help="say what a modified disc changes, and whether this "
+                             "editor could reproduce it")
+    sp.add_argument("iso", help="the MODIFIED image")
+    sp.add_argument("--pristine", required=True)
+    sp.add_argument("--show", type=int, default=20)
+    sp.add_argument("--verbose", action="store_true", help="name every field touched")
+    sp.set_defaults(fn=cmd_explain_diff)
 
     sp = sub.add_parser("xdelta-make",
                         help="create an xdelta patch (pristine ISO -> edited ISO)")

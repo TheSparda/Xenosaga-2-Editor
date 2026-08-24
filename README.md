@@ -224,6 +224,35 @@ python3 x2patch.py xdelta-make "…edited.iso" --pristine "…pristine.iso" --ou
 python3 x2patch.py xdelta-apply mymod.xdelta --pristine "…pristine.iso" --out patched.iso
 ```
 
+### What does someone else's mod change?
+
+The reliable way to know whether this editor can reproduce a third-party mod is
+to read its bytes, not its description:
+
+```bash
+python3 x2patch.py explain-diff "…hardtype.iso" --pristine "…pristine.iso" --verbose
+```
+
+It walks every differing byte run and says which table it lands in, down to the
+record and field:
+
+```
+6 changed byte run(s), 23 byte(s) total
+
+  unmapped            1 run(s)        16 byte(s)   <-- this editor cannot reach it
+  enemy stats         2 run(s)         3 byte(s)
+  skill blocks        2 run(s)         2 byte(s)
+  enemy rewards       1 run(s)         2 byte(s)
+
+enemy stats:
+  0x001FFF84E     2B  record 6 HP
+  0x001FFF869     1B  record 6 NoZone
+```
+
+The **unmapped** bucket is the useful part — it's either a table nobody has
+decoded yet or it's code, and either way it's the honest answer to "can we edit
+everything this mod does?". A full 4.6 GB comparison takes about 8 seconds.
+
 ## Desktop app (optional)
 
 Prefer a local app? The same engine runs as a small local web app (Python stdlib only, no
