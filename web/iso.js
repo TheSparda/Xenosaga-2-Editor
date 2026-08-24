@@ -11,10 +11,10 @@
   // data-loss bug (or a silently-diverging profile) waiting to happen, and CI
   // fails if the generated file drifts. If the fetch fails we refuse to open a
   // disc rather than fall back to a possibly-stale copy.
-  let STRIDE, COUNT, RSTRIDE, SFIELDS, RFIELDS, BOSS_ID_MIN, ID_OFF;
+  let STRIDE, COUNT, TAIL, RSTRIDE, SFIELDS, RFIELDS, BOSS_ID_MIN, ID_OFF;
   let AFIELDS, AFF_NORMAL, AFF_SCALE, AFF_ELEMENTS, CATKEYS, CAPS, PROFILES, MAJOR_HP;
   // break/zone data: a hittable-zone mask and BRK_SLOTS one-hot sequence slots
-  let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM;
+  let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM, ZFIELDS;
   // item drops share the rewards row: rate, category and 1-based id per slot
   let DFIELDS, DROPCATS, DROP_CONSUMABLE, DROPBASE, RFIELDS_RES, ITEMS=null;
   let TABLES=null;
@@ -32,9 +32,15 @@
     if(!r.ok) throw new Error("tables.json ("+r.status+")");
     const t=await r.json();
     STRIDE=t.enemy.stride; COUNT=t.enemy.count;
+    // The affinity (+0x58) and status-resistance (+0x6C) blocks overhang the
+    // nominal record, so the LAST record's fields live past count*stride. Read
+    // the extra bytes or record 124 comes back undefined and renders as
+    // blank-and-modified. x2fields.enemy_record_tail() is the source of truth.
+    TAIL=t.enemy.recordTail||0;
     SFIELDS=t.enemy.fields; ID_OFF=t.enemy.idOff;
     AFIELDS=t.enemy.affinityFields||[]; AFF_NORMAL=t.enemy.affinityNormal;
     AFF_SCALE=t.enemy.affinityScale||5; AFF_ELEMENTS=t.enemy.affinityElements||[];
+    ZFIELDS=t.enemy.zoneFields||[];
     ZMASK_OFF=t.enemy.zoneMaskOff; BRK_OFF=t.enemy.breakSeqOff;
     BRK_SLOTS=t.enemy.breakSeqSlots||4; ZBITS=t.enemy.zoneBits||{A:1,B:2,C:4};
     ZSYM={}; for(const k in ZBITS) ZSYM[ZBITS[k]]=k;
@@ -108,7 +114,9 @@
     return w===4?d.getUint32(a,true):w===2?d.getUint16(a,true):T.orig[a];}
   // stats and affinities live in the stat record; rewards are their own table
   const tableOf=(f)=>(RFIELDS.some(x=>x[0]===f)||DFIELDS.some(x=>x[0]===f))?R:S;
-  const allFields=()=>SFIELDS.concat(AFIELDS,RFIELDS_RES,RFIELDS,DFIELDS);
+  // ZFIELDS (Zones, Brk1..Brk4) must be in here or a JSON import silently drops
+  // break-sequence edits — specOf() would return undefined and the write is skipped
+  const allFields=()=>SFIELDS.concat(AFIELDS,RFIELDS_RES,ZFIELDS,RFIELDS,DFIELDS);
   const specOf=(f)=>allFields().find(x=>x[0]===f);
   // retail value of one field, from the verified bestiary (affinities have none)
   const retail=(i,label)=>{
@@ -224,7 +232,7 @@
     const t=ETABLES[String(disc)];
     if(!t){ say(probe,"✗ No table offsets known for disc "+disc+".","err"); return; }
     const sBase=t.stats, rBase=t.rewards;
-    const sb=new Uint8Array(await f.slice(sBase,sBase+COUNT*STRIDE).arrayBuffer());
+    const sb=new Uint8Array(await f.slice(sBase,sBase+COUNT*STRIDE+TAIL).arrayBuffer());
     const rb=new Uint8Array(await f.slice(rBase,rBase+COUNT*RSTRIDE).arrayBuffer());
 
     DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,backedUp:false};
@@ -367,11 +375,7 @@
         'class="chip mini" title="Clear search" aria-label="Clear search">✕</button></span>'+
       '<span id="ecount" class="muted small"></span>'+
       '<label style="margin-left:8px"><input type="checkbox" id="ebak"> back up ISO first</label>'+
-      '<span style="flex:1"></span>'+
-      '<button id="erev" class="btn" disabled>Revert all</button>'+
-      '<button id="esave" class="btn primary" disabled><span id="esaveLabel">Save to ISO</span> '+
-      '<span id="ebadge" class="badge"></span></button>'+
-      '<span id="estat" class="status"></span></div>'+
+      '</div>'+
       '<table id="etbl"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
       '<div id="eretail" class="note"></div>'+
       '<div class="affbox"><div class="fl">Item drops</div>'+
@@ -432,24 +436,48 @@
       '</tbody></table>'+
       '<div class="toolbar"><span id="sclWarn" class="status"></span><span style="flex:1"></span>'+
       '<button id="sclApply" class="btn primary">Stage rebalance</button></div>'+
+      '<div class="brkbox"><div class="fl">Shorten every Break sequence</div>'+
+        '<div class="toolbar" style="margin:0">'+
+        '<button id="brkS1" class="btn">−1 hit</button>'+
+        '<button id="brkS2" class="btn">−2 hits</button>'+
+        '<button id="brkS3" class="btn">−3 hits</button>'+
+        '<span id="brkInfo" class="muted small"></span></div>'+
+        '<div id="brkPreview"></div>'+
+        '<p class="note">This is the loop\'s actual gate, not a stat: a 4-hit boss costs four correct '+
+        'zone hits <i>per break, all fight</i>. Trimming takes hits off the <b>end</b>, so the opening '+
+        'zone you already know stays right. A 1-hit sequence is left alone and an enemy that '+
+        'can\'t be broken stays that way — emptying a sequence makes a fight harder, not faster.</p>'+
+      '</div>'+
       '<p class="note">Staged into the same pending-changes set above — review everything before writing. '+
       'Scaling always starts from the values the disc had when it was opened, so re-staging replaces the '+
       'previous plan instead of compounding it. Values round to whole numbers; HP floors at 1.</p></div>'+
-      '<div class="card"><h2>4 · Patch files &amp; retail values</h2>'+
-      '<div class="toolbar">'+
-      '<button id="pExport" class="btn">⬇ Export patch…</button>'+
-      '<button id="pImport" class="btn">⬆ Import patch…</button>'+
+      '<div class="card"><h2>4 · Patch files, bulk JSON &amp; retail values</h2>'+
       '<input type="file" id="pFile" accept=".json,application/json" hidden>'+
-      '<span style="flex:1"></span>'+
-      '<button id="pDiff" class="btn">Compare to retail</button>'+
-      '<button id="pRestore" class="btn">Stage restore to retail</button>'+
-      '</div>'+
+      '<input type="file" id="tFile" accept=".json,application/json" hidden>'+
       '<p class="note">A patch is a small JSON file listing only the fields you changed, so you can '+
       'share a rebalance instead of a 4.6 GB disc. Importing <i>stages</i> the changes for review '+
       'rather than writing them. The command line reads and writes the same file: '+
       '<code>x2patch.py export-patch</code> / <code>apply-patch</code>. Because the bestiary shipped '+
       'with this editor holds the verified retail numbers, the editor can also tell you exactly how '+
-      'your disc differs from an unmodified one — and put it back.</p></div>';
+      'your disc differs from an unmodified one — and put it back.</p></div>'+
+      // Sticky bottom action bar — same shape and ordering as the Suikoden 3
+      // editor: primary Save first, then the dirty pill, then revert, then the
+      // export/import pairs. Opaque so content scrolls cleanly underneath.
+      '<div class="actionbar">'+
+      '<button id="esave" class="btn primary" disabled><span id="esaveLabel">Save to ISO</span> '+
+        '<span id="ebadge" class="badge"></span></button>'+
+      '<span id="edirty" class="pill dirty" hidden></span>'+
+      '<button id="erev" class="btn" disabled>↺ Revert all</button>'+
+      '<span class="sep"></span>'+
+      '<button id="pExport" class="btn">⬇ Export patch…</button>'+
+      '<button id="pImport" class="btn">⬆ Import patch…</button>'+
+      '<button id="tExport" class="btn">⬇ Export JSON…</button>'+
+      '<button id="tImport" class="btn">⬆ Import JSON…</button>'+
+      '<span class="sep"></span>'+
+      '<button id="pDiff" class="btn">Compare to retail</button>'+
+      '<button id="pRestore" class="btn">Stage restore</button>'+
+      '<span style="flex:1"></span>'+
+      '<span id="estat" class="status"></span></div>';
     $("#esel").onchange=loadEnemy;
     $("#esearch").addEventListener("input",paintEnemyList);
     $("#esearch").addEventListener("keydown",e=>{
@@ -461,6 +489,14 @@
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
+    // explicit selectors, not "#brkS"+n — a concatenated id is invisible to
+    // anything that greps the source for it (tests/test_web.py checks that)
+    $("#brkS1").onclick=()=>stageShorten(1);
+    $("#brkS2").onclick=()=>stageShorten(2);
+    $("#brkS3").onclick=()=>stageShorten(3);
+    $("#tExport").onclick=exportTable;
+    $("#tImport").onclick=()=>$("#tFile").click();
+    $("#tFile").onchange=importTable;
     $("#pExport").onclick=exportPatch;
     $("#pImport").onclick=()=>$("#pFile").click();
     $("#pFile").onchange=e=>{const f=e.target.files[0]; e.target.value=""; if(f)importPatch(f);};
@@ -626,11 +662,176 @@
                " — review & Save to ISO"):"No changes to stage");
   }
 
+  // ---- bulk break shortening (mirrors x2fields.shorten_break_seq) ----
+  const BREAK_MIN_LEN=1;
+  function shortenSeq(seq,steps){
+    if(!seq) return seq;
+    return seq.slice(0, Math.max(BREAK_MIN_LEN, seq.length-Math.max(0,steps|0)));
+  }
+  function planShorten(steps){
+    const plan=[];
+    for(let i=0;i<COUNT;i++){
+      const old=breakSeq(i), nw=shortenSeq(old,steps);
+      if(nw!==old) plan.push([i,old,nw]);
+    }
+    return plan;
+  }
+  function stageShorten(steps){
+    const plan=planShorten(steps);
+    const info=$("#brkInfo"), prev=$("#brkPreview");
+    if(!plan.length){
+      info.textContent="nothing to shorten — every sequence is already at the minimum";
+      prev.innerHTML=""; return;
+    }
+    for(const [i,,nw] of plan) setBreakSeq(i,nw);
+    const byLen={};
+    for(const [,old] of plan) byLen[old.length]=(byLen[old.length]||0)+1;
+    info.textContent="staged for "+plan.length+" of "+COUNT+" enemies";
+    prev.innerHTML='<p class="note"><b>'+plan.length+' affected</b> — '+
+      Object.keys(byLen).sort((a,b)=>b-a).map(k=>byLen[k]+" x "+k+"-hit").join(", ")+
+      '</p><div class="brklist">'+plan.map(([i,old,nw])=>
+        '<div><span class="bi">'+String(i).padStart(3,"0")+'</span> '+
+        esc(cat[i]?cat[i].name:String(i))+' <span class="bs">'+old+' → '+nw+'</span></div>'
+      ).join("")+'</div>';
+    loadEnemy(); epending();
+    toastFn("✓ Break sequences shortened for "+plan.length+" enemies — review & Save");
+  }
+
+  // ---- full-table JSON (mirrors x2patch.enemy_json / parse_enemy_json) ----
+  const TABLE_FORMAT="x2-enemy-table", TABLE_VERSION=1;
+  function tableDoc(){
+    const rows=[];
+    for(let i=0;i<COUNT;i++){
+      const row={index:i,name:(cat[i]&&cat[i].name)||"?"};
+      SFIELDS.concat(RFIELDS).forEach(([l,o,w])=>{ row[l]=get(tableOf(l),i,o,w); });
+      row["break"]=breakSeq(i);
+      row.zones=zoneMaskText(get(S,i,ZMASK_OFF,1));
+      row.affinity={}; AFIELDS.forEach(([l,o,w])=>{ row.affinity[l]=affPct(get(S,i,o,w)); });
+      row.resist={};   RFIELDS_RES.forEach(([l,o,w])=>{ row.resist[l]=get(S,i,o,w); });
+      const dv=(f)=>{const sp=DFIELDS.find(x=>x[0]===f); return sp?get(R,i,sp[1],sp[2]):0;};
+      row.drop={rate:dv("DropRate"),category:dv("DropCat"),item:dv("DropItem"),
+                _name:dropLabel(dv("DropCat"),dv("DropItem"),dv("DropRate"))};
+      row.rare={rate:dv("RareRate"),category:dv("RareCat"),item:dv("RareItem"),
+                _name:dropLabel(dv("RareCat"),dv("RareItem"),dv("RareRate"))};
+      rows.push(row);
+    }
+    return {format:TABLE_FORMAT,version:TABLE_VERSION,game:serialOf(PRIMARY),note:"",
+      count:COUNT,
+      _help:"Edit values in place. 'break' is zone letters (A/B/C, max "+BRK_SLOTS+
+            ", empty = cannot be broken). Affinities are percentages in "+AFF_SCALE+
+            "% steps; negative absorbs. '_name' fields are read-only hints, ignored on import.",
+      enemies:rows};
+  }
+  // strict on purpose: this writes into a 4.6 GB disc image
+  function parseTable(doc){
+    const cap=(w)=>w===4?0xFFFFFFFF:w===2?0xFFFF:0xFF;
+    if(!doc||typeof doc!=="object"||doc.format!==TABLE_FORMAT)
+      throw new Error("not a "+TABLE_FORMAT+" file");
+    if(doc.version!==TABLE_VERSION)
+      throw new Error("table version "+doc.version+" is not supported (this build reads "+TABLE_VERSION+")");
+    if(!Array.isArray(doc.enemies)||!doc.enemies.length) throw new Error("no 'enemies' array");
+    const plain={}; SFIELDS.concat(RFIELDS).forEach(f=>plain[f[0]]=f);
+    const out={};
+    doc.enemies.forEach((row,n)=>{
+      if(!row||typeof row!=="object") throw new Error("row "+n+": expected an object");
+      const i=row.index;
+      if(!Number.isInteger(i)||i<0||i>=COUNT)
+        throw new Error("row "+n+": 'index' must be 0.."+(COUNT-1)+", got "+JSON.stringify(i));
+      const where="enemy "+i+" ("+(row.name||"?")+")";
+      const num=(label,v,limit)=>{
+        if(!Number.isInteger(v)) throw new Error(where+": "+label+" must be a whole number, got "+JSON.stringify(v));
+        if(v<0||v>limit) throw new Error(where+": "+label+" must be 0.."+limit+", got "+v);
+        return v;
+      };
+      const edits={};
+      for(const l in plain) if(l in row) edits[l]=num(l,row[l],cap(plain[l][2]));
+      if("break" in row){
+        const t=String(row["break"]||"");
+        const syms=t.toUpperCase().split("").filter(c=>c!=="-"&&c.trim()!=="");
+        const bad=syms.filter(c=>!(c in ZBITS));
+        if(bad.length) throw new Error(where+": break — not a zone letter: "+bad.join("")+" (use A, B or C)");
+        if(syms.length>BRK_SLOTS) throw new Error(where+": break — at most "+BRK_SLOTS+" hits");
+        for(let k=0;k<BRK_SLOTS;k++) edits["Brk"+(k+1)]=k<syms.length?ZBITS[syms[k]]:0;
+      }
+      if(row.affinity!==undefined){
+        if(typeof row.affinity!=="object"||!row.affinity) throw new Error(where+": 'affinity' must be an object");
+        for(const el in row.affinity){
+          if(!AFIELDS.some(f=>f[0]===el))
+            throw new Error(where+": unknown element "+JSON.stringify(el)+"; expected one of "+AFF_ELEMENTS.join(", "));
+          const pct=row.affinity[el];
+          if(!Number.isInteger(pct)) throw new Error(where+": affinity "+el+" must be a whole number of percent, got "+JSON.stringify(pct));
+          if(pct%AFF_SCALE) throw new Error(where+": affinity "+el+" must be a multiple of "+AFF_SCALE+"%, got "+pct);
+          if(pct< -128*AFF_SCALE || pct> 127*AFF_SCALE)
+            throw new Error(where+": affinity "+el+" is out of range, got "+pct);
+          edits[el]=affByte(pct);
+        }
+      }
+      if(row.resist!==undefined){
+        if(typeof row.resist!=="object"||!row.resist) throw new Error(where+": 'resist' must be an object");
+        for(const st in row.resist){
+          if(!RFIELDS_RES.some(f=>f[0]===st))
+            throw new Error(where+": unknown status "+JSON.stringify(st)+"; expected one of "+RFIELDS_RES.map(f=>f[0]).join(", "));
+          edits[st]=num("resist "+st,row.resist[st],0xFF);
+        }
+      }
+      [["drop","Drop"],["rare","Rare"]].forEach(([key,pre])=>{
+        const d=row[key];
+        if(d===undefined) return;
+        if(typeof d!=="object"||!d) throw new Error(where+": '"+key+"' must be an object");
+        [["rate",pre+"Rate"],["category",pre+"Cat"],["item",pre+"Item"]].forEach(([k,l])=>{
+          if(k in d) edits[l]=num(key+"."+k,d[k],0xFF);
+        });
+      });
+      if(Object.keys(edits).length) out[i]=edits;
+    });
+    if(!Object.keys(out).length) throw new Error("document contains no editable values");
+    return out;
+  }
+  function exportTable(){
+    const doc=tableDoc();
+    const blob=new Blob([JSON.stringify(doc,null,1)+"\n"],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download="xenosaga2-enemies.json";
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    toastFn("✓ Exported "+doc.count+" enemies");
+  }
+  async function importTable(e){
+    const f=e.target.files&&e.target.files[0];
+    e.target.value="";
+    if(!f) return;
+    let edits;
+    try{ edits=parseTable(JSON.parse(await f.text())); }
+    catch(err){ toastFn("✗ "+err.message,true);
+      $("#estat").textContent="✗ "+err.message; $("#estat").className="status err"; return; }
+    // stage rather than write, and report what actually differs
+    let recs=0, fields=0;
+    try{
+    for(const k in edits){
+      const i=+k; let touched=false;
+      for(const lbl in edits[k]){
+        const sp=specOf(lbl);
+        if(!sp) throw new Error("internal: no field spec for "+lbl);
+        const T=tableOf(lbl);
+        if(get(T,i,sp[1],sp[2])!==edits[k][lbl]){ put(T,i,sp[1],sp[2],edits[k][lbl]); fields++; touched=true; }
+      }
+      if(touched) recs++;
+    }
+    }catch(err){ toastFn("✗ "+err.message,true);
+      $("#estat").textContent="✗ "+err.message; $("#estat").className="status err"; return; }
+    loadEnemy(); epending();
+    const msg = fields ? ("✓ Staged "+fields+" field(s) across "+recs+" enemies — review & Save")
+                       : "Imported: every value already matches";
+    $("#estat").textContent=msg; $("#estat").className="status ok";
+    toastFn(msg);
+  }
+
   function diffCount(){let n=0;
     for(const T of [S,R]){for(let i=0;i<T.buf.length;i++)if(T.buf[i]!==T.orig[i]){n++;while(i<T.buf.length&&T.buf[i]!==T.orig[i])i++;}}
     return n;}
   function epending(){const n=diffCount();const b=$("#ebadge");if(b)b.textContent=n?"("+n+")":"";
-    const s=$("#esave"),r=$("#erev");if(s)s.disabled=!n;if(r)r.disabled=!n;}
+    const s=$("#esave"),r=$("#erev");if(s)s.disabled=!n;if(r)r.disabled=!n;
+    const d=$("#edirty");
+    if(d){ d.hidden=!n; d.textContent=n?("● "+n+" unsaved change"+(n===1?"":"s")):""; }}
   function diffRuns(T){const runs=[];let i=0;while(i<T.buf.length){if(T.buf[i]!==T.orig[i]){let j=i;
     while(j<T.buf.length&&T.buf[j]!==T.orig[j])j++;runs.push([i,j]);i=j;}else i++;}return runs;}
 

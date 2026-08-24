@@ -72,12 +72,30 @@ tr.gearrow .fl{color:var(--acc2)} tr.gearrow .fl::before{content:"⚙ "}
 .es td.name{color:var(--mut)}
 .gpick{cursor:pointer;text-decoration:underline dotted}
 .note{color:var(--mut);font-size:12.5px;margin:10px 0 0}
+/* Sticky bottom action bar. Mirrors the Suikoden 3 editor's convention so the
+   suite behaves the same way: opaque (a translucent fade made buttons look like
+   they overlapped the fields), top border + shadow, and the page gets scroll
+   padding so a focused input never hides behind it. */
+.actionbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;position:sticky;bottom:0;
+  background:var(--panel);border-top:1px solid var(--line);
+  box-shadow:0 -7px 16px -10px rgba(0,0,0,.55);
+  padding:12px 0 calc(8px + env(safe-area-inset-bottom));margin-top:14px;z-index:5}
+.actionbar .sep{width:1px;align-self:stretch;background:var(--line);margin:2px 3px}
+.pill.dirty{border-color:var(--warnbd);color:var(--warn);cursor:default;font-weight:600}
+html{scroll-padding-bottom:96px}
+
 /* enemy picker filter — 125 records is too many to scroll */
 .findbox{display:inline-flex;align-items:center;gap:3px;margin-left:6px}
 /* inherits the shared select/input rule; only the width and the native
    clear-button suppression are specific to it */
 .findbox input[type=search]{width:22ch;text-align:left}
 .findbox input[type=search]::-webkit-search-cancel-button{display:none}
+/* impact preview for bulk break shortening */
+.brklist{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:8px;
+  padding:6px 9px;margin-top:6px;font-size:12.5px}
+.brklist div{padding:1px 0}
+.brklist .bi{color:var(--mut);font-family:ui-monospace,Menlo,Consolas,monospace}
+.brklist .bs{color:var(--warn);font-family:ui-monospace,Menlo,Consolas,monospace;float:right}
 /* one row per disc in the open step */
 .discrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px}
 .discrow .status{flex:1 1 auto;min-width:12ch}

@@ -16,7 +16,7 @@ Usage examples:
   python3 x2patch.py find-bytes "ISO/..." --hex "58 65 6E 6F"
   python3 x2patch.py dump-region "ISO/..." --off 0x8000 --len 256
 """
-import argparse, json, os, struct, sys, shutil, datetime, re
+import argparse, json, os, struct, sys, shutil, datetime, re, collections
 import x2fields as F
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -513,14 +513,20 @@ def _confirm_base(iso, cat, base):
 #   resolution  = P(diff value | diff zone string)   — <1.0 means lossy (a mask
 #                                                      or a length, not the seq)
 # ---------------------------------------------------------------------------
-def read_records(iso, base=None, count=None, stride=None):
+def read_records(iso, base=None, count=None, stride=None, tail=None):
     """All raw stat records as a list of bytes. Defaults to THIS disc's base —
-    hardcoding disc 1's would read 22 records off on a disc-2 image."""
+    hardcoding disc 1's would read 22 records off on a disc-2 image.
+
+    Each returned record is `stride + tail` bytes: the affinity and resistance
+    blocks overhang the record, so a plain stride-sized slice truncates them and
+    leaves the LAST record short. `tail=0` gives the old exact-stride behaviour
+    for callers that only want the nominal record."""
     base = iso.tables["stats"] if base is None else base
     count = F.ENEMY_COUNT if count is None else count
     stride = F.ENEMY_STRIDE if stride is None else stride
-    blob = iso.read(base, count * stride)
-    return [blob[i * stride:(i + 1) * stride] for i in range(count)]
+    tail = F.enemy_record_tail() if tail is None else tail
+    blob = iso.read(base, count * stride + tail)
+    return [blob[i * stride:i * stride + stride + tail] for i in range(count)]
 
 def _packed2_ok(v):
     """Value decodes as up to four 2-bit zone symbols (1=A,2=B,3=C) with 0
@@ -986,6 +992,223 @@ def _sync_to(primary_path, other_path):
         print(f"synced onto disc {n}: already identical")
     return recs, fields
 
+# ---------------------------------------------------------------------------
+# FULL-TABLE JSON — for bulk editing in a text editor or a spreadsheet.
+#
+# Patch files carry only the deltas, as raw bytes, which is right for sharing a
+# mod but painful to author. This is the whole bestiary in readable units:
+# affinities as signed percentages, the break sequence as letters, drops with the
+# item name alongside the id. Import is DELIBERATELY STRICT — it writes to a disc
+# image, so an unknown field, an out-of-range value or a bad break sequence is an
+# error, never something to skip quietly.
+TABLE_FORMAT, TABLE_VERSION = "x2-enemy-table", 1
+
+def enemy_json(iso, note=""):
+    """The whole enemy table as a readable document."""
+    names = F.enemy_names()
+    rows = []
+    for i in range(F.ENEMY_COUNT):
+        rec = read_enemy(iso, i)
+        row = {"index": i, "name": names.get(i, "?")}
+        for lbl, _o, _w, _k in F.ENEMY_FIELDS + F.REWARD_FIELDS:
+            row[lbl] = rec[lbl]
+        row["break"] = break_seq_of(rec)
+        row["zones"] = F.zone_mask_text(rec["Zones"])
+        row["affinity"] = {e: F.affinity_pct(rec[e]) for e in F.AFFINITY_ELEMENTS}
+        row["resist"] = {n: rec[n] for n in F.STATUS_RES_NAMES}
+        row["drop"] = {"rate": rec["DropRate"], "category": rec["DropCat"],
+                       "item": rec["DropItem"],
+                       "_name": F.drop_item_name(rec["DropCat"], rec["DropItem"])}
+        row["rare"] = {"rate": rec["RareRate"], "category": rec["RareCat"],
+                       "item": rec["RareItem"],
+                       "_name": F.drop_item_name(rec["RareCat"], rec["RareItem"])}
+        rows.append(row)
+    return {"format": TABLE_FORMAT, "version": TABLE_VERSION,
+            "game": detect_serial(iso), "note": note,
+            "count": F.ENEMY_COUNT,
+            "_help": "Edit values in place. 'break' is zone letters (A/B/C, max "
+                     f"{F.BREAK_SEQ_SLOTS}, empty = cannot be broken). Affinities are "
+                     "percentages in 5% steps; negative absorbs. '_name' fields are "
+                     "read-only hints and are ignored on import.",
+            "enemies": rows}
+
+def parse_enemy_json(doc):
+    """Validate a table document -> {record index: {field label: raw value}}.
+
+    Raises ValueError with a row-specific message on anything unexpected."""
+    if not isinstance(doc, dict) or doc.get("format") != TABLE_FORMAT:
+        raise ValueError(f"not a {TABLE_FORMAT} file")
+    if doc.get("version") != TABLE_VERSION:
+        raise ValueError(f"table version {doc.get('version')!r} is not supported "
+                         f"(this build reads version {TABLE_VERSION})")
+    rows = doc.get("enemies")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("no 'enemies' array")
+
+    plain = {f[0]: f for f in F.ENEMY_FIELDS + F.REWARD_FIELDS}
+    caps = {f[0]: (1 << (8 * f[2])) - 1 for f in
+            (F.ENEMY_FIELDS + F.REWARD_FIELDS + F.ENEMY_AFFINITY_FIELDS
+             + F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.DROP_FIELDS)}
+    out = {}
+    for n, row in enumerate(rows):
+        if not isinstance(row, dict):
+            raise ValueError(f"row {n}: expected an object")
+        i = row.get("index")
+        if not isinstance(i, int) or isinstance(i, bool) or not 0 <= i < F.ENEMY_COUNT:
+            raise ValueError(f"row {n}: 'index' must be 0..{F.ENEMY_COUNT - 1}, "
+                             f"got {i!r}")
+        where = f"enemy {i} ({row.get('name', '?')})"
+        edits = {}
+
+        def num(label, value, limit):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"{where}: {label} must be a whole number, got {value!r}")
+            if not 0 <= value <= limit:
+                raise ValueError(f"{where}: {label} must be 0..{limit}, got {value}")
+            return value
+
+        for lbl in plain:
+            if lbl in row:
+                edits[lbl] = num(lbl, row[lbl], caps[lbl])
+
+        if "break" in row:
+            try:
+                slots = F.encode_break_seq(row["break"])
+            except ValueError as e:
+                raise ValueError(f"{where}: break — {e}")
+            edits.update({f"Brk{k + 1}": v for k, v in enumerate(slots)})
+
+        aff = row.get("affinity")
+        if aff is not None:
+            if not isinstance(aff, dict):
+                raise ValueError(f"{where}: 'affinity' must be an object")
+            for el, pct in aff.items():
+                if el not in F.AFFINITY_ELEMENTS:
+                    raise ValueError(f"{where}: unknown element {el!r}; expected one "
+                                     f"of {', '.join(F.AFFINITY_ELEMENTS)}")
+                if isinstance(pct, bool) or not isinstance(pct, int):
+                    raise ValueError(f"{where}: affinity {el} must be a whole "
+                                     f"number of percent, got {pct!r}")
+                if not F.AFFINITY_PCT_MIN <= pct <= F.AFFINITY_PCT_MAX:
+                    raise ValueError(f"{where}: affinity {el} must be "
+                                     f"{F.AFFINITY_PCT_MIN}..{F.AFFINITY_PCT_MAX}%, got {pct}")
+                if pct % F.ENEMY_AFFINITY_SCALE:
+                    raise ValueError(f"{where}: affinity {el} must be a multiple of "
+                                     f"{F.ENEMY_AFFINITY_SCALE}% (stored as a byte "
+                                     f"x{F.ENEMY_AFFINITY_SCALE}), got {pct}")
+                edits[el] = F.affinity_byte(pct)
+
+        res = row.get("resist")
+        if res is not None:
+            if not isinstance(res, dict):
+                raise ValueError(f"{where}: 'resist' must be an object")
+            for st, v in res.items():
+                if st not in F.STATUS_RES_NAMES:
+                    raise ValueError(f"{where}: unknown status {st!r}; expected one "
+                                     f"of {', '.join(F.STATUS_RES_NAMES)}")
+                edits[st] = num(f"resist {st}", v, 0xFF)
+
+        for key, pre in (("drop", "Drop"), ("rare", "Rare")):
+            d = row.get(key)
+            if d is None:
+                continue
+            if not isinstance(d, dict):
+                raise ValueError(f"{where}: {key!r} must be an object")
+            for k, lbl in (("rate", pre + "Rate"), ("category", pre + "Cat"),
+                           ("item", pre + "Item")):
+                if k in d:
+                    edits[lbl] = num(f"{key}.{k}", d[k], 0xFF)
+        if edits:
+            out[i] = edits
+    if not out:
+        raise ValueError("document contains no editable values")
+    return out
+
+def cmd_shorten_breaks(a):
+    """Drop every break sequence by N hits — the combo loop's tax, cut directly."""
+    names = F.enemy_names()
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        seqs = {i: break_seq_of(read_enemy(iso, i)) for i in range(F.ENEMY_COUNT)}
+    plan = F.plan_break_shortening(seqs, a.steps)
+    if not plan:
+        print("nothing to shorten — every sequence is already at the minimum")
+        return 0
+    print(f"shortening by {a.steps} hit(s): {len(plan)} of {F.ENEMY_COUNT} records\n")
+    by_len = collections.Counter(len(o) for _i, o, _n in plan)
+    print("  affected by original length: " +
+          ", ".join(f"{n}-hit x{c}" for n, c in sorted(by_len.items(), reverse=True)))
+    print()
+    for i, old, new in plan[:a.show]:
+        print(f"  {i:3d} {names.get(i, '?'):<24} {old:<5} → {new}")
+    if len(plan) > a.show:
+        print(f"  … {len(plan) - a.show} more (use --show)")
+    if a.dry_run:
+        print("\n(dry run — nothing written)")
+        return 0
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    n = 0
+    with Iso(a.iso, write=True) as iso:
+        for i, _old, new in plan:
+            slots = F.encode_break_seq(new)
+            n += write_enemy(iso, i, {f"Brk{k + 1}": v for k, v in enumerate(slots)})
+    print(f"\n✓ wrote {n} field(s) across {len(plan)} record(s)")
+    if a.also:
+        _sync_to(a.iso, a.also)
+    return 0
+
+def cmd_export_json(a):
+    """Dump the whole enemy table as readable JSON for bulk editing."""
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        doc = enemy_json(iso, note=a.note or "")
+    with open(a.out, "w", encoding="utf-8") as f:
+        json.dump(doc, f, indent=1, ensure_ascii=False)
+        f.write("\n")
+    print(f"wrote {a.out} — {doc['count']} enemies")
+    return 0
+
+def cmd_import_json(a):
+    """Validate a table document and write the values it differs on."""
+    with open(a.json, encoding="utf-8") as f:
+        doc = json.load(f)
+    try:
+        edits = parse_enemy_json(doc)
+    except ValueError as e:
+        raise SystemExit(f"rejected: {e}")
+    names = F.enemy_names()
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        delta = {}
+        for i, fields in sorted(edits.items()):
+            cur = read_enemy(iso, i)
+            d = {k: (cur[k], v) for k, v in fields.items() if cur.get(k) != v}
+            if d:
+                delta[i] = d
+    if not delta:
+        print("every value already matches the disc — nothing to write")
+        return 0
+    total = sum(len(v) for v in delta.values())
+    print(f"{len(delta)} record(s), {total} field(s) differ:")
+    for i, d in sorted(delta.items())[:a.show]:
+        body = "  ".join(f"{k} {o}→{n}" for k, (o, n) in sorted(d.items()))
+        print(f"  {i:3d} {names.get(i, '?'):<24} {body}")
+    if len(delta) > a.show:
+        print(f"  … {len(delta) - a.show} more (use --show)")
+    if a.dry_run:
+        print("\n(dry run — nothing written)")
+        return 0
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        n = sum(write_enemy(iso, i, {k: v[1] for k, v in d.items()})
+                for i, d in delta.items())
+    print(f"wrote {n} field(s) across {len(delta)} record(s)")
+    if a.also:
+        _sync_to(a.iso, a.also)
+    return 0
+
 def cmd_sync(a):
     """Copy the enemy tables from one disc onto the other."""
     with Iso(a.src) as src, Iso(a.dst) as dst:
@@ -1384,6 +1607,31 @@ def main():
     sp.add_argument("--also", metavar="OTHER_ISO",
                     help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_apply_patch)
+
+    sp = sub.add_parser("shorten-breaks",
+                        help="drop every enemy's break sequence by N hits")
+    sp.add_argument("iso")
+    sp.add_argument("--steps", type=int, default=1,
+                    help="hits to remove (default 1); never empties a sequence")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--show", type=int, default=15)
+    sp.add_argument("--backup", action="store_true")
+    sp.add_argument("--also", metavar="OTHER_ISO")
+    sp.set_defaults(fn=cmd_shorten_breaks)
+
+    sp = sub.add_parser("export-json", help="dump the whole enemy table as readable JSON")
+    sp.add_argument("iso"); sp.add_argument("--out", required=True)
+    sp.add_argument("--note", default="")
+    sp.set_defaults(fn=cmd_export_json)
+
+    sp = sub.add_parser("import-json", help="validate and apply an edited enemy table")
+    sp.add_argument("iso"); sp.add_argument("json")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--show", type=int, default=20)
+    sp.add_argument("--backup", action="store_true")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="after importing, copy the result onto the other disc")
+    sp.set_defaults(fn=cmd_import_json)
 
     sp = sub.add_parser("skills", help="list the skill/tech catalog read off the disc")
     sp.add_argument("--grep", help="filter by name, tag or description text")

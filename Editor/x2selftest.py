@@ -121,11 +121,18 @@ def build_fixture(path, disc=1):
                 f.seek(skb + k * F.SKILL_STRIDE)
                 f.write(rec)
 
-        # The LAST record's affinity block runs four bytes past the table, into
-        # the gap before the name table — the retail disc really does store them
-        # there, so a faithful fixture has to as well.
+        # The LAST record's affinity (+0x58) and status-resistance (+0x6C)
+        # blocks run past the table, into the gap before the name table — the
+        # retail disc really does store them there, so a faithful fixture must
+        # too. Getting this wrong is what made the web editor show Dark Erde
+        # Kaiser's Ice/Pierce/Slash/Hit and every resistance as blank.
+        tail = bytearray(F.enemy_record_tail())
+        for k in range(4):                       # affinity elements 4..7
+            tail[k] = F.affinity_byte(100)
+        for _n, off, _w, _k in F.STATUS_RES_FIELDS:
+            tail[off - F.ENEMY_STRIDE] = 50      # a distinct, checkable value
         f.seek(t["stats"] + F.ENEMY_COUNT * F.ENEMY_STRIDE)
-        f.write(bytes([F.affinity_byte(100)] * 4))
+        f.write(bytes(tail))
     return path
 
 
@@ -330,6 +337,124 @@ def t_drops(iso_path, _tmp):
         # the drop bytes share a row with EXP/SP/CP — those must be untouched
         for lbl2 in ("EXP", "SP", "CP"):
             eq(rec[lbl2], before[lbl2], f"{lbl2} untouched by a drop write")
+
+
+@check("bulk break shortening: plan, floor, and idempotence")
+def t_shorten(_iso, _tmp):
+    """Trims from the END so the opening zone stays right, never empties a
+    sequence (empty means 'cannot be broken' — a harder fight, not a faster
+    one), and never resurrects one that is already empty."""
+    eq(F.shorten_break_seq("CBAA", 1), "CBA", "4 -> 3")
+    eq(F.shorten_break_seq("CBAA", 2), "CB", "4 -> 2 in one go")
+    eq(F.shorten_break_seq("CBB", 1), "CB", "3 -> 2")
+    eq(F.shorten_break_seq("CB", 1), "C", "2 -> 1")
+    eq(F.shorten_break_seq("C", 1), "C", "1 stays 1 — never emptied")
+    eq(F.shorten_break_seq("", 1), "", "unbreakable stays unbreakable")
+    eq(F.shorten_break_seq("CBAA", 99), "C", "over-shortening floors at 1")
+
+    plan = F.plan_break_shortening({0: "BB", 1: "CBAA", 2: "", 3: "C"}, 1)
+    eq(plan, [(0, "BB", "B"), (1, "CBAA", "CBA")], "plan lists only real changes")
+    # applying then re-planning converges
+    after = {i: (dict((a, c) for a, _b, c in plan).get(i, s))
+             for i, s in {0: "BB", 1: "CBAA", 2: "", 3: "C"}.items()}
+    eq(F.plan_break_shortening(after, 1), [(1, "CBA", "CB")], "second pass keeps going")
+    eq(F.plan_break_shortening({0: "B", 1: "", 2: "C"}, 1), [], "at the floor: no-op")
+
+
+@check("enemy table JSON round-trips and validates", path=True)
+def t_table_json(_shared, tmp):
+    """Full-table JSON for bulk editing. Import is strict on purpose: it writes
+    to a disc image, so anything unexpected is an error, not a skipped row."""
+    import json as _json
+    # own fixture: this check writes, and later checks read the shared one
+    iso_path = build_fixture(os.path.join(tmp, "tablejson.iso"), disc=1)
+    with X.Iso(iso_path) as iso:
+        doc = X.enemy_json(iso)
+    eq(doc["count"], F.ENEMY_COUNT, "every enemy exported")
+    eq(len(doc["enemies"]), F.ENEMY_COUNT, "row count")
+    row = doc["enemies"][6]
+    eq(row["index"], 6, "rows carry their index")
+    for key in ("affinity", "resist", "drop", "rare", "break", "HP"):
+        eq(key in row, True, f"row exposes {key}")
+
+    # a clean re-import of an untouched export changes nothing
+    with X.Iso(iso_path) as iso:
+        parsed = X.parse_enemy_json(_json.loads(_json.dumps(doc)))
+        changed = [i for i, f in parsed.items()
+                   for k, v in f.items() if X.read_enemy(iso, i).get(k) != v]
+    eq(changed, [], "round-trip is a no-op against the disc it came from")
+
+    # edits survive the write in the units they were written in
+    row["HP"] = 4242
+    row["break"] = "CB"
+    row["affinity"]["Fire"] = -200
+    row["resist"]["Slow"] = 99
+    edits = X.parse_enemy_json(doc)
+    with X.Iso(iso_path, write=True) as iso:
+        X.write_enemy(iso, 6, edits[6])
+    with X.Iso(iso_path) as iso:
+        rec = X.read_enemy(iso, 6)
+        eq(rec["HP"], 4242, "HP")
+        eq(X.break_seq_of(rec), "CB", "break sequence")
+        eq(F.affinity_pct(rec["Fire"]), -200, "negative affinity in percent")
+        eq(rec["Slow"], 99, "status resistance")
+
+    def rejects(mutate, what):
+        bad = _json.loads(_json.dumps(doc))
+        mutate(bad)
+        try:
+            X.parse_enemy_json(bad)
+            raise AssertionError(f"accepted {what}")
+        except ValueError:
+            pass
+    rejects(lambda d: d.update(format="nope"), "a wrong format tag")
+    rejects(lambda d: d.update(version=99), "a future version")
+    rejects(lambda d: d["enemies"][0].update(index=9999), "an out-of-range index")
+    rejects(lambda d: d["enemies"][0].update(HP=-1), "a negative value")
+    rejects(lambda d: d["enemies"][0].update(HP="lots"), "a non-numeric value")
+    rejects(lambda d: d["enemies"][0].update(**{"break": "XY"}), "a bad zone letter")
+    rejects(lambda d: d["enemies"][0]["affinity"].update(Fire=103), "an off-step affinity")
+    rejects(lambda d: d["enemies"][0]["affinity"].update(Flame=100), "an unknown element")
+    rejects(lambda d: d["enemies"][0]["resist"].update(Nope=1), "an unknown status")
+
+
+@check("the LAST record's overhanging fields are reachable", path=True)
+def t_tail(_shared, tmp):
+    """The affinity and resistance blocks end past the nominal record, so the
+    final record's fields live beyond count*stride. Anything that slices the
+    table into a fixed buffer must add enemy_record_tail() bytes — the web
+    editor didn't, and showed Dark Erde Kaiser's Ice/Pierce/Slash/Hit and every
+    resistance as blank-and-modified."""
+    reach = max(off + w for (_l, off, w, _k) in
+                (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.ZONE_FIELDS
+                 + F.STATUS_RES_FIELDS))
+    eq(F.enemy_record_tail(), max(0, reach - F.ENEMY_STRIDE), "tail matches the fields")
+    eq(F.enemy_record_tail() > 0, True, "some field really does overhang")
+
+    # its own fixture: this check writes to the last record, and the affinity
+    # check that runs later expects the shared one untouched
+    iso_path = build_fixture(os.path.join(tmp, "tail.iso"), disc=1)
+    last = F.ENEMY_COUNT - 1
+    with X.Iso(iso_path) as iso:
+        rec = X.read_enemy(iso, last)
+        for el in F.AFFINITY_ELEMENTS:
+            eq(F.affinity_pct(rec[el]), 100, f"last record {el} readable")
+        for n in F.STATUS_RES_NAMES:
+            eq(rec[n], 50, f"last record {n} readable")
+        # read_records must hand back the overhang too, or scanners truncate it
+        recs = X.read_records(iso)
+        eq(len(recs[last]), F.ENEMY_STRIDE + F.enemy_record_tail(), "sliced length")
+        for _n, off, _w, _k in F.STATUS_RES_FIELDS:
+            eq(recs[last][off], 50, "resistance survives the record slice")
+
+    # and a write to the last record must land where the read came from
+    with X.Iso(iso_path, write=True) as iso:
+        X.write_enemy(iso, last, {F.AFFINITY_ELEMENTS[7]: F.affinity_byte(-100),
+                                  "Junk": 77})
+    with X.Iso(iso_path) as iso:
+        rec = X.read_enemy(iso, last)
+        eq(F.affinity_pct(rec[F.AFFINITY_ELEMENTS[7]]), -100, "last-record affinity write")
+        eq(rec["Junk"], 77, "last-record resistance write")
 
 
 @check("status resistances read and write at their own offsets", path=True)

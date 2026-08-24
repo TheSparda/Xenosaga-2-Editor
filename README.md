@@ -17,12 +17,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   Drive). Powered by the real Python engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
   one**. Every enemy's **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle
-  rewards** (EXP, SP, CP), **damage affinities** (per element, including absorb) and
-  **Break sequence**, **status resistances** and **item drops** for all 125 records, written
-  **in place** into your disc images — plus
-  one-click **battle-pacing profiles** that retune what the stock→break→boost
-  combo loop costs, **shareable patch files**, and a **compare-to-retail** view that shows
-  exactly how your disc differs from an unmodified one (and can restore it).
+  rewards** (EXP, SP, CP), **damage affinities**, **status resistances**, **item drops** and
+  **Break sequences** for all 125 records, written **in place** into your disc images — plus
+  one-click **battle-pacing profiles**, **bulk Break shortening**, **JSON export/import** for
+  spreadsheet-scale edits, **shareable patch files**, and a **compare-to-retail** view that
+  shows exactly how your disc differs from an unmodified one (and can restore it).
 - **Reference** — searchable bestiary (verified stats & rewards, filter by ID band or major
   fights, sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc.
 - **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
@@ -107,6 +106,27 @@ Every enemy carries a percentage per status effect — **Slow, Blind, Heavy, Wea
 EthDD, ResDw, Junk** — and all eight are editable. They're verified against a strategy
 guide at 98.6% agreement (479 of 486 published values). The block holds three more bytes
 we haven't identified, so they aren't shown.
+
+### Bulk editing
+
+Two ways to change a lot at once:
+
+- **Shorten every Break sequence** by 1–3 hits, from the battle-pacing card. It shows exactly
+  which enemies it touches and what each becomes before you commit. Trimming takes hits off
+  the *end*, so the opening zone you already know stays right; a 1-hit sequence is left alone
+  and an unbreakable enemy stays unbreakable, because emptying a sequence makes a fight
+  harder, not faster.
+- **Export the whole table as JSON**, edit it in a text editor or spreadsheet, and import it
+  back. Values are in readable units — affinities as signed percentages, Break as zone
+  letters, drops with the item name alongside the id. Import is strict on purpose: an unknown
+  element, an off-step percentage or a bad zone letter is rejected with the enemy named,
+  rather than half-applied.
+
+```bash
+python3 x2patch.py shorten-breaks "…(Disc 1).iso" --steps 1 --dry-run
+python3 x2patch.py export-json "…(Disc 1).iso" --out enemies.json
+python3 x2patch.py import-json "…(Disc 1).iso" enemies.json --dry-run
+```
 
 ### Item drops
 
