@@ -3,8 +3,9 @@
 // a Web Share target hand-off.
 const CACHE = "x2editor-v1.3.0";
 const SHARE_CACHE = "x2editor-share";
-const SHELL = ["./","index.html","style.css","app.js","iso.js","ref.js","manifest.webmanifest",
-  "../Editor/x2save.py","../Editor/x2fields.py","../Editor/x2_consumables.json",
+const SHELL = ["./","index.html","style.css","app.js","iso.js","ref.js","tables.json",
+  "manifest.webmanifest",
+  "../Editor/x2save.py","../Editor/x2mc.py","../Editor/x2fields.py","../Editor/x2_consumables.json",
   "../Editor/x2_keyitems.json","../Editor/x2_es_equip.json","../Editor/x2_enemies.json"];
 
 self.addEventListener("install",e=>{self.skipWaiting();

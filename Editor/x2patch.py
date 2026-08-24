@@ -16,7 +16,7 @@ Usage examples:
   python3 x2patch.py find-bytes "ISO/..." --hex "58 65 6E 6F"
   python3 x2patch.py dump-region "ISO/..." --off 0x8000 --len 256
 """
-import argparse, os, struct, sys, shutil, datetime, re
+import argparse, json, os, struct, sys, shutil, datetime, re
 import x2fields as F
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -187,7 +187,8 @@ def backup(path):
 # parallel rewards table at F.REWARD_TABLE_OFF — both indexed by record number.
 # ---------------------------------------------------------------------------
 def _enemy_tables(i):
-    return ((F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE, F.ENEMY_FIELDS),
+    return ((F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE,
+             F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS),
             (F.REWARD_TABLE_OFF + i * F.REWARD_STRIDE, F.REWARD_FIELDS))
 
 def read_enemy(iso, i):
@@ -196,6 +197,101 @@ def read_enemy(iso, i):
         for (lbl, off, w, _k) in fields:
             out[lbl] = int.from_bytes(iso.read(base + off, w), "little")
     return out
+
+def read_enemy_id(iso, i):
+    """The record's own enemy id (+0x52). Read from the disc rather than taken
+    from the shipped catalog so a partly-modified disc still classifies right."""
+    off = F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE + F.ENEMY_ID_OFF
+    return int.from_bytes(iso.read(off, 2), "little")
+
+def is_boss(enemy_id):
+    return enemy_id >= F.BOSS_ID_MIN
+
+
+# ---------------------------------------------------------------------------
+# Vanilla comparison + shareable patch files.
+#
+# x2_enemies.json holds the verified retail values, so a disc can be diffed
+# against it without a pristine copy to compare with — which also means edits can
+# be exported as a small text file others can apply to their own disc.
+# ---------------------------------------------------------------------------
+PATCH_FORMAT = "x2-enemy-patch"
+PATCH_VERSION = 1
+
+def vanilla_enemy(i, catalog=None):
+    """The retail values for record `i`, keyed by field label (affinities are not
+    in the catalog, so they are absent)."""
+    cat = (catalog if catalog is not None else F.enemy_catalog()).get(i, {})
+    return {label: cat[key] for label, key in F.ENEMY_CATALOG_KEY.items()
+            if key in cat}
+
+def diff_vanilla(iso):
+    """{record: {field: (disc value, retail value)}} for everything that differs."""
+    cat = F.enemy_catalog()
+    out = {}
+    for i in range(F.ENEMY_COUNT):
+        want = vanilla_enemy(i, cat)
+        if not want:
+            continue
+        have = read_enemy(iso, i)
+        delta = {k: (have[k], v) for k, v in want.items() if have.get(k) != v}
+        if delta:
+            out[i] = delta
+    return out
+
+def make_patch(edits, note="", serial=None):
+    """Wrap {record: {field: value}} as a shareable patch document."""
+    return {
+        "format": PATCH_FORMAT,
+        "version": PATCH_VERSION,
+        "game": serial or sorted(F.SERIALS)[0],
+        "note": note,
+        "edits": {str(i): dict(fields) for i, fields in sorted(edits.items())},
+    }
+
+def parse_patch(doc):
+    """Validate a patch document and return {record: {field: value}}.
+
+    Deliberately strict: this writes to a disc image, so an unknown field name,
+    an out-of-range record, or a non-integer value is an error rather than
+    something to skip quietly."""
+    if not isinstance(doc, dict) or doc.get("format") != PATCH_FORMAT:
+        raise ValueError(f"not a {PATCH_FORMAT} file")
+    version = doc.get("version")
+    if version != PATCH_VERSION:
+        raise ValueError(f"patch version {version!r} is not supported "
+                         f"(this build reads version {PATCH_VERSION})")
+    known = {f[0] for f in F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.REWARD_FIELDS}
+    out = {}
+    for key, fields in (doc.get("edits") or {}).items():
+        try:
+            i = int(key)
+        except (TypeError, ValueError):
+            raise ValueError(f"record key {key!r} is not a number")
+        if not 0 <= i < F.ENEMY_COUNT:
+            raise ValueError(f"record {i} is outside 0..{F.ENEMY_COUNT - 1}")
+        if not isinstance(fields, dict):
+            raise ValueError(f"record {i}: expected a field map")
+        clean = {}
+        for label, value in fields.items():
+            if label not in known:
+                raise ValueError(f"record {i}: unknown field {label!r}")
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"record {i}.{label}: expected a whole number, "
+                                 f"got {value!r}")
+            clean[label] = value
+        if clean:
+            out[i] = clean
+    if not out:
+        raise ValueError("patch contains no edits")
+    return out
+
+def apply_patch(iso, edits):
+    """Write a parsed patch. Returns (records touched, fields written)."""
+    n = 0
+    for i, fields in sorted(edits.items()):
+        n += write_enemy(iso, i, fields)
+    return len(edits), n
 
 def write_enemy(iso, i, edits):
     """Write edited fields for enemy record `i` (stats and/or rewards).
@@ -233,7 +329,11 @@ def disc_is_pristine(iso, base=None):
 
     Both tables have to be checked: a reward-only profile leaves every stat byte
     untouched, so a stats-only anchor would wave the second pass straight
-    through and silently stack the multipliers."""
+    through and silently stack the multipliers.
+
+    Related but not the same as diff_vanilla(): this is a fast yes/no that can be
+    pointed at an arbitrary `base` (so the disc-2 hunt can reuse it), while
+    diff_vanilla() reports field-by-field what changed at the known base."""
     cat = F.enemy_catalog()
     matched, checked = _confirm_base(iso, cat, base or F.ENEMY_TABLE_OFF)
     if not checked or matched != checked:
@@ -597,14 +697,186 @@ def cmd_strings(a):
     for m in _re.finditer(rb"[\x20-\x7e]{%d,}" % a.min, data):
         print(f"{a.off + m.start():08X}: {m.group().decode()}")
 
+def _summary_cols():
+    """The columns worth showing in a table — verified fields only."""
+    return [f[0] for f in F.ENEMY_FIELDS + F.REWARD_FIELDS]
+
+def _affinity_cols():
+    return [f[0] for f in F.ENEMY_AFFINITY_FIELDS]
+
+def _enemy_field_names():
+    """Every writable field, including the unverified affinity slots."""
+    return _summary_cols() + _affinity_cols()
+
+AFFINITY_WARNING = (
+    f"note: Aff1..Aff{F.ENEMY_AFFINITY_COUNT} are damage-affinity percentages "
+    f"({F.ENEMY_AFFINITY_NORMAL} = normal), but which element each slot is has "
+    f"NOT been confirmed. Treat them as an experiment.")
+
+def cmd_enemy_list(a):
+    """Print the whole bestiary straight from the disc (optionally as CSV)."""
+    names = F.enemy_names()
+    cols = _summary_cols() + (_affinity_cols() if a.affinities else [])
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        rows = [(i, names.get(i, "?"), read_enemy_id(iso, i), read_enemy(iso, i))
+                for i in range(F.ENEMY_COUNT)]
+    if a.csv:
+        print(",".join(["idx", "name", "id"] + cols))
+        for i, name, eid, rec in rows:
+            print(",".join([str(i), '"' + name.replace('"', '""') + '"', str(eid)]
+                           + [str(rec[c]) for c in cols]))
+        return
+    print(f"{'idx':>3}  {'name':<24} {'id':>4} " + " ".join(f"{c:>8}" for c in cols))
+    for i, name, eid, rec in rows:
+        print(f"{i:>3}  {name:<24} {eid:>4} " + " ".join(f"{rec[c]:>8}" for c in cols))
+
+def cmd_enemy_get(a):
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        rec = read_enemy(iso, a.index)
+        eid = read_enemy_id(iso, a.index)
+    name = F.enemy_names().get(a.index, "?")
+    print(f"{a.index:03d} · {name}   (enemy id {eid}"
+          f"{', boss' if is_boss(eid) else ''})")
+    for c in _summary_cols():
+        van = vanilla_enemy(a.index).get(c)
+        mark = "" if van is None or van == rec[c] else f"   (retail {van:,})"
+        print(f"  {c:<5} {rec[c]:>10,}{mark}")
+    print("  affinities " + " ".join(f"{rec[c]}" for c in _affinity_cols()))
+    print(f"  {AFFINITY_WARNING}")
+
+def cmd_enemy_set(a):
+    """Write named fields of one enemy record: --set HP=5000 --set EXP=1200."""
+    edits = {}
+    for pair in a.set or []:
+        if "=" not in pair:
+            raise SystemExit(f"--set expects FIELD=VALUE, got {pair!r}")
+        k, v = pair.split("=", 1)
+        k = k.strip()
+        known = {n.upper(): n for n in _enemy_field_names()}
+        if k.upper() not in known:
+            raise SystemExit(f"unknown field {k!r}; known: "
+                             f"{', '.join(_enemy_field_names())}")
+        edits[known[k.upper()]] = int(v, 0)
+    if not edits:
+        raise SystemExit("nothing to do — pass at least one --set FIELD=VALUE")
+    if any(k in _affinity_cols() for k in edits):
+        print(AFFINITY_WARNING)
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        before = read_enemy(iso, a.index)
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        n = write_enemy(iso, a.index, edits)
+    with Iso(a.iso) as iso:
+        after = read_enemy(iso, a.index)
+    name = F.enemy_names().get(a.index, "?")
+    print(f"wrote {n} field(s) to {a.index:03d} · {name}")
+    for k in edits:
+        print(f"  {k:<5} {before[k]:>10,} -> {after[k]:>10,}")
+        if after[k] != max(0, min(edits[k], 0xFFFFFFFF)):
+            print(f"  ! {k} did not read back as requested (clamped to field width?)")
+
+def cmd_diff(a):
+    """Show every enemy field that differs from the verified retail values."""
+    names = F.enemy_names()
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        delta = diff_vanilla(iso)
+    if not delta:
+        print("disc matches the retail enemy tables exactly")
+        return
+    total = sum(len(v) for v in delta.values())
+    print(f"{len(delta)} record(s), {total} field(s) differ from retail:")
+    for i, fields in sorted(delta.items()):
+        print(f"  {i:03d} {names.get(i, '?'):<22} " +
+              ", ".join(f"{k} {have:,}<-{want:,}" for k, (have, want) in fields.items()))
+
+def cmd_export_patch(a):
+    """Write the disc's deviations from retail as a shareable patch file."""
+    with Iso(a.iso) as iso:
+        serial, _disc = require_version(iso)
+        delta = diff_vanilla(iso)
+    if not delta:
+        raise SystemExit("disc matches retail — nothing to export")
+    edits = {i: {k: have for k, (have, _want) in fields.items()}
+             for i, fields in delta.items()}
+    doc = make_patch(edits, note=a.note or "", serial=serial)
+    with open(a.out, "w") as f:
+        json.dump(doc, f, indent=1, sort_keys=True)
+        f.write("\n")
+    print(f"wrote {a.out} — {len(edits)} record(s), "
+          f"{sum(len(v) for v in edits.values())} field(s)")
+    print("(affinity slots are not exported here — the catalog has no retail "
+          "baseline for them. The web editor exports them from the disc it opened.)")
+
+def cmd_apply_patch(a):
+    with open(a.patch) as f:
+        doc = json.load(f)
+    edits = parse_patch(doc)
+    names = F.enemy_names()
+    with Iso(a.iso) as iso:
+        serial, _disc = require_version(iso)
+        before = {i: read_enemy(iso, i) for i in edits}
+    if doc.get("game") and doc["game"] != serial:
+        print(f"! patch says {doc['game']}, this disc is {serial} — continuing anyway")
+    if doc.get("note"):
+        print(f"note: {doc['note']}")
+    print(f"{len(edits)} record(s), {sum(len(v) for v in edits.values())} field(s):")
+    for i, fields in sorted(edits.items())[:a.show]:
+        print(f"  {i:03d} {names.get(i, '?'):<22} " +
+              ", ".join(f"{k} {before[i][k]:,}->{v:,}" for k, v in fields.items()))
+    if len(edits) > a.show:
+        print(f"  … {len(edits) - a.show} more")
+    if a.dry_run:
+        print("dry run — nothing written.")
+        return
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        recs, fields = apply_patch(iso, edits)
+    print(f"applied {fields} field(s) across {recs} record(s)")
+
+def cmd_restore(a):
+    """Put the retail values back — for the whole bestiary or named records."""
+    only = None
+    if a.only:
+        only = {int(x, 0) for part in a.only for x in part.split(",") if x.strip()}
+    names = F.enemy_names()
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        delta = diff_vanilla(iso)
+    if only is not None:
+        delta = {i: v for i, v in delta.items() if i in only}
+    if not delta:
+        print("nothing to restore — those records already match retail")
+        return
+    print(f"restoring {len(delta)} record(s), {sum(len(v) for v in delta.values())} field(s)")
+    for i, fields in sorted(delta.items())[:a.show]:
+        print(f"  {i:03d} {names.get(i, '?'):<22} " +
+              ", ".join(f"{k} {have:,}->{want:,}" for k, (have, want) in fields.items()))
+    if a.dry_run:
+        print("dry run — nothing written.")
+        return
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    n = 0
+    with Iso(a.iso, write=True) as iso:
+        for i, fields in delta.items():
+            n += write_enemy(iso, i, {k: want for k, (_have, want) in fields.items()})
+    print(f"restored {n} field(s)")
 def cmd_rebalance(a):
     """Apply a battle-pacing profile to every enemy record (combo-loop tuning)."""
     prof = dict(F.profile(a.profile))
     for grp in ("regular", "major"):            # per-field CLI overrides
         scales = dict(prof.get(grp, {}))
+        if a.rewards is not None:               # shorthand for --exp/--sp/--cp
+            scales.update({"EXP": a.rewards, "SP": a.rewards, "CP": a.rewards})
         for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL", "EXP", "SP", "CP"):
             v = getattr(a, lbl.lower(), None)
-            if v is not None:
+            if v is not None:                   # an explicit field wins over --rewards
                 scales[lbl] = v
         prof[grp] = scales
     with Iso(a.iso, write=not a.dry_run) as iso:
@@ -772,6 +1044,47 @@ def main():
     sp.add_argument("--min", type=int, default=2, help="min run length")
     sp.set_defaults(fn=cmd_strings)
 
+    sp = sub.add_parser("enemies", help="list every enemy's stats + rewards from the disc")
+    sp.add_argument("iso"); sp.add_argument("--csv", action="store_true")
+    sp.add_argument("--affinities", action="store_true",
+                    help="also show the 8 unverified affinity slots")
+    sp.set_defaults(fn=cmd_enemy_list)
+
+    sp = sub.add_parser("enemy", help="show one enemy record")
+    sp.add_argument("iso"); sp.add_argument("index", type=lambda x: int(x, 0))
+    sp.set_defaults(fn=cmd_enemy_get)
+
+    sp = sub.add_parser("enemy-set", help="write fields of one enemy (e.g. --set HP=5000)")
+    sp.add_argument("iso"); sp.add_argument("index", type=lambda x: int(x, 0))
+    sp.add_argument("--set", action="append", metavar="FIELD=VALUE")
+    sp.add_argument("--backup", action="store_true", help="copy the ISO to .bak first")
+    sp.set_defaults(fn=cmd_enemy_set)
+
+    sp = sub.add_parser("diff", help="show enemy fields that differ from retail")
+    sp.add_argument("iso"); sp.set_defaults(fn=cmd_diff)
+
+    sp = sub.add_parser("export-patch",
+                        help="save the disc's deviations from retail as a patch file")
+    sp.add_argument("iso"); sp.add_argument("--out", required=True)
+    sp.add_argument("--note", help="short description stored in the patch")
+    sp.set_defaults(fn=cmd_export_patch)
+
+    sp = sub.add_parser("apply-patch", help="apply a patch file to a disc")
+    sp.add_argument("iso"); sp.add_argument("patch")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--show", type=int, default=20)
+    sp.add_argument("--backup", action="store_true")
+    sp.set_defaults(fn=cmd_apply_patch)
+
+    sp = sub.add_parser("restore", help="put the retail enemy values back")
+    sp.add_argument("iso")
+    sp.add_argument("--only", action="append", metavar="IDX[,IDX...]",
+                    help="restore just these records (default: all)")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--show", type=int, default=20)
+    sp.add_argument("--backup", action="store_true")
+    sp.set_defaults(fn=cmd_restore)
+
     sp = sub.add_parser("rebalance", help="apply a battle-pacing profile to every enemy")
     sp.add_argument("iso")
     sp.add_argument("--profile", default="faster", choices=sorted(F.PROFILES),
@@ -783,6 +1096,8 @@ def main():
     sp.add_argument("--include-dummy", action="store_true", help="also scale debug/unused records")
     sp.add_argument("--threshold", type=int, help=f"HP at/above which a record counts as "
                     f"'major' (default {F.MAJOR_HP_THRESHOLD:,})")
+    sp.add_argument("--rewards", type=int, metavar="PCT",
+                    help="override EXP, SP and CP together (percent)")
     for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL", "EXP", "SP", "CP"):
         sp.add_argument(f"--{lbl.lower()}", type=int, metavar="PCT",
                         help=f"override {lbl} scaling for both groups (percent)")
@@ -817,7 +1132,11 @@ def main():
     sp.set_defaults(fn=cmd_dump_region)
 
     a = p.parse_args()
-    rc = a.fn(a)
+    try:
+        rc = a.fn(a)
+    except (ValueError, OSError) as e:
+        # bad patch file, unreadable image, etc. — a message beats a traceback
+        raise SystemExit(f"error: {e}")
     sys.exit(rc or 0)
 
 

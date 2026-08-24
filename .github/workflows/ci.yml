@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # the engines are stdlib-only on purpose; prove that across the range
+        # of interpreters people actually have installed
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: No third-party imports (stdlib only)
+        run: |
+          if grep -rnE '^\s*(import|from)\s+(numpy|pandas|requests|capstone|pytest)' Editor tests; then
+            echo "::error::the engines must stay stdlib-only"; exit 1
+          fi
+
+      - name: Compile every module
+        run: python -m compileall -q Editor tests make_release.py
+
+      - name: web/tables.json is in sync with x2fields.py
+        run: python Editor/gen_web_tables.py --check
+
+      - name: Test suite
+        run: python -m unittest discover -s tests -t tests -v
+
+      - name: ISO engine self-test (synthetic disc)
+        run: python Editor/x2selftest.py
+
+      - name: Release bundle builds
+        run: python make_release.py ci-test
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Front-end parses
+        run: for f in web/*.js; do node --check "$f" || exit 1; done
+
+      - name: JSON is well formed
+        run: |
+          for f in web/*.json web/*.webmanifest Editor/*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" || exit 1
+          done
+
+      - name: Local script tags resolve
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+          html = open("web/index.html").read()
+          missing = [t for t in re.findall(r'<script src="([^"]+)"', html)
+                     if not t.startswith("http")
+                     and not os.path.exists(os.path.join("web", t))]
+          if missing:
+              print("::error::index.html loads missing scripts: " + ", ".join(missing))
+              sys.exit(1)
+          print("all local script tags resolve")
+          PY
+
+    # The rest of the front-end's invariants — precache completeness, version
+    # agreement across index.html/app.js/sw.js, every queried DOM id existing,
+    # and the Pyodide glue actually running — live in tests/test_web.py, which
+    # the `test` job above runs.
