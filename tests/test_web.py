@@ -142,6 +142,24 @@ class TestDomReferences(unittest.TestCase):
         for helper in ("window.openReview", "window.openInfo"):
             self.assertIn(helper, iso)
 
+    def test_retail_comparison_covers_every_writable_field(self):
+        # The three retail-facing paths used to iterate SFIELDS.concat(RFIELDS),
+        # which silently exempted break sequences, zones, affinities, status
+        # resistances and drops: the editor would shorten every boss's break and
+        # then report the disc matched retail. They must go through the helpers
+        # that cover everything.
+        iso = read("iso.js")
+        for fn, needs in (("stageRestore", "allFields()"),
+                          ("buildPatch", "allFields()"),
+                          ("showRetailDiff", "retailDiffs(")):
+            m = re.search(r"function " + fn + r"\b.*?\n  \}", iso, re.S)
+            with self.subTest(fn):
+                self.assertTrue(m, f"could not find {fn} in iso.js")
+                self.assertIn(needs, m.group(0),
+                              f"{fn} must compare against every writable field")
+                self.assertNotIn("SFIELDS.concat(RFIELDS)", m.group(0),
+                                 f"{fn} is back to comparing stats and rewards only")
+
     def test_engine_files_the_boot_loop_fetches_all_exist(self):
         m = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
         self.assertTrue(m, "could not find the engine file list in app.js")

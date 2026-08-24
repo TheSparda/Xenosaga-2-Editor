@@ -427,11 +427,39 @@ accessories, plus the physical attack types in the status labels) but nothing on
 disc ties a slot to a name, and pairing a name to a byte on vibes is exactly the
 mistake the B12 retraction above came from. So they are exposed as `Aff1..Aff8`:
 numbered, gated behind an explicit opt-in in the UI, and flagged on the CLI. They
-also have no entry in `x2_enemies.json`, so they cannot be diffed against retail —
-patch export handles them separately (see below).
+They do now have entries in `x2_enemies.json`, taken from the discs rather than
+from a guide, so they can be diffed against retail and restored — see "Retail
+baseline" below for what that claim rests on. That is a statement about the
+*bytes*, not the labels: `Aff3` is still only "the third slot", and comparing it
+against retail says the slot changed, not which element changed.
 
 Next step to actually verify them: a PCSX2 battle with a known element-resistant
 enemy, or the damage-calculation routine in the battle overlay.
+
+### Retail baseline (`x2_enemies.json`)
+
+The catalog began as the eleven stat and reward numbers that could be checked
+against a printed guide (74/76 exact matches). Everything verified afterwards —
+break sequences, breakable-zone masks, damage affinities, status resistances,
+item drops — was made editable without being added to the catalog, and every
+retail-facing feature is driven by the catalog. So the editor would shorten every
+boss's break sequence, then report the disc matched retail, export a patch that
+omitted the change, and "restore to retail" would leave it in place.
+
+`Editor/gen_enemy_catalog.py` fills the remaining 27 fields from the discs. Since
+these values come from the same media the editor writes to, the reasoning is
+circular unless something breaks the circle, so two checks gate the write:
+
+* **both discs must agree, field for field, on all 125 records.** Disc 1 and
+  disc 2 are separate pressings carrying independent copies of these tables. A
+  disagreement means one image is modified or an offset is wrong — not that
+  retail is ambiguous. All 125 × 38 fields matched.
+* **the guide-verified numbers already in the catalog must still match the
+  discs.** That is the tie back to the external source and the check that
+  catches a wrong offset quietly yielding plausible bytes.
+
+A pristine disc 1 now reports zero differences across all 38 fields, which is the
+end-to-end version of the same statement.
 
 ### Patch files (`x2-enemy-patch`, version 1)
 Because `x2_enemies.json` holds the verified retail values, a disc can be diffed

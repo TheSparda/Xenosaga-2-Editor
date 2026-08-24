@@ -568,8 +568,15 @@ AFFINITY_PCT_MIN = affinity_pct(0x80)   # -640
 AFFINITY_PCT_MAX = affinity_pct(0x7F)   # +635
 
 # Field label -> key in x2_enemies.json, so a disc can be diffed against the
-# verified vanilla values (and restored to them). Affinities are absent from the
-# catalog, so they have no vanilla baseline to compare against.
+# verified vanilla values (and restored to them).
+#
+# This has to cover every writable field. It used to hold only the eleven numbers
+# that could be checked against a printed guide, which meant "Compare to retail"
+# quietly had nothing to say about break sequences, zones, affinities, status
+# resistances or drops — it reported a match on a disc whose bosses had been
+# retuned. The rest are populated by Editor/gen_enemy_catalog.py straight from
+# the discs, cross-checked between the two pressings; see that file for what the
+# retail claim actually rests on.
 ENEMY_CATALOG_KEY = {
     "HP": "hp", "STR": "str", "VIT": "vit", "EATK": "eatk", "EDEF": "edef",
     "DEX": "dex", "EVA": "eva", "AGL": "agl", "EXP": "exp", "SP": "sp", "CP": "cp",
@@ -619,6 +626,14 @@ DROP_FIELDS = [
     ("DropItem", 0x0C, 1, "num"),
     ("RareItem", 0x0D, 1, "num"),
 ]
+# Now that every writable block is defined, the retail baseline can cover all of
+# them: break sequence + breakable-zone mask, damage affinities, status
+# resistances and drops, keyed by the lowercased field label.
+ENEMY_CATALOG_KEY.update(
+    {label: label.lower()
+     for label, _off, _w, _k in (ZONE_FIELDS + ENEMY_AFFINITY_FIELDS
+                                 + STATUS_RES_FIELDS + DROP_FIELDS)})
+
 DROP_CAT_NONE, DROP_CAT_CONSUMABLE, DROP_CAT_ES = 0, 1, 2
 DROP_CAT_NAMES = {DROP_CAT_NONE: "nothing",
                   DROP_CAT_CONSUMABLE: "consumable",

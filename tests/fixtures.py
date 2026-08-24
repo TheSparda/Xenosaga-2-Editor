@@ -340,12 +340,74 @@ def max_save(gd=None, folder=FOLDER, checksum=0x11223344):
 def write_fake_disc(path, enemies=None):
     """Create a sparse image that passes `verify` and holds the enemy tables.
 
-    `enemies`: {record index: {field label: value}}. Records not named get
-    deterministic filler so tests can prove writes are surgical.
+    `enemies`: {record index: {field label: value}}. Every writable field is
+    honoured, not just stats and rewards — the retail comparison covers all of
+    them, so a fixture that silently ignored break sequences or affinities could
+    not stand in for a pristine disc. Records not named get deterministic filler
+    so tests can prove writes are surgical.
+
+    Fields are written at absolute table offsets rather than into a per-record
+    buffer, because two blocks run past the end of their own record: affinity
+    slots 4-7 and every status resistance live in the next record's space (and
+    the last record's in the table's tail). Building the whole table first and
+    then placing fields is the only way that comes out right.
     """
     end = max(F.ENEMY_TABLE_OFF + F.ENEMY_COUNT * F.ENEMY_STRIDE,
               F.ENEMY_NAMES_OFF + 0x4000,
               F.REWARD_TABLE_OFF + F.ENEMY_COUNT * F.REWARD_STRIDE) + 0x800
+    over = enemies or {}
+    stats = bytearray(F.ENEMY_COUNT * F.ENEMY_STRIDE + F.enemy_record_tail())
+    rewards = bytearray(F.ENEMY_COUNT * F.REWARD_STRIDE)
+
+    def place(buf, i, stride, off, width, value):
+        at = i * stride + off
+        buf[at:at + width] = int(value).to_bytes(width, "little")
+
+    for i in range(F.ENEMY_COUNT):
+        at = i * F.ENEMY_STRIDE
+        # +0x04..0x0B is a constant 0x64 block on disc (not affinities).
+        stats[at + 0x04:at + 0x0C] = bytes([0x64] * 8)
+        # +0x3A is part of the 17-byte run the table locator searches for, so a
+        # faithful stand-in has to carry it — including the eleven records that
+        # hold something other than 99. Writing 99 across the board (as this
+        # fixture used to) hides any comparison that wrongly treats the raw run
+        # as a retail-value check.
+        struct.pack_into("<H", stats, at + F.ENEMY_UNK3A_OFF, F.enemy_unk3a(i))
+        struct.pack_into("<H", stats, at + 0x52, 500 + i)
+        for label, off, width, _k in F.ENEMY_FIELDS:
+            place(stats, i, F.ENEMY_STRIDE, off, width,
+                  (i + 1) * 7 % (1 << (8 * width)))
+        # one-hot sequence slots + a zone mask covering exactly the zones used
+        slots = F.encode_break_seq(("BB", "CB", "CC", "CBB", "", "AA")[i % 6])
+        for n, v in enumerate(slots):
+            stats[at + F.BREAK_SEQ_OFF + n] = v
+        stats[at + F.ENEMY_ZONE_MASK_OFF] = slots[0] | slots[1] | slots[2] | slots[3]
+        for label, off, width, _k in F.REWARD_FIELDS:
+            place(rewards, i, F.REWARD_STRIDE, off, width,
+                  (i + 3) * 11 % (1 << (8 * width)))
+
+    # blocks that straddle the record boundary, placed absolutely: a flat 100%
+    # affinity is what most retail records hold
+    for i in range(F.ENEMY_COUNT):
+        for _n, off, _w, _k in F.ENEMY_AFFINITY_FIELDS:
+            place(stats, i, F.ENEMY_STRIDE, off, 1, F.affinity_byte(100))
+        for _n, off, _w, _k in F.STATUS_RES_FIELDS:
+            place(stats, i, F.ENEMY_STRIDE, off, 1, 50)
+
+    for i, fields in over.items():
+        for label, value in fields.items():
+            spec = next((f for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS
+                                     + F.ZONE_FIELDS + F.STATUS_RES_FIELDS)
+                         if f[0] == label), None)
+            if spec is not None:
+                place(stats, i, F.ENEMY_STRIDE, spec[1], spec[2], value)
+                continue
+            spec = next((f for f in (F.REWARD_FIELDS + F.DROP_FIELDS)
+                         if f[0] == label), None)
+            if spec is None:
+                raise KeyError(f"unknown enemy field {label!r}")
+            place(rewards, i, F.REWARD_STRIDE, spec[1], spec[2], value)
+
     with open(path, "wb") as f:
         f.truncate(end)
 
@@ -360,50 +422,8 @@ def write_fake_disc(path, enemies=None):
         f.seek(0x9000)                                   # SYSTEM.CNF payload
         f.write(b"BOOT2 = cdrom0:\\SLUS_208.92;1\r\nVER = 1.00\r\n")
 
-        for i in range(F.ENEMY_COUNT):
-            rec = bytearray(F.ENEMY_STRIDE)
-            # +0x04..0x0B is a constant 0x64 block on disc (not affinities).
-            rec[0x04:0x0C] = bytes([0x64] * 8)
-            # Real affinities are at +0x58, eight signed bytes, percent = v*5, and
-            # a block straddles the record boundary (last 4 bytes here + first 4
-            # of the next record). Filling both halves with 20 makes every enemy
-            # read a flat 100%, which is what most retail records hold.
-            aff = F.affinity_byte(100)
-            rec[0x00:0x04] = bytes([aff] * 4)
-            rec[0x58:0x5C] = bytes([aff] * 4)
-            # +0x3A is part of the 17-byte run the table locator searches for, so
-            # a faithful stand-in has to carry it — including the eleven records
-            # that hold something other than 99. Writing 99 across the board (as
-            # this fixture used to) hides any comparison that wrongly treats the
-            # raw run as a retail-value check.
-            struct.pack_into("<H", rec, F.ENEMY_UNK3A_OFF, F.enemy_unk3a(i))
-            over = (enemies or {}).get(i, {})
-            for label, off, width, _k in F.ENEMY_FIELDS:
-                v = over.get(label, (i + 1) * 7 % (1 << (8 * width)))
-                rec[off:off + width] = int(v).to_bytes(width, "little")
-            struct.pack_into("<H", rec, 0x52, 500 + i)
-            # verified break/zone fields: one-hot sequence slots + a zone mask
-            # covering exactly the zones the sequence uses
-            slots = F.encode_break_seq(("BB", "CB", "CC", "CBB", "", "AA")[i % 6])
-            for n, v in enumerate(slots):
-                rec[F.BREAK_SEQ_OFF + n] = v
-            rec[F.ENEMY_ZONE_MASK_OFF] = slots[0] | slots[1] | slots[2] | slots[3]
-            f.seek(F.ENEMY_TABLE_OFF + i * F.ENEMY_STRIDE)
-            f.write(bytes(rec))
-
-            row = bytearray(F.REWARD_STRIDE)
-            for label, off, width, _k in F.REWARD_FIELDS:
-                v = over.get(label, (i + 3) * 11 % (1 << (8 * width)))
-                row[off:off + width] = int(v).to_bytes(width, "little")
-            f.seek(F.REWARD_TABLE_OFF + i * F.REWARD_STRIDE)
-            f.write(bytes(row))
-
-        # the last record's affinity and resistance blocks spill past the table
-        tail = bytearray(F.enemy_record_tail())
-        for k in range(4):
-            tail[k] = F.affinity_byte(100)
-        for _n, off, _w, _k in F.STATUS_RES_FIELDS:
-            tail[off - F.ENEMY_STRIDE] = 50
-        f.seek(F.ENEMY_TABLE_OFF + F.ENEMY_COUNT * F.ENEMY_STRIDE)
-        f.write(bytes(tail))
+        f.seek(F.ENEMY_TABLE_OFF)
+        f.write(bytes(stats))
+        f.seek(F.REWARD_TABLE_OFF)
+        f.write(bytes(rewards))
     return path

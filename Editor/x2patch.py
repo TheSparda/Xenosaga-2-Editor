@@ -234,13 +234,18 @@ def is_boss(enemy_id):
 # x2_enemies.json holds the verified retail values, so a disc can be diffed
 # against it without a pristine copy to compare with — which also means edits can
 # be exported as a small text file others can apply to their own disc.
+#
+# The catalog has to cover every writable field for that to mean anything. When
+# it held only the eleven guide-verified numbers, this reported "matches retail"
+# on a disc whose break sequences, zones, affinities, resistances and drops had
+# all been rewritten. Editor/gen_enemy_catalog.py fills the rest from the discs.
 # ---------------------------------------------------------------------------
 PATCH_FORMAT = "x2-enemy-patch"
 PATCH_VERSION = 1
 
 def vanilla_enemy(i, catalog=None):
-    """The retail values for record `i`, keyed by field label (affinities are not
-    in the catalog, so they are absent)."""
+    """The retail values for record `i`, keyed by field label — every writable
+    field, including break sequences, zones, affinities, resistances and drops."""
     cat = (catalog if catalog is not None else F.enemy_catalog()).get(i, {})
     return {label: cat[key] for label, key in F.ENEMY_CATALOG_KEY.items()
             if key in cat}
@@ -914,8 +919,6 @@ def cmd_export_patch(a):
         f.write("\n")
     print(f"wrote {a.out} — {len(edits)} record(s), "
           f"{sum(len(v) for v in edits.values())} field(s)")
-    print("(affinity slots are not exported here — the catalog has no retail "
-          "baseline for them. The web editor exports them from the disc it opened.)")
 
 def cmd_apply_patch(a):
     with open(a.patch) as f:

@@ -131,6 +131,29 @@ class TestAffinities(PatchCase):
         self.assertIn(el, self.run_cli("enemies", self.iso, "--csv", "--affinities"))
 
 
+class TestRetailBaseline(unittest.TestCase):
+    """The root cause: a field became writable without becoming comparable."""
+
+    def test_every_writable_field_has_a_catalog_key(self):
+        writable = {f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS
+                                   + F.ZONE_FIELDS + F.STATUS_RES_FIELDS
+                                   + F.REWARD_FIELDS + F.DROP_FIELDS)}
+        missing = sorted(writable - set(F.ENEMY_CATALOG_KEY))
+        self.assertEqual(missing, [],
+                         "these fields can be edited but not compared against "
+                         "retail, so the editor would call a modified disc clean")
+
+    def test_every_catalog_record_carries_every_key(self):
+        catalog = F.enemy_catalog()
+        self.assertEqual(len(catalog), F.ENEMY_COUNT)
+        keys = set(F.ENEMY_CATALOG_KEY.values())
+        for i, rec in catalog.items():
+            with self.subTest(i):
+                self.assertEqual(sorted(keys - set(rec)), [],
+                                 f"record {i} ({rec.get('name','?')}) is missing "
+                                 f"retail values — rerun gen_enemy_catalog.py")
+
+
 class TestRetailComparison(PatchCase):
     def test_a_retail_disc_reports_no_differences(self):
         with X.Iso(self.iso) as iso:
@@ -146,13 +169,42 @@ class TestRetailComparison(PatchCase):
         self.assertEqual(list(delta), [6])
         self.assertEqual(delta[6], {"HP": (1111, 22400)})
 
-    def test_affinities_are_not_compared(self):
-        p = self.fresh("affdiff.iso")
-        with X.Iso(p, write=True) as iso:
-            X.write_enemy(iso, 6, {F.AFFINITY_ELEMENTS[0]: 0})
+    def test_every_writable_block_is_compared(self):
+        # The comparison used to cover only the eleven guide-verified numbers, so
+        # a disc could have its bosses retuned and still report "matches retail".
+        # One representative field from each block that used to be exempt.
+        cases = {
+            "affinity":   {F.AFFINITY_ELEMENTS[0]: 0},
+            "break":      {"Brk2": 0},
+            "zone mask":  {"Zones": 7},
+            "resistance": {F.STATUS_RES_NAMES[0]: 99},
+            "drop":       {"DropRate": 3},
+        }
+        for what, edit in cases.items():
+            with self.subTest(what):
+                p = self.fresh(f"diff-{what.split()[0]}.iso")
+                with X.Iso(p, write=True) as iso:
+                    X.write_enemy(iso, 6, edit)
+                with X.Iso(p) as iso:
+                    delta = X.diff_vanilla(iso)
+                self.assertEqual(list(delta), [6], f"{what} edit went unreported")
+                self.assertEqual(set(delta[6]), set(edit))
+
+    def test_shortening_a_break_sequence_is_reported_and_restorable(self):
+        # the whole point: this is the edit the editor makes in bulk
+        p = self.fresh("brk.iso")
         with X.Iso(p) as iso:
-            self.assertEqual(X.diff_vanilla(iso), {},
-                             "affinities have no retail baseline to compare with")
+            before = X.break_seq_of(X.read_enemy(iso, 6))
+        self.assertGreater(len(before), 1, "fixture needs a multi-hit sequence")
+        with X.Iso(p, write=True) as iso:
+            X.write_enemy(iso, 6, {f"Brk{len(before)}": 0})
+        with X.Iso(p) as iso:
+            self.assertEqual(X.break_seq_of(X.read_enemy(iso, 6)), before[:-1])
+            self.assertIn(6, X.diff_vanilla(iso))
+        self.run_cli("restore", p)
+        with X.Iso(p) as iso:
+            self.assertEqual(X.break_seq_of(X.read_enemy(iso, 6)), before)
+            self.assertEqual(X.diff_vanilla(iso), {})
 
     def test_restore_puts_retail_values_back(self):
         p = self.fresh("restore.iso")
