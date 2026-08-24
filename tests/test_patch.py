@@ -113,12 +113,25 @@ class TestRetailComparison(PatchCase):
 
     def test_restore_puts_retail_values_back(self):
         p = self.fresh("restore.iso")
-        self.run_cli("rebalance", p, "--hp", "50", "--bosses")
+        self.run_cli("rebalance", p, "--profile", "faster")
         with X.Iso(p) as iso:
             self.assertTrue(X.diff_vanilla(iso))
         self.run_cli("restore", p)
         with X.Iso(p) as iso:
             self.assertEqual(X.diff_vanilla(iso), {})
+
+    def test_a_retail_disc_passes_the_pristine_check(self):
+        # the same question diff_vanilla() answers, via the fast path the
+        # rebalance guard uses — they must agree
+        with X.Iso(self.iso) as iso:
+            self.assertTrue(X.disc_is_pristine(iso))
+        p = self.fresh("dirty.iso")
+        with X.Iso(p, write=True) as iso:
+            X.write_enemy(iso, 6, {"SP": 1})       # rewards only
+        with X.Iso(p) as iso:
+            self.assertFalse(X.disc_is_pristine(iso),
+                             "a reward-only edit must trip the guard too")
+            self.assertTrue(X.diff_vanilla(iso))
 
     def test_restore_can_target_named_records(self):
         p = self.fresh("restore2.iso")
@@ -143,7 +156,7 @@ class TestRetailComparison(PatchCase):
 class TestPatchFiles(PatchCase):
     def test_export_then_apply_reproduces_the_disc(self):
         source = self.fresh("source.iso")
-        self.run_cli("rebalance", source, "--hp", "50", "--rewards", "150")
+        self.run_cli("rebalance", source, "--profile", "faster")
         out = os.path.join(self.dir, "mod.json")
         self.run_cli("export-patch", source, "--out", out, "--note", "half HP")
 

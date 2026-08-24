@@ -37,6 +37,9 @@ jobs:
       - name: Test suite
         run: python -m unittest discover -s tests -t tests -v
 
+      - name: ISO engine self-test (synthetic disc)
+        run: python Editor/x2selftest.py
+
       - name: Release bundle builds
         run: python make_release.py ci-test
 

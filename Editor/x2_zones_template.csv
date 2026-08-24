@@ -1,0 +1,30 @@
+# Weak-zone ground truth for the break-field hunt.
+#
+#   python3 x2patch.py find-zones "../ISO/....(Disc 1).iso" --truth x2_zones.csv
+#
+# Format: one "enemy name, zone string" per line. The name must match the
+# verified bestiary (Editor/x2_enemies.json — the same names the editor's
+# dropdown shows); a bare record index works too. The zone string is the
+# sequence you must hit to Break that enemy, written with the letters the game
+# uses: A (above 3 m, O), B (1-3 m, square), C (below 1 m, triangle). Spaces are
+# ignored and case doesn't matter, so "b c b b", "BCBB" and "bcbb" are the same.
+# Lines starting with # are comments; blank lines are skipped. JSON works too:
+# {"Perun": "BB", "6": "BB"}.
+#
+# HOW MANY: 30+ entries, and it matters that several enemies SHARE a zone
+# string — the scan works by checking which byte column groups enemies exactly
+# the way their zone strings do, so identical strings are the signal. Fewer than
+# ~8 entries and the tool will warn you that any hit is probably a coincidence.
+#
+# WHERE FROM: the enemy lists in the GameFAQs walkthroughs publish a weak zone
+# per enemy (Mogg's guide, faqs/36481). Copy them in as you go — partial is
+# fine, the scan uses whatever it can match.
+#
+# The three below came from a search-result snippet of that guide, NOT from the
+# guide text itself, so they are unverified — check them before uncommenting.
+# One wrong row can hide the real column (it breaks the perfect-consistency
+# test the scan relies on).
+#
+# U-TIC Soldier A, BB
+# U-TIC Soldier B, CB
+# E2 Hauser, CC

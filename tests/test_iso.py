@@ -183,51 +183,49 @@ class TestCli(IsoCase):
     def test_rebalance_dry_run_writes_nothing(self):
         p = self.fresh("cli-dry.iso")
         before = open(p, "rb").read()
-        out = self.run_cli("rebalance", p, "--hp", "50", "--dry-run")
+        out = self.run_cli("rebalance", p, "--profile", "faster", "--dry-run")
         self.assertIn("dry run", out)
         self.assertEqual(open(p, "rb").read(), before)
 
-    def test_rebalance_halves_hp_and_skips_bosses_by_default(self):
-        p = self.fresh("cli-reb.iso")
-        with X.Iso(p) as iso:
-            before = {i: X.read_enemy(iso, i)["HP"] for i in range(F.ENEMY_COUNT)}
-        self.run_cli("rebalance", p, "--hp", "50")
-        with X.Iso(p) as iso:
-            after = {i: X.read_enemy(iso, i)["HP"] for i in range(F.ENEMY_COUNT)}
-        # the fixture numbers ids sequentially from 500, so BOSS_ID_MIN splits it
-        boss_from = F.BOSS_ID_MIN - 500
-        for i in range(F.ENEMY_COUNT):
-            with self.subTest(record=i):
-                if i < boss_from:
-                    self.assertEqual(after[i], max(1, round(before[i] / 2)))
-                else:
-                    self.assertEqual(after[i], before[i], "boss was rescaled")
+    def test_rebalance_lists_the_profiles(self):
+        out = self.run_cli("rebalance", "--help")
+        for key in F.PROFILES:
+            self.assertIn(key, out)
 
-    def test_rebalance_bosses_flag_includes_them(self):
-        p = self.fresh("cli-reb2.iso")
-        last = F.ENEMY_COUNT - 1
-        with X.Iso(p) as iso:
-            before = X.read_enemy(iso, last)["HP"]
-        self.run_cli("rebalance", p, "--hp", "50", "--bosses")
-        with X.Iso(p) as iso:
-            self.assertEqual(X.read_enemy(iso, last)["HP"], max(1, round(before / 2)))
+    def test_rebalance_refuses_an_unknown_profile(self):
+        self.run_cli("rebalance", self.iso, "--profile", "nope", expect=2)
 
-    def test_rebalance_scales_rewards(self):
-        p = self.fresh("cli-reb3.iso")
+    def test_rebalance_refuses_an_already_edited_disc(self):
+        # this fixture's filler values do not match retail, so the guard should
+        # fire — a second scaling pass would compound the first
+        out = self.run_cli("rebalance", self.fresh("cli-guard.iso"),
+                           "--profile", "faster", expect=1)
+        self.assertIn("already edited", out)
+
+    def test_rebalance_rewards_shorthand_covers_exp_sp_cp(self):
+        p = self.fresh("cli-rw.iso")
         with X.Iso(p) as iso:
             before = X.read_enemy(iso, 0)
-        self.run_cli("rebalance", p, "--rewards", "200")
+        self.run_cli("rebalance", p, "--profile", "grindcut", "--rewards", "200",
+                     "--force")
         with X.Iso(p) as iso:
             after = X.read_enemy(iso, 0)
-        self.assertEqual(after["EXP"], before["EXP"] * 2)
-        self.assertEqual(after["HP"], before["HP"])       # HP left at 100%
+        for field in ("EXP", "SP", "CP"):
+            if before[field]:
+                self.assertEqual(after[field], min(before[field] * 2,
+                                                   F.ENEMY_FIELD_CAPS[field]), field)
 
-    def test_rebalance_at_100_percent_is_a_no_op(self):
-        p = self.fresh("cli-noop.iso")
-        before = open(p, "rb").read()
-        out = self.run_cli("rebalance", p)
-        self.assertIn("nothing to change", out)
-        self.assertEqual(open(p, "rb").read(), before)
+    def test_rebalance_explicit_field_beats_the_shorthand(self):
+        p = self.fresh("cli-rw2.iso")
+        with X.Iso(p) as iso:
+            before = X.read_enemy(iso, 0)
+        self.run_cli("rebalance", p, "--profile", "grindcut", "--rewards", "200",
+                     "--exp", "300", "--force")
+        with X.Iso(p) as iso:
+            after = X.read_enemy(iso, 0)
+        if before["EXP"]:
+            self.assertEqual(after["EXP"], min(before["EXP"] * 3,
+                                               F.ENEMY_FIELD_CAPS["EXP"]))
 
 
 if __name__ == "__main__":

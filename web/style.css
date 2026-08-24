@@ -72,6 +72,14 @@ tr.gearrow .fl{color:var(--acc2)} tr.gearrow .fl::before{content:"⚙ "}
 .es td.name{color:var(--mut)}
 .gpick{cursor:pointer;text-decoration:underline dotted}
 .note{color:var(--mut);font-size:12.5px;margin:10px 0 0}
+/* battle-pacing profiles (ISO tab) */
+.btn.prof{font-size:13px;padding:6px 11px}
+.btn.prof.on{border-color:var(--acc);color:var(--acc2)}
+table.scl{width:auto;margin:4px 0 12px}
+table.scl th{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  font-weight:600;padding:3px 8px;text-align:center}
+table.scl tr>th:first-child{text-align:right}
+table.scl td{padding:3px 8px;color:var(--mut);font-size:12px}
 .recent{margin-top:10px;display:flex;gap:8px;align-items:center}
 /* chips default to margin-left:auto (header layout) — neutralize inside the recent row */
 .recent .chip,.recent .chip+.chip{margin-left:0}

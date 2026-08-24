@@ -334,6 +334,10 @@ def write_fake_disc(path, enemies=None):
         for i in range(F.ENEMY_COUNT):
             rec = bytearray(F.ENEMY_STRIDE)
             rec[0x04:0x0C] = bytes([0x64] * 8)           # element affinities
+            # the 0x0063 constant between HP and STR is part of the 17-byte
+            # signature the table locator searches for, so a faithful stand-in
+            # has to carry it
+            struct.pack_into("<H", rec, 0x3A, 0x0063)
             over = (enemies or {}).get(i, {})
             for label, off, width, _k in F.ENEMY_FIELDS:
                 v = over.get(label, (i + 1) * 7 % (1 << (8 * width)))
