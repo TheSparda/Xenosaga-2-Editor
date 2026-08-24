@@ -14,11 +14,17 @@
   // every bestiary column, so nothing extracted from the disc is hidden here
   const STATS=[["HP","hp"],["STR","str"],["VIT","vit"],["EATK","eatk"],["EDEF","edef"],
                ["DEX","dex"],["EVA","eva"],["AGL","agl"],["EXP","exp"],["SP","sp"],["CP","cp"]];
+  // Two ways to slice the bestiary. The ID bands are what the disc records, but
+  // the 561+ band mixes late-game field Gnosis in with real bosses — so "major"
+  // (retail HP at/above the rebalance threshold) is the more meaningful cut, and
+  // the band filters are labelled as bands rather than as boss-ness.
+  const MAJOR_HP=20000;
   const GROUPS=[
-    {key:"all",   label:"All",   test:()=>true},
-    {key:"field", label:"Field", test:v=>v.id<561},
-    {key:"boss",  label:"Boss",  test:v=>v.id>=561&&v.id<701},
-    {key:"es",    label:"E.S.",  test:v=>v.id>=701},
+    {key:"all",   label:"All",           test:()=>true},
+    {key:"major", label:"Major fights",  test:v=>v.hp>=MAJOR_HP},
+    {key:"field", label:"ID 501+",       test:v=>v.id<561},
+    {key:"boss",  label:"ID 561+",       test:v=>v.id>=561&&v.id<701},
+    {key:"es",    label:"ID 701+ (E.S.)",test:v=>v.id>=701},
   ];
   const SORTS=[["idx","Index"],["name","Name"],["hp","HP"],["exp","EXP"],["sp","SP"]];
 
@@ -91,7 +97,7 @@
       if(bestiary){
         html+='<div class="refrow"><span class="rid">'+id+'</span>'+
           '<span class="rname">'+esc(name)+'</span>'+
-          '<span class="stpill">id '+v.id+(v.id>=701?" · E.S.":v.id>=561?" · boss":"")+'</span>'+
+          '<span class="stpill">id '+v.id+(v.hp>=MAJOR_HP?" · major":"")+'</span>'+
           '<span class="rpills">'+
             STATS.map(([l,k])=>pill(l,v[k])).join("")+
           '</span></div>';

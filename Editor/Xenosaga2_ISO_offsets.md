@@ -432,3 +432,128 @@ Dark Erde Kaiser 192,000 (rec 124 — this was the record previously mislabelled
 check whether partial hits are lattice-consistent with a known stride. Use
 relative-offset multi-field signatures, never contiguous byte runs, and never pair
 a name table with a record table by index without an independent anchor.
+
+## 2026-08-23 — Combo system: what's editable, what's blocked
+
+Ep. II's battle system is the game's most-criticised feature, so it's worth
+writing down exactly which parts of it we can reach.
+
+### The system, and why it's disliked
+
+The loop: **Stock** (spend a turn banking a stock, max 3) → **Break** (hit the
+enemy's fixed weak-zone sequence with the zone buttons — A above 3 m/○, B
+1-3 m/□, C below 1 m/△) → **Boost** (shared party gauge, cut in line) to chain
+the rest of the party in before the Break expires at end of turn. Break is worth
+about ×1.5 damage; AIR/DOWN doubles it; a full stock gauge buys 4-5 chained
+attacks. Sources: GameFAQs *Battle Mechanics Guide* (VertigOne, faqs/35857),
+Mogg's walkthrough (faqs/36481, publishes per-enemy weak zones), supercheats
+battle-system page, Neoseeker battle-mechanics guide.
+
+The recurring complaints, in the order they cost the player time:
+
+1. **Mandatory.** The loop is the only efficient way to fight; anything else is
+   chip damage.
+2. **Dead turns up front.** Full value needs ~2 turns of doing nothing.
+3. **HP bloat multiplies it** — ~3 stocked chains per enemy even overleveled, so
+   trash fights run as long as mid-bosses in other games.
+4. **Break expires at end of turn**, so boost-chaining isn't a choice.
+5. **Zones are trivia, not decisions** (fixed per enemy, looked up in a FAQ), and
+   skill homogeneity makes every character combo the same.
+
+Monolith's own fix in Ep. III was to delete Stock and repurpose Break as a stun
+gauge — so "cut the ritual tax" is the design-validated direction. Prior art for
+the tuning route: the Insane Difficulty Ep. II re-balance patch, which only ever
+moved enemy HP/STR/EATK.
+
+### Tier 0 — SHIPPED: battle-pacing profiles (`x2fields.PROFILES`)
+
+Complaints 2/3 are tuning, not mechanics, and the tuning is in tables we've
+already verified. `x2patch.py rebalance --profile {faster,freer,deeper,grindcut}`
+(and the web ISO tab) scales the verified stat/reward fields per record:
+HP decides how many stocked chains a kill costs, VIT/EDEF whether off-loop
+attacks matter, STR/EATK enemy pressure, SP/CP how fast the skill system opens.
+
+Two judgement calls worth remembering:
+- **Grouping is on HP, not the enemy ID band.** IDs 501-579 mix late-game field
+  Gnosis (Ai Apaec 8,160 HP) in with bosses (Perun 22,400), so the ID is not a
+  boss signal. Records at/above `MAJOR_HP_THRESHOLD` (20,000 catalog HP) scale
+  as "major". The old web checkbox that treated `id >= 561` as "bosses" was
+  wrong on both ends and is gone.
+- **Dummy records are excluded** (`is_dummy_record`) — 13 of the 125: the debug
+  names (GNO013, CRE006/018, UMA013, MON001-4, BOS026-29) plus unused rows
+  carrying a token EXP with no SP/CP (Testud II: 8,000 HP, 79 EXP). Scripted 0-EXP fights
+  like Margulis (2) are *not* dummies and do get scaled — deliberate, but it
+  means a scripted loss can become winnable. Note it if that ever matters.
+
+A zero field means "none" (no CP, no SP) and is never scaled up. Every field
+clamps to `ENEMY_FIELD_CAPS`, not just to its byte width.
+
+### Tier 0.5 — OPEN QUESTION: does disc 2 carry these tables?
+
+Never checked, and it matters: if `SLUS-21133` has its own copy, a rebalance
+applied to disc 1 alone silently stops working at the disc swap.
+`x2patch.py verify-tables <iso>` answers it — it confirms the known base first,
+then signature-scans the whole image (one pass, all anchors at once) for the
+17-byte `+0x36..+0x46` run and reports any base it finds. **Run it on disc 2 and
+record the result here.**
+
+### Tier 1 — READY TO RUN: find the break/weak-zone field
+
+The 0x5C stat record still has **65 undecoded bytes** (`+0x00..0x03`,
+`+0x0C..0x35`, `+0x47..0x51`, `+0x54..0x5B` — `F.ENEMY_UNMAPPED`), and the
+guides publish a weak-zone sequence per enemy. That's the same shape of problem
+the stat table was, and it doesn't need PCSX2.
+
+The method avoids guessing the encoding entirely: if a byte column *is* the zone
+field, enemies sharing a zone string must share its value. So score each column
+by how well its value partition agrees with the zone partition —
+
+- `consistency` = P(same value | same zone string) — **must be 1.0** for the field
+- `resolution` = P(different value | different string) — <1.0 means the column is
+  lossy (a mask or a sequence length, not the sequence itself)
+
+Tools, in the order to run them:
+
+```bash
+cd Editor
+python3 x2patch.py enemy-columns "../ISO/….(Disc 1).iso" --interesting
+#   survey first, no ground truth needed. Flags: P = values decode as packed
+#   2-bit zone symbols (1=A,2=B,3=C, 0=pad), N = every nibble <=3, M = all <=7.
+#   A low-cardinality column flagged P is the prime suspect.
+
+cp x2_zones_template.csv x2_zones.csv      # then paste guide data into it
+python3 x2patch.py find-zones "../ISO/….(Disc 1).iso" --truth x2_zones.csv
+#   perfect hit prints the value <-> zone map, i.e. the encoding.
+
+python3 x2patch.py find-zones … --truth x2_zones.csv --region 0x1FF0000,0x40000
+#   fallback if the record has no such column: sweeps for a separate
+#   parallel-indexed table (the rewards table is laid out that way).
+#   Slow path — roughly 3 minutes per 0x40000 x 9 strides.
+```
+
+Ground truth needs **30+ enemies, several sharing a zone string** (the shared
+ones are the entire signal). One wrong row hides the real column, because the
+test demands perfect consistency.
+
+Payoff once found: edit each enemy's break sequence — shorten 4-hit boss
+sequences to 2, normalise weak zones so the fight stops being a FAQ lookup, or
+randomise them. Break durability, AIR/DOWN susceptibility and the break-bonus
+stock grant are likely neighbours in the same record.
+
+### Tier 2 — BLOCKED on runtime: the global battle constants
+
+Stock cap, boost cost/regen, the ×1.5 break multiplier, AIR/DOWN doubling, and —
+the big one — **break expiring at end of turn** are code, not table data. They
+live in the boot ELF or the battle overlays (`OV01.OVL` 450 KiB, `OV02.OVL`).
+Static disassembly is possible (we have the va→file map), but the cheap unblock
+is one PCSX2 session: EE RAM search on the boost/stock value during a battle →
+write breakpoint → map back through the load map. That's the *same* session that
+unblocks the save checksum, party, inventory and growth tables — bundle them.
+
+### Self-test
+
+`python3 x2selftest.py` builds a synthetic 34 MB disc (sparse) carrying only the
+verified structures, populated from `x2_enemies.json`, and exercises the table
+locator, the rebalance planner/writer and the zone scanner against it — including
+a *planted* zone column at `+0x2A` so the scanner has a known right answer. It
+proves the code paths, not the game facts. No game data required, so CI-safe.
