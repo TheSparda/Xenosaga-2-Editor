@@ -184,12 +184,80 @@ def keyitem_names():
 #
 # This is the CATALOG only. The numeric table behind it — raw power, cast time,
 # accuracy — has not been located yet; that still needs ground truth to anchor.
+# ---------------------------------------------------------------------------
+# SKILL NUMERIC TABLE (VERIFIED 2026-08-24) — 32-byte records, one per skill.
+#
+# The ether-skill records sit at ISO 0x2007CA0 (disc 1) / 0x20074A0 (disc 2,
+# the usual -0x800), 57 records covering skill text indices 0..56
+# (Medica .. Erde Kaiser Fury). Fields within a record:
+#
+#   +0x00 u8   accuracy-like (100 on every ether skill; 90/50 pairs in the
+#              neighbouring tech blocks)                      [unverified name]
+#   +0x03 u8   category: 1 attack / 2 heal / 4 support / 0 self-misc
+#   +0x06 u8   EP COST — matches the "(EP n)" in the skill's own description
+#              on 56/56, the anchor that framed the whole table
+#   +0x08 u16  ELEMENT bitmask — Aura 0x02, Thunder 0x04, Fire 0x08, Ice 0x10,
+#              exactly the affinity element bit order (verified on the four
+#              elemental Blasts; Beam=0x01 inferred, not observed)
+#   +0x0A u16  POWER — Medica 5, Medica 2 10, Medica All 5, all four Blasts 20,
+#              Erde Kaiser Fury 250 (family-consistency verified; no guide
+#              publishes ether power numbers to check against)
+#   +0x12 u16  effect chance (100 on every effect-bearing skill seen)
+#   +0x13 u8   effect kind (1 inflict / 2 block / 3 add-buff / 4 damage-cut)
+#   +0x14 u16  effect bitmask (Flame Veil 0x08, Ice Veil 0x10 — element bits)
+#   +0x16 u16  STRING ID, 1-based text index — 57/57 exact. This is the field
+#              that killed every earlier search: records name themselves, so
+#              no order assumption was ever needed.
+#   +0x1C u16  animation/VFX id                              [unverified name]
+#
+# HOW IT WAS FOUND, for next time: two earlier scans failed because the text
+# catalog had silently dropped 予備 placeholder entries AND every skill whose
+# description has no newline (all the passive equip skills) — compacting the
+# indices the scan searched with. With the true index space rebuilt
+# (placeholders kept), a strided scan on the 56 in-description EP costs hit
+# 56/56 at stride 32 immediately. Same failure shape as the E.S. item ids:
+# placeholders occupy index space.
+#
+# The surrounding region (0x20065A0..0x2009B58 on disc 1) is MORE blocks of the
+# same 32-byte record: seven runs of string-ids 1..7 (per-character tech
+# blocks), a run of 1..16 (E.S. techs), doubles/enemy-skill blocks after the
+# ether block. Their name pools live elsewhere (0x200FC10 'Ice Brand',
+# 0x20107F0 'MINIGUN'...), so they are mapped but not yet name-verified — only
+# the 57-record ether block is exposed as editable.
+SKILL_TABLES = {1: 0x2007CA0, 2: 0x20074A0}
+SKILL_STRIDE = 32
+SKILL_VERIFIED_COUNT = 57          # ether actives, text indices 0..56
+SKILL_NUM_FIELDS = [               # exposed, editable
+    ("EP",      0x06, 1, "num"),
+    ("Element", 0x08, 2, "num"),
+    ("Power",   0x0A, 2, "num"),
+    ("EffPct",  0x12, 2, "num"),
+    ("EffMask", 0x14, 2, "num"),
+]
+SKILL_ELEMENT_BITS = {"Beam": 0x01, "Aura": 0x02, "Thunder": 0x04,
+                      "Fire": 0x08, "Ice": 0x10}
+
+def skill_table_off(disc):
+    try:
+        return SKILL_TABLES[disc]
+    except KeyError:
+        raise KeyError(f"no skill table known for disc {disc!r}") from None
+
+def skill_element_text(mask):
+    """0x08 -> 'Fire'; 0 -> '-'; unknown bits shown raw."""
+    names = [n for n, b in SKILL_ELEMENT_BITS.items() if mask & b]
+    rest = mask & ~sum(SKILL_ELEMENT_BITS.values())
+    if rest:
+        names.append(f"0x{rest:X}")
+    return "+".join(names) if names else "-"
+
 def skill_catalog():
-    """{name-offset: {name, target, tags, ep, desc}} for the 174 skills."""
+    """{index: {name, target, tags, ep, desc, placeholder[, numeric]}} —
+    the 174-entry skill text table (indices 0..173; numerics on 0..56)."""
     return {int(k): v for k, v in res_json("x2_skills.json").items()}
 
 def skill_names():
-    """{name-offset: name}."""
+    """{index: name}."""
     return {k: v["name"] for k, v in skill_catalog().items()}
 
 def es_equip_catalog():

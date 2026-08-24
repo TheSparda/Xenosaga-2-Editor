@@ -1,1436 +1,2543 @@
 {
- "33594200": {
+ "0": {
   "desc": "Low HP recovery relative to Ether Attack.",
   "ep": 2,
   "name": "Medica",
+  "nameOff": 33594200,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 2,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 2,
+   "power": 5,
+   "rank": 0,
+   "stringId": 1,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33594266": {
+ "1": {
   "desc": "Mid HP recovery relative to Ether Attack.",
   "ep": 4,
   "name": "Medica 2",
+  "nameOff": 33594266,
+  "numeric": {
+   "acc": 100,
+   "anim": 41,
+   "category": 2,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 4,
+   "power": 10,
+   "rank": 1,
+   "stringId": 2,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33594334": {
-  "desc": "Low HP recovery relative to Ether Attack.",
-  "ep": 10,
-  "name": "Medica All",
-  "tags": [],
-  "target": "All allies"
- },
- "33594407": {
-  "desc": "Clear L-type status effect based on caster's Eatk.",
-  "ep": 4,
-  "name": "Refresh L",
-  "tags": [],
-  "target": "One ally"
- },
- "33594485": {
-  "desc": "Clear H-type status effect based on caster's Eatk.",
-  "ep": 6,
-  "name": "Refresh H",
-  "tags": [],
-  "target": "One ally"
- },
- "33594563": {
-  "desc": "Clear status effects using half of current HP.",
-  "ep": 8,
-  "name": "Cleanse",
-  "tags": [],
-  "target": "Self"
- },
- "33594631": {
-  "desc": "Revive character with 25% HP.",
-  "ep": 20,
-  "name": "Revert",
-  "tags": [],
-  "target": "One ally"
- },
- "33594686": {
-  "desc": "Raise status effect resistance 10%.",
-  "ep": 6,
-  "name": "Vaccine",
-  "tags": [],
-  "target": "One ally"
- },
- "33594747": {
-  "desc": "Lower Dexterity and Evasion of B or G enemy.",
-  "ep": 4,
-  "name": "Down Dex",
-  "tags": [],
-  "target": "One enemy"
- },
- "33594819": {
-  "desc": "Lower Physical Attack of B or G enemy.",
-  "ep": 4,
-  "name": "Down Force",
-  "tags": [],
-  "target": "One enemy"
- },
- "33594887": {
+ "10": {
   "desc": "Lower Physical Defense of B or G enemy.",
   "ep": 4,
   "name": "Down P Def",
+  "nameOff": 33594887,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 16,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 11,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33594956": {
+ "100": {
+  "desc": "Q @",
+  "ep": null,
+  "name": " Q  ",
+  "nameOff": 33600387,
+  "placeholder": false,
+  "tags": [],
+  "target": "Q @"
+ },
+ "101": {
+  "desc": "",
+  "ep": null,
+  "name": " Q ",
+  "nameOff": 33600423,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "102": {
+  "desc": "",
+  "ep": null,
+  "name": "@@",
+  "nameOff": 33600965,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "103": {
+  "desc": "",
+  "ep": null,
+  "name": "@ ",
+  "nameOff": 33600977,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "104": {
+  "desc": "Q @",
+  "ep": null,
+  "name": "Q  ",
+  "nameOff": 33601324,
+  "placeholder": false,
+  "tags": [],
+  "target": "Q @"
+ },
+ "105": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601360,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "106": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601372,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "107": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601384,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "108": {
+  "desc": "",
+  "ep": null,
+  "name": "Q ",
+  "nameOff": 33601396,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "109": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601408,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "11": {
   "desc": "Lower Ether Attack of B or G enemy.",
   "ep": 4,
   "name": "Down Ether",
+  "nameOff": 33594956,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 64,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 12,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595021": {
+ "110": {
+  "desc": "HP Recovery +10%.",
+  "ep": null,
+  "name": "HP Mind 10",
+  "nameOff": 33601508,
+  "placeholder": false,
+  "tags": [],
+  "target": "HP Recovery +10%."
+ },
+ "111": {
+  "desc": "HP Recovery +15%.",
+  "ep": null,
+  "name": "HP Mind 15",
+  "nameOff": 33601537,
+  "placeholder": false,
+  "tags": [],
+  "target": "HP Recovery +15%."
+ },
+ "112": {
+  "desc": "Status effect recovery +10%.",
+  "ep": null,
+  "name": "ST Mind 10",
+  "nameOff": 33601566,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect recovery +10%."
+ },
+ "113": {
+  "desc": "Status effect recovery +15%.",
+  "ep": null,
+  "name": "ST Mind 15",
+  "nameOff": 33601606,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect recovery +15%."
+ },
+ "114": {
+  "desc": "Poison resistance +25%.",
+  "ep": null,
+  "name": "Poison Guard",
+  "nameOff": 33601646,
+  "placeholder": false,
+  "tags": [],
+  "target": "Poison resistance +25%."
+ },
+ "115": {
+  "desc": "Lost resistance +25%.",
+  "ep": null,
+  "name": "Lost Guard",
+  "nameOff": 33601683,
+  "placeholder": false,
+  "tags": [],
+  "target": "Lost resistance +25%."
+ },
+ "116": {
+  "desc": "Blind resistance +25%.",
+  "ep": null,
+  "name": "Blind Guard",
+  "nameOff": 33601716,
+  "placeholder": false,
+  "tags": [],
+  "target": "Blind resistance +25%."
+ },
+ "117": {
+  "desc": "Heavy resistance +25%.",
+  "ep": null,
+  "name": "Heavy Guard",
+  "nameOff": 33601751,
+  "placeholder": false,
+  "tags": [],
+  "target": "Heavy resistance +25%."
+ },
+ "118": {
+  "desc": "Weak resistance +25%.",
+  "ep": null,
+  "name": "Weak Guard",
+  "nameOff": 33601786,
+  "placeholder": false,
+  "tags": [],
+  "target": "Weak resistance +25%."
+ },
+ "119": {
+  "desc": "Slow resistance +25%.",
+  "ep": null,
+  "name": "Slow Guard",
+  "nameOff": 33601819,
+  "placeholder": false,
+  "tags": [],
+  "target": "Slow resistance +25%."
+ },
+ "12": {
   "desc": "Lower Ether Defense of B or G enemy.",
   "ep": 4,
   "name": "Down E Def",
+  "nameOff": 33595021,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 128,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 13,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595087": {
+ "120": {
+  "desc": "Stun resistance +25%.",
+  "ep": null,
+  "name": "Stun Guard",
+  "nameOff": 33601852,
+  "placeholder": false,
+  "tags": [],
+  "target": "Stun resistance +25%."
+ },
+ "121": {
+  "desc": "Ether PD resistance +25%.",
+  "ep": null,
+  "name": "Ether PD Guard",
+  "nameOff": 33601885,
+  "placeholder": false,
+  "tags": [],
+  "target": "Ether PD resistance +25%."
+ },
+ "122": {
+  "desc": "Ether DD resistance +25%.",
+  "ep": null,
+  "name": "Ether DD Guard",
+  "nameOff": 33601926,
+  "placeholder": false,
+  "tags": [],
+  "target": "Ether DD resistance +25%."
+ },
+ "123": {
+  "desc": "Poison EP resistance +25%.",
+  "ep": null,
+  "name": "Poison EP Guard",
+  "nameOff": 33601967,
+  "placeholder": false,
+  "tags": [],
+  "target": "Poison EP resistance +25%."
+ },
+ "124": {
+  "desc": "Increase skill slots by one.",
+  "ep": null,
+  "name": "Expansion Pack",
+  "nameOff": 33602010,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase skill slots by one."
+ },
+ "125": {
+  "desc": "Recall enemy zones once learned.",
+  "ep": null,
+  "name": "Memory",
+  "nameOff": 33602054,
+  "placeholder": false,
+  "tags": [],
+  "target": "Recall enemy zones once learned."
+ },
+ "126": {
+  "desc": "Break bonus chance +10%.",
+  "ep": null,
+  "name": "Break B10",
+  "nameOff": 33602094,
+  "placeholder": false,
+  "tags": [],
+  "target": "Break bonus chance +10%."
+ },
+ "127": {
+  "desc": "Break bonus chance +15%.",
+  "ep": null,
+  "name": "Break B15",
+  "nameOff": 33602129,
+  "placeholder": false,
+  "tags": [],
+  "target": "Break bonus chance +15%."
+ },
+ "128": {
+  "desc": "Retain full Agility after casting Ether.",
+  "ep": null,
+  "name": "Lost AGL",
+  "nameOff": 33602164,
+  "placeholder": false,
+  "tags": [],
+  "target": "Retain full Agility after casting Ether."
+ },
+ "129": {
+  "desc": "Regeneration x2 during reserve.",
+  "ep": null,
+  "name": "Rapid Refresh",
+  "nameOff": 33602214,
+  "placeholder": false,
+  "tags": [],
+  "target": "Regeneration x2 during reserve."
+ },
+ "13": {
   "desc": "Lower Dexterity and Evasion of M enemy.",
   "ep": 4,
   "name": "Break Sensors",
+  "nameOff": 33595087,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 4,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 276,
+   "rank": 0,
+   "stringId": 14,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595159": {
+ "130": {
+  "desc": "Experience Points +10%.",
+  "ep": null,
+  "name": "Experience Up 10",
+  "nameOff": 33602260,
+  "placeholder": false,
+  "tags": [],
+  "target": "Experience Points +10%."
+ },
+ "131": {
+  "desc": "Experience Points +15%.",
+  "ep": null,
+  "name": "Experience Up 15",
+  "nameOff": 33602301,
+  "placeholder": false,
+  "tags": [],
+  "target": "Experience Points +15%."
+ },
+ "132": {
+  "desc": "Skill Points +10%.",
+  "ep": null,
+  "name": "Skill Up 10",
+  "nameOff": 33602342,
+  "placeholder": false,
+  "tags": [],
+  "target": "Skill Points +10%."
+ },
+ "133": {
+  "desc": "Skill Points +15%.",
+  "ep": null,
+  "name": "Skill Up 15",
+  "nameOff": 33602373,
+  "placeholder": false,
+  "tags": [],
+  "target": "Skill Points +15%."
+ },
+ "134": {
+  "desc": "Damage reduction +20% when guarding.",
+  "ep": null,
+  "name": "Guard",
+  "nameOff": 33602404,
+  "placeholder": false,
+  "tags": [],
+  "target": "Damage reduction +20% when guarding."
+ },
+ "135": {
+  "desc": "Recover 10% EP with the Stock command.",
+  "ep": null,
+  "name": "Focus 1",
+  "nameOff": 33602447,
+  "placeholder": false,
+  "tags": [],
+  "target": "Recover 10% EP with the Stock command."
+ },
+ "136": {
+  "desc": "Recover 15% EP with the Stock command.",
+  "ep": null,
+  "name": "Focus 2",
+  "nameOff": 33602494,
+  "placeholder": false,
+  "tags": [],
+  "target": "Recover 15% EP with the Stock command."
+ },
+ "137": {
+  "desc": "Raise Evasion after using the Stock command.",
+  "ep": null,
+  "name": "Inner Peace",
+  "nameOff": 33602541,
+  "placeholder": false,
+  "tags": [],
+  "target": "Raise Evasion after using the Stock command."
+ },
+ "138": {
+  "desc": "Increase Physical Attack.",
+  "ep": null,
+  "name": "STR+2",
+  "nameOff": 33602598,
+  "placeholder": false,
+  "tags": [],
+  "target": "Str +2"
+ },
+ "139": {
+  "desc": "Increase Physical Defense.",
+  "ep": null,
+  "name": "VIT+2",
+  "nameOff": 33602638,
+  "placeholder": false,
+  "tags": [],
+  "target": "Vit +2"
+ },
+ "14": {
   "desc": "Lower Physical Attack of M enemy.",
   "ep": 4,
   "name": "Break Arms",
+  "nameOff": 33595159,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 8,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 276,
+   "rank": 0,
+   "stringId": 15,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595222": {
+ "140": {
+  "desc": "Increase Dexterity.",
+  "ep": null,
+  "name": "DEX+2",
+  "nameOff": 33602679,
+  "placeholder": false,
+  "tags": [],
+  "target": "Dex +2"
+ },
+ "141": {
+  "desc": "Increase Evasion.",
+  "ep": null,
+  "name": "EVA+2",
+  "nameOff": 33602713,
+  "placeholder": false,
+  "tags": [],
+  "target": "Eva +2"
+ },
+ "142": {
+  "desc": "Increase Ether Attack.",
+  "ep": null,
+  "name": "EATK+2",
+  "nameOff": 33602745,
+  "placeholder": false,
+  "tags": [],
+  "target": "Eatk +2"
+ },
+ "143": {
+  "desc": "Increase Ether Defense.",
+  "ep": null,
+  "name": "EDEF+2",
+  "nameOff": 33602784,
+  "placeholder": false,
+  "tags": [],
+  "target": "Edef +2"
+ },
+ "144": {
+  "desc": "Increase max HP & EP 10%.",
+  "ep": null,
+  "name": "Limiter Up",
+  "nameOff": 33602824,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase max HP & EP 10%."
+ },
+ "145": {
+  "desc": "Double parameter effects of equipped skills.",
+  "ep": null,
+  "name": "Double Power",
+  "nameOff": 33602861,
+  "placeholder": false,
+  "tags": [],
+  "target": "Double parameter effects of equipped skills."
+ },
+ "146": {
+  "desc": "Increases critical hit rate 5%.",
+  "ep": null,
+  "name": "CRTC+5",
+  "nameOff": 33602919,
+  "placeholder": false,
+  "tags": [],
+  "target": "Critical +5%."
+ },
+ "147": {
+  "desc": "Rare item acquisition +10%.",
+  "ep": null,
+  "name": "Rare+10",
+  "nameOff": 33602973,
+  "placeholder": false,
+  "tags": [],
+  "target": "Rare item acquisition +10%."
+ },
+ "148": {
+  "desc": "Rare item acquisition +30%.",
+  "ep": null,
+  "name": "Rare+30",
+  "nameOff": 33603009,
+  "placeholder": false,
+  "tags": [],
+  "target": "Rare item acquisition +30%."
+ },
+ "149": {
+  "desc": "Lower all damage received by 10%.",
+  "ep": null,
+  "name": "Damage-10",
+  "nameOff": 33603045,
+  "placeholder": false,
+  "tags": [],
+  "target": "Lower all damage received by 10%."
+ },
+ "15": {
   "desc": "Lower Physical Defense of M enemy.",
   "ep": 4,
   "name": "Break Armor",
+  "nameOff": 33595222,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 16,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 276,
+   "rank": 0,
+   "stringId": 16,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595287": {
+ "150": {
+  "desc": "EP consumption 1/2.",
+  "ep": null,
+  "name": "EP Half",
+  "nameOff": 33603089,
+  "placeholder": false,
+  "tags": [
+   "2."
+  ],
+  "target": "EP consumption 1"
+ },
+ "151": {
+  "desc": "Duration of status effects x2.",
+  "ep": null,
+  "name": "ST Double",
+  "nameOff": 33603117,
+  "placeholder": false,
+  "tags": [],
+  "target": "Duration of status effects x2."
+ },
+ "152": {
+  "desc": "(only after enemy individual attack).",
+  "ep": null,
+  "name": "Revenge Power",
+  "nameOff": 33603158,
+  "placeholder": false,
+  "tags": [],
+  "target": "25% chance of Counterboost after taking a critical hit"
+ },
+ "153": {
+  "desc": "character icon is showing.",
+  "ep": null,
+  "name": "Combo Boost",
+  "nameOff": 33603266,
+  "placeholder": false,
+  "tags": [],
+  "target": "Boost possible even when"
+ },
+ "154": {
+  "desc": "EP +2 every turn.",
+  "ep": null,
+  "name": "EP Regen",
+  "nameOff": 33603331,
+  "placeholder": false,
+  "tags": [],
+  "target": "EP +2 every turn."
+ },
+ "155": {
+  "desc": "Increase attack when party member is knocked out.",
+  "ep": null,
+  "name": "Samurai Soul",
+  "nameOff": 33603358,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase attack when party member is knocked out."
+ },
+ "156": {
+  "desc": "Increase defense when party member is knocked out.",
+  "ep": null,
+  "name": "Knight Soul",
+  "nameOff": 33603421,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase defense when party member is knocked out."
+ },
+ "157": {
+  "desc": "1 HP and full stock (1 time only).",
+  "ep": null,
+  "name": "Last Revenge",
+  "nameOff": 33603484,
+  "placeholder": false,
+  "tags": [],
+  "target": "When knocked out, Counterboost with"
+ },
+ "158": {
+  "desc": "also doubles EP consumption.",
+  "ep": null,
+  "name": "Ether Burst",
+  "nameOff": 33603569,
+  "placeholder": false,
+  "tags": [],
+  "target": "Doubles Ether attack damage, but"
+ },
+ "159": {
+  "desc": "Stock +1 when battle starts.",
+  "ep": null,
+  "name": "First Combo",
+  "nameOff": 33603644,
+  "placeholder": false,
+  "tags": [],
+  "target": "Stock +1 when battle starts."
+ },
+ "16": {
   "desc": "Lower Ether Attack of M enemy.",
   "ep": 4,
   "name": "Break Beam",
+  "nameOff": 33595287,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 64,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 276,
+   "rank": 0,
+   "stringId": 17,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595347": {
+ "160": {
+  "desc": "when using the Stock command.",
+  "ep": null,
+  "name": "Rebound",
+  "nameOff": 33603685,
+  "placeholder": false,
+  "tags": [],
+  "target": "50% chance to Counterboost after guard or evasion"
+ },
+ "161": {
+  "desc": "when using the Stock command.",
+  "ep": null,
+  "name": "Overload",
+  "nameOff": 33603774,
+  "placeholder": false,
+  "tags": [],
+  "target": "50% chance of stock +2"
+ },
+ "162": {
+  "desc": "Status effect resistance +20%.",
+  "ep": null,
+  "name": "ST Resist 20",
+  "nameOff": 33603837,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect resistance +20%."
+ },
+ "163": {
+  "desc": "Status effect resistance +30%.",
+  "ep": null,
+  "name": "ST Resist 30",
+  "nameOff": 33603881,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect resistance +30%."
+ },
+ "164": {
+  "desc": "Reduce fire damage 25%.",
+  "ep": null,
+  "name": "Flame Coat",
+  "nameOff": 33603925,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce fire damage 25%."
+ },
+ "165": {
+  "desc": "Reduce ice damage 25%.",
+  "ep": null,
+  "name": "Ice Coat",
+  "nameOff": 33603960,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce ice damage 25%."
+ },
+ "166": {
+  "desc": "Reduce thunder damage 25%.",
+  "ep": null,
+  "name": "Thunder Coat",
+  "nameOff": 33603992,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce thunder damage 25%."
+ },
+ "167": {
+  "desc": "Reduce aura damage 25%.",
+  "ep": null,
+  "name": "Aura Coat",
+  "nameOff": 33604032,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce aura damage 25%."
+ },
+ "168": {
+  "desc": "Reduce slashing damage 25%.",
+  "ep": null,
+  "name": "Blade Coat",
+  "nameOff": 33604066,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce slashing damage 25%."
+ },
+ "169": {
+  "desc": "Reduce piercing damage 25%.",
+  "ep": null,
+  "name": "Spear Coat",
+  "nameOff": 33604105,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce piercing damage 25%."
+ },
+ "17": {
   "desc": "Lower Ether Defense of M enemy.",
   "ep": 4,
   "name": "Break Shield",
+  "nameOff": 33595347,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 128,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 276,
+   "rank": 0,
+   "stringId": 18,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595410": {
+ "170": {
+  "desc": "Reduce strike damage 25%.",
+  "ep": null,
+  "name": "Hammer Coat",
+  "nameOff": 33604144,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce strike damage 25%."
+ },
+ "171": {
+  "desc": "Reduce beam damage 25%.",
+  "ep": null,
+  "name": "Beam Coat",
+  "nameOff": 33604182,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce beam damage 25%."
+ },
+ "172": {
+  "desc": "Additional 10-15% damage.",
+  "ep": null,
+  "name": "Swimsuit",
+  "nameOff": 33604216,
+  "placeholder": false,
+  "tags": [
+   "Skill points +10%"
+  ],
+  "target": "Agl +1"
+ },
+ "173": {
+  "desc": "",
+  "ep": null,
+  "name": "予備",
+  "nameOff": 33604277,
+  "placeholder": true,
+  "tags": [],
+  "target": ""
+ },
+ "18": {
   "desc": "20% chance to cancel M enemy's action.",
   "ep": 4,
   "name": "Junk Beam",
+  "nameOff": 33595410,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 1024,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 276,
+   "rank": 1,
+   "stringId": 19,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595477": {
+ "19": {
   "desc": "Lower status resistance of B or G enemy.",
   "ep": 4,
   "name": "Infection",
+  "nameOff": 33595477,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 512,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 20,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595546": {
+ "2": {
+  "desc": "Low HP recovery relative to Ether Attack.",
+  "ep": 10,
+  "name": "Medica All",
+  "nameOff": 33594334,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 2,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 10,
+   "power": 5,
+   "rank": 2,
+   "stringId": 3,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "All allies"
+ },
+ "20": {
   "desc": "Block B or G enemy's Ether skills.",
   "ep": 6,
   "name": "Misty",
+  "nameOff": 33595546,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 2,
+   "effectMask": 1024,
+   "effectPct": 612,
+   "element": 0,
+   "ep": 6,
+   "power": 20,
+   "rank": 2,
+   "stringId": 21,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33595605": {
+ "21": {
   "desc": "Reduce thunder damage 25%.",
   "ep": 4,
   "name": "Thunder Veil",
+  "nameOff": 33595605,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 4,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 22,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33595662": {
+ "22": {
   "desc": "Reduce fire damage 25%.",
   "ep": 4,
   "name": "Flame Veil",
+  "nameOff": 33595662,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 8,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 23,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33595714": {
+ "23": {
   "desc": "Reduce ice damage 25%.",
   "ep": 4,
   "name": "Ice Veil",
+  "nameOff": 33595714,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 16,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 24,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33595763": {
+ "24": {
   "desc": "Reduce aura and beam damage 25%.",
   "ep": 4,
   "name": "Aura Veil",
+  "nameOff": 33595763,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 3,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 25,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33595883": {
+ "25": {
+  "desc": "Double Veil effect and raise Ether recovery 25%.",
+  "ep": null,
+  "name": "Burst Veil",
+  "nameOff": 33595823,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 256,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 2,
+   "power": 20,
+   "rank": 0,
+   "stringId": 26,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "Double Veil effect and raise Ether recovery 25%."
+ },
+ "26": {
   "desc": "Add fire to non-elemental attacks.",
   "ep": 4,
   "name": "Flame Sword",
+  "nameOff": 33595883,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 8,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 27,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33595947": {
+ "27": {
   "desc": "Add thunder to non-elemental attacks.",
   "ep": 4,
   "name": "Thunder Sword",
+  "nameOff": 33595947,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 4,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 28,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33596016": {
+ "28": {
   "desc": "Add ice to non-elemental attacks.",
   "ep": 4,
   "name": "Ice Sword",
+  "nameOff": 33596016,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 16,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 29,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33596077": {
+ "29": {
   "desc": "Add aura to non-elemental attacks.",
   "ep": 4,
   "name": "Aura Sword",
+  "nameOff": 33596077,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 2,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 30,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33596140": {
+ "3": {
+  "desc": "Clear L-type status effect based on caster's Eatk.",
+  "ep": 4,
+  "name": "Refresh L",
+  "nameOff": 33594407,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 5,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 65535,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 4,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "30": {
   "desc": "Fire Ether attack.",
   "ep": 6,
   "name": "Flame Blast",
+  "nameOff": 33596140,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 8,
+   "ep": 6,
+   "power": 20,
+   "rank": 0,
+   "stringId": 31,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Fire"
   ],
   "target": "One enemy"
  },
- "33596196": {
+ "31": {
   "desc": "Ice Ether attack.",
   "ep": 6,
   "name": "Ice Blast",
+  "nameOff": 33596196,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 16,
+   "ep": 6,
+   "power": 20,
+   "rank": 0,
+   "stringId": 32,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Ice"
   ],
   "target": "One enemy"
  },
- "33596248": {
+ "32": {
   "desc": "Thunder Ether attack.",
   "ep": 6,
   "name": "Thunder Blast",
+  "nameOff": 33596248,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 4,
+   "ep": 6,
+   "power": 20,
+   "rank": 0,
+   "stringId": 33,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Thunder"
   ],
   "target": "One enemy"
  },
- "33596312": {
+ "33": {
   "desc": "Aura Ether attack.",
   "ep": 6,
   "name": "Aura Blast",
+  "nameOff": 33596312,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 2,
+   "ep": 6,
+   "power": 20,
+   "rank": 0,
+   "stringId": 34,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Aura"
   ],
   "target": "One enemy"
  },
- "33596367": {
+ "34": {
   "desc": "Non-elemental Ether attack.",
   "ep": 8,
   "name": "Miracle Star",
+  "nameOff": 33596367,
+  "numeric": {
+   "acc": 100,
+   "anim": 42,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 8,
+   "power": 24,
+   "rank": 0,
+   "stringId": 35,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E"
   ],
   "target": "One enemy"
  },
- "33596433": {
+ "35": {
   "desc": "Aura Ether attack.",
   "ep": 18,
   "name": "Heaven's Rain",
+  "nameOff": 33596433,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 1,
+   "charge": 8,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 2,
+   "ep": 18,
+   "power": 26,
+   "rank": 2,
+   "stringId": 36,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Aura"
   ],
   "target": "All enemies"
  },
- "33596494": {
+ "36": {
   "desc": "Non-elemental Ether attack & clear status effects.",
   "ep": 18,
   "name": "Annihilation",
+  "nameOff": 33596494,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 1,
+   "charge": 9,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 18,
+   "power": 40,
+   "rank": 3,
+   "stringId": 37,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E"
   ],
   "target": "One enemy"
  },
- "33596584": {
+ "37": {
   "desc": "Receive a heavenly gift.",
   "ep": 16,
   "name": "Prayer",
+  "nameOff": 33596584,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 0,
+   "charge": 1,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 16,
+   "power": 20,
+   "rank": 2,
+   "stringId": 38,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "Self"
  },
- "33596630": {
+ "38": {
   "desc": "Increase Stock count by one.",
   "ep": 4,
   "name": "Stock 1",
+  "nameOff": 33596630,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 0,
+   "charge": 1,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 1,
+   "stringId": 39,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33596684": {
+ "39": {
   "desc": "Increase Boost count by one.",
   "ep": 8,
   "name": "Boost 1",
+  "nameOff": 33596684,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 0,
+   "charge": 1,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 8,
+   "power": 20,
+   "rank": 1,
+   "stringId": 40,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "Self"
  },
- "33596734": {
+ "4": {
+  "desc": "Clear H-type status effect based on caster's Eatk.",
+  "ep": 6,
+  "name": "Refresh H",
+  "nameOff": 33594485,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 5,
+   "charge": 0,
+   "effectKind": 2,
+   "effectMask": 65535,
+   "effectPct": 612,
+   "element": 0,
+   "ep": 6,
+   "power": 20,
+   "rank": 0,
+   "stringId": 5,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "40": {
   "desc": "Increase turns 25%.",
   "ep": 10,
   "name": "Quick",
+  "nameOff": 33596734,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 64,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 10,
+   "power": 20,
+   "rank": 2,
+   "stringId": 41,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33596778": {
+ "41": {
   "desc": "Analyze enemy.",
   "ep": 4,
   "name": "Analyze",
+  "nameOff": 33596778,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 0,
+   "charge": 1,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 42,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33596819": {
+ "42": {
   "desc": "Steal an item.",
   "ep": 4,
   "name": "Psycho Pocket",
+  "nameOff": 33596819,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 0,
+   "charge": 1,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 2,
+   "stringId": 43,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33596866": {
+ "43": {
   "desc": "Double HP regeneration (1 time).",
   "ep": 4,
   "name": "Charge Time",
+  "nameOff": 33596866,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 256,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 44,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "Self"
  },
- "33596924": {
+ "44": {
   "desc": "Enemy takes as much damage as it causes.",
   "ep": 18,
   "name": "Curse",
+  "nameOff": 33596924,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 2,
+   "effectMask": 4096,
+   "effectPct": 612,
+   "element": 0,
+   "ep": 18,
+   "power": 20,
+   "rank": 2,
+   "stringId": 45,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One enemy"
  },
- "33596990": {
+ "45": {
   "desc": "Survive with one HP (1 time).",
   "ep": 20,
   "name": "Safety Level",
+  "nameOff": 33596990,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 1024,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 20,
+   "power": 20,
+   "rank": 2,
+   "stringId": 46,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33597051": {
+ "46": {
   "desc": "Auto revive and recover all HP (1 time).",
   "ep": 60,
   "name": "Best Ally",
+  "nameOff": 33597051,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 2048,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 60,
+   "power": 20,
+   "rank": 5,
+   "stringId": 47,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "One ally"
  },
- "33597120": {
+ "47": {
   "desc": "Raise Physical Attack and lower Physical Defense.",
   "ep": 4,
   "name": "Attacker",
+  "nameOff": 33597120,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 4096,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 48,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "Self"
  },
- "33597192": {
+ "48": {
   "desc": "Lower Physical Attack and raise Physical Defense.",
   "ep": 4,
   "name": "Defender",
+  "nameOff": 33597192,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 2048,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 49,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "Self"
  },
- "33597264": {
+ "49": {
   "desc": "Raise Ether Attack and lower Ether Defense.",
   "ep": 4,
   "name": "Ether Spear",
+  "nameOff": 33597264,
+  "numeric": {
+   "acc": 100,
+   "anim": 36,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 1024,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 50,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "Self"
  },
- "33597333": {
+ "5": {
+  "desc": "Clear status effects using half of current HP.",
+  "ep": 8,
+  "name": "Cleanse",
+  "nameOff": 33594563,
+  "numeric": {
+   "acc": 100,
+   "anim": 49,
+   "category": 5,
+   "charge": 1,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 8,
+   "power": 20,
+   "rank": 2,
+   "stringId": 6,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "Self"
+ },
+ "50": {
   "desc": "Lower Ether Attack and raise Ether Defense.",
   "ep": 4,
   "name": "Ether Shield",
+  "nameOff": 33597333,
+  "numeric": {
+   "acc": 100,
+   "anim": 42,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 4,
+   "effectMask": 512,
+   "effectPct": 1124,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 51,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
   "target": "Self"
  },
- "33597403": {
+ "51": {
   "desc": "Ether power from Erde Kaiser arms.",
   "ep": 8,
   "name": "Erde Storm",
+  "nameOff": 33597403,
+  "numeric": {
+   "acc": 100,
+   "anim": 42,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 8,
+   "power": 20,
+   "rank": 4,
+   "stringId": 52,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E"
   ],
   "target": "All enemies"
  },
- "33597476": {
+ "52": {
   "desc": "Ether power from Erde Kaiser head.",
   "ep": 8,
   "name": "Erde Beam",
+  "nameOff": 33597476,
+  "numeric": {
+   "acc": 100,
+   "anim": 42,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 8,
+   "power": 20,
+   "rank": 4,
+   "stringId": 53,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Beam"
   ],
   "target": "All enemies"
  },
- "33597548": {
+ "53": {
   "desc": "Ether power from Erde Kaiser legs.",
   "ep": 8,
   "name": "Erde Quake",
+  "nameOff": 33597548,
+  "numeric": {
+   "acc": 100,
+   "anim": 42,
+   "category": 1,
+   "charge": 0,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 8,
+   "power": 20,
+   "rank": 4,
+   "stringId": 54,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E"
   ],
   "target": "All enemies"
  },
- "33597621": {
+ "54": {
   "desc": "Erde Kaiser Fury with the Kaiser Sword (1 time).",
   "ep": 50,
   "name": "Erde Kaiser Fury",
+  "nameOff": 33597621,
+  "numeric": {
+   "acc": 100,
+   "anim": 42,
+   "category": 1,
+   "charge": 17,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 50,
+   "power": 250,
+   "rank": 6,
+   "stringId": 55,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Slash"
   ],
   "target": "All enemies"
  },
- "33597716": {
+ "55": {
   "desc": "Erde Kaiser Fury with the Arm Drill (1 time).",
   "ep": 50,
   "name": "Erde Kaiser Fury",
+  "nameOff": 33597716,
+  "numeric": {
+   "acc": 100,
+   "anim": 42,
+   "category": 1,
+   "charge": 17,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 50,
+   "power": 250,
+   "rank": 6,
+   "stringId": 56,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Piercing"
   ],
   "target": "All enemies"
  },
- "33597811": {
+ "56": {
   "desc": "Erde Kaiser Fury with the Kaiser Rifle (1 time).",
   "ep": 50,
   "name": "Erde Kaiser Fury",
+  "nameOff": 33597811,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 1,
+   "charge": 17,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 50,
+   "power": 250,
+   "rank": 6,
+   "stringId": 57,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [
    "E",
    "Thunder"
   ],
   "target": "All enemies"
  },
- "33597936": {
+ "57": {
+  "desc": "予備１",
+  "ep": null,
+  "name": "予備１",
+  "nameOff": 33597908,
+  "placeholder": true,
+  "tags": [],
+  "target": "予備１"
+ },
+ "58": {
+  "desc": "予備２",
+  "ep": null,
+  "name": "予備２",
+  "nameOff": 33597922,
+  "placeholder": true,
+  "tags": [],
+  "target": "予備２"
+ },
+ "59": {
   "desc": "Low HP recovery.",
   "ep": null,
   "name": "Double Medica",
+  "nameOff": 33597936,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Medica × 2)"
  },
- "33597993": {
+ "6": {
+  "desc": "Revive character with 25% HP.",
+  "ep": 20,
+  "name": "Revert",
+  "nameOff": 33594631,
+  "numeric": {
+   "acc": 100,
+   "anim": 33,
+   "category": 3,
+   "charge": 1024,
+   "effectKind": 0,
+   "effectMask": 0,
+   "effectPct": 0,
+   "element": 0,
+   "ep": 20,
+   "power": 5,
+   "rank": 3,
+   "stringId": 7,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "60": {
   "desc": "Mid HP recovery.",
   "ep": null,
   "name": "Double Medica 2",
+  "nameOff": 33597993,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Medica 2 × 2)"
  },
- "33598054": {
+ "61": {
   "desc": "Remove L status effect.",
   "ep": null,
   "name": "Double Refresh L",
+  "nameOff": 33598054,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Refresh L × 2)"
  },
- "33598124": {
+ "62": {
   "desc": "Remove H status effect.",
   "ep": null,
   "name": "Double Refresh H",
+  "nameOff": 33598124,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Refresh H × 2)"
  },
- "33598194": {
+ "63": {
   "desc": "Lower Dexterity and Evasion of B or G enemies.",
   "ep": null,
   "name": "XSB Dex",
+  "nameOff": 33598194,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Down Dex × 2)"
  },
- "33598278": {
+ "64": {
   "desc": "Lower Physical Attack of B or G enemies.",
   "ep": null,
   "name": "XSB Force",
+  "nameOff": 33598278,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Down Force × 2)"
  },
- "33598360": {
+ "65": {
   "desc": "Lower Physical Defense of B or G enemies.",
   "ep": null,
   "name": "XSB P Def",
+  "nameOff": 33598360,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Down P Def × 2)"
  },
- "33598443": {
+ "66": {
   "desc": "Lower Ether Attack of B or G enemies.",
   "ep": null,
   "name": "XSB Ether",
+  "nameOff": 33598443,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Down Ether × 2)"
  },
- "33598522": {
+ "67": {
   "desc": "Lower Ether Defense of B or G enemies.",
   "ep": null,
   "name": "XSB E Def",
+  "nameOff": 33598522,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Down E Def × 2)"
  },
- "33598602": {
+ "68": {
   "desc": "Lower Dexterity and Evasion of M enemies.",
   "ep": null,
   "name": "XBK Sensors",
+  "nameOff": 33598602,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Break Sensors × 2)"
  },
- "33598690": {
+ "69": {
   "desc": "Lower Physical Attack of M enemies.",
   "ep": null,
   "name": "XBK Arms",
+  "nameOff": 33598690,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Break Arms × 2)"
  },
- "33598766": {
+ "7": {
+  "desc": "Raise status effect resistance 10%.",
+  "ep": 6,
+  "name": "Vaccine",
+  "nameOff": 33594686,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 3,
+   "effectMask": 32,
+   "effectPct": 868,
+   "element": 0,
+   "ep": 6,
+   "power": 20,
+   "rank": 0,
+   "stringId": 8,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "70": {
   "desc": "Lower Physical Defense of M enemies.",
   "ep": null,
   "name": "XBK Armor",
+  "nameOff": 33598766,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Break Armor × 2)"
  },
- "33598845": {
+ "71": {
   "desc": "Lower Ether Attack of M enemies.",
   "ep": null,
   "name": "XBK Beam",
+  "nameOff": 33598845,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Break Beam × 2)"
  },
- "33598918": {
+ "72": {
   "desc": "Lower Ether Defense of M enemies.",
   "ep": null,
   "name": "XBK Shield",
+  "nameOff": 33598918,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Break Shield × 2)"
  },
- "33598996": {
+ "73": {
   "desc": "20% chance to cancel M enemies' actions.",
   "ep": null,
   "name": "Junk Blast",
+  "nameOff": 33598996,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Junk Beam × 2)"
  },
- "33599078": {
+ "74": {
   "desc": "Block B or G enemies' Ether skills.",
   "ep": null,
   "name": "Lost Mist",
+  "nameOff": 33599078,
+  "placeholder": false,
   "tags": [],
   "target": "All enemies (Misty × 2)"
  },
- "33599150": {
+ "75": {
   "desc": "Reduce thunder damage 25%.",
   "ep": null,
   "name": "Thunder Wall",
+  "nameOff": 33599150,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Thunder Veil × 2)"
  },
- "33599222": {
+ "76": {
   "desc": "Reduce fire damage 25%.",
   "ep": null,
   "name": "Flame Wall",
+  "nameOff": 33599222,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Flame Veil × 2)"
  },
- "33599287": {
+ "77": {
   "desc": "Reduce ice damage 25%.",
   "ep": null,
   "name": "Ice Wall",
+  "nameOff": 33599287,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Ice Veil × 2)"
  },
- "33599347": {
+ "78": {
   "desc": "Reduce aura and beam damage 25%.",
   "ep": null,
   "name": "Aura Wall",
+  "nameOff": 33599347,
+  "placeholder": false,
   "tags": [],
   "target": "All allies (Aura Veil × 2)"
  },
- "33599419": {
+ "79": {
   "desc": "Fire Ether attack.",
   "ep": null,
   "name": "Flame Storm",
+  "nameOff": 33599419,
+  "placeholder": false,
   "tags": [
    "E",
    "Fire (Flame Blast × 2)"
   ],
   "target": "All enemies"
  },
- "33599489": {
+ "8": {
+  "desc": "Lower Dexterity and Evasion of B or G enemy.",
+  "ep": 4,
+  "name": "Down Dex",
+  "nameOff": 33594747,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 4,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 9,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One enemy"
+ },
+ "80": {
   "desc": "Thunder Ether attack.",
   "ep": null,
   "name": "Thunder Storm",
+  "nameOff": 33599489,
+  "placeholder": false,
   "tags": [
    "E",
    "Thunder (Thunder Blast × 2)"
   ],
   "target": "All enemies"
  },
- "33599569": {
+ "81": {
   "desc": "Ice Ether attack.",
   "ep": null,
   "name": "Ice Storm",
+  "nameOff": 33599569,
+  "placeholder": false,
   "tags": [
    "E",
    "Ice (Ice Blast × 2)"
   ],
   "target": "All enemies"
  },
- "33599633": {
+ "82": {
   "desc": "Aura Ether attack.",
   "ep": null,
   "name": "Aura Storm",
+  "nameOff": 33599633,
+  "placeholder": false,
   "tags": [
    "E",
    "Aura (Aura Blast × 2)"
   ],
   "target": "All enemies"
  },
- "33599701": {
+ "83": {
   "desc": "Non-elemental Ether attack.",
   "ep": null,
   "name": "Miracle Stars",
+  "nameOff": 33599701,
+  "placeholder": false,
   "tags": [
    "E",
    "None (Miracle Star × 2)"
   ],
   "target": "All enemies"
  },
- "33599783": {
+ "84": {
   "desc": "Concentrated fire Ether attack.",
   "ep": null,
   "name": "Flame Burst",
+  "nameOff": 33599783,
+  "placeholder": false,
   "tags": [
    "E",
    "Fire (Flame + Aura Blast)"
   ],
   "target": "One enemy"
  },
- "33599866": {
+ "85": {
   "desc": "Concentrated thunder Ether attack.",
   "ep": null,
   "name": "Thunder Burst",
+  "nameOff": 33599866,
+  "placeholder": false,
   "tags": [
    "E",
    "Thunder (Thunder + Aura Blast)"
   ],
   "target": "One enemy"
  },
- "33599959": {
+ "86": {
   "desc": "Concentrated ice Ether attack.",
   "ep": null,
   "name": "Ice Burst",
+  "nameOff": 33599959,
+  "placeholder": false,
   "tags": [
    "E",
    "Ice (Ice + Aura Blast)"
   ],
   "target": "One enemy"
  },
- "33600036": {
+ "87": {
   "desc": "Analyze enemy and steal rare item.",
   "ep": null,
   "name": "Pocket Rare",
+  "nameOff": 33600036,
+  "placeholder": false,
   "tags": [],
   "target": "One enemy (Analyze + Psycho Pocket)"
  },
- "33602598": {
-  "desc": "Increase Physical Attack.",
+ "88": {
+  "desc": "敵０1",
   "ep": null,
-  "name": "STR+2",
+  "name": "合体３０",
+  "nameOff": 33600120,
+  "placeholder": false,
   "tags": [],
-  "target": "Str +2"
+  "target": "敵０1"
  },
- "33602638": {
-  "desc": "Increase Physical Defense.",
+ "89": {
+  "desc": "敵０3",
   "ep": null,
-  "name": "VIT+2",
+  "name": "敵０2",
+  "nameOff": 33600137,
+  "placeholder": false,
   "tags": [],
-  "target": "Vit +2"
+  "target": "敵０3"
  },
- "33602679": {
-  "desc": "Increase Dexterity.",
-  "ep": null,
-  "name": "DEX+2",
+ "9": {
+  "desc": "Lower Physical Attack of B or G enemy.",
+  "ep": 4,
+  "name": "Down Force",
+  "nameOff": 33594819,
+  "numeric": {
+   "acc": 100,
+   "anim": 34,
+   "category": 4,
+   "charge": 0,
+   "effectKind": 1,
+   "effectMask": 8,
+   "effectPct": 356,
+   "element": 0,
+   "ep": 4,
+   "power": 20,
+   "rank": 0,
+   "stringId": 10,
+   "unk1": 85,
+   "unk2": 1
+  },
+  "placeholder": false,
   "tags": [],
-  "target": "Dex +2"
+  "target": "One enemy"
  },
- "33602713": {
-  "desc": "Increase Evasion.",
+ "90": {
+  "desc": "敵０5",
   "ep": null,
-  "name": "EVA+2",
+  "name": "敵０4",
+  "nameOff": 33600151,
+  "placeholder": false,
   "tags": [],
-  "target": "Eva +2"
+  "target": "敵０5"
  },
- "33602745": {
-  "desc": "Increase Ether Attack.",
+ "91": {
+  "desc": "敵０7",
   "ep": null,
-  "name": "EATK+2",
+  "name": "敵０6",
+  "nameOff": 33600165,
+  "placeholder": false,
   "tags": [],
-  "target": "Eatk +2"
+  "target": "敵０7"
  },
- "33602784": {
-  "desc": "Increase Ether Defense.",
+ "92": {
+  "desc": "敵０9",
   "ep": null,
-  "name": "EDEF+2",
+  "name": "敵０8",
+  "nameOff": 33600179,
+  "placeholder": false,
   "tags": [],
-  "target": "Edef +2"
+  "target": "敵０9"
  },
- "33602919": {
-  "desc": "Increases critical hit rate 5%.",
+ "93": {
+  "desc": "敵11",
   "ep": null,
-  "name": "CRTC+5",
+  "name": "敵10",
+  "nameOff": 33600193,
+  "placeholder": false,
   "tags": [],
-  "target": "Critical +5%."
+  "target": "敵11"
  },
- "33603158": {
-  "desc": "(only after enemy individual attack).",
+ "94": {
+  "desc": "敵13",
   "ep": null,
-  "name": "Revenge Power",
+  "name": "敵12",
+  "nameOff": 33600205,
+  "placeholder": false,
   "tags": [],
-  "target": "25% chance of Counterboost after taking a critical hit"
+  "target": "敵13"
  },
- "33603266": {
-  "desc": "character icon is showing.",
+ "95": {
+  "desc": "敵15",
   "ep": null,
-  "name": "Combo Boost",
+  "name": "敵14",
+  "nameOff": 33600217,
+  "placeholder": false,
   "tags": [],
-  "target": "Boost possible even when"
+  "target": "敵15"
  },
- "33603484": {
-  "desc": "1 HP and full stock (1 time only).",
+ "96": {
+  "desc": "敵17",
   "ep": null,
-  "name": "Last Revenge",
+  "name": "敵16",
+  "nameOff": 33600229,
+  "placeholder": false,
   "tags": [],
-  "target": "When knocked out, Counterboost with"
+  "target": "敵17"
  },
- "33603569": {
-  "desc": "also doubles EP consumption.",
+ "97": {
+  "desc": "敵19",
   "ep": null,
-  "name": "Ether Burst",
+  "name": "敵18",
+  "nameOff": 33600241,
+  "placeholder": false,
   "tags": [],
-  "target": "Doubles Ether attack damage, but"
+  "target": "敵19"
  },
- "33603685": {
-  "desc": "when using the Stock command.",
+ "98": {
+  "desc": "",
   "ep": null,
-  "name": "Rebound",
+  "name": "敵20",
+  "nameOff": 33600253,
+  "placeholder": false,
   "tags": [],
-  "target": "50% chance to Counterboost after guard or evasion"
+  "target": ""
  },
- "33603774": {
-  "desc": "when using the Stock command.",
+ "99": {
+  "desc": "",
   "ep": null,
-  "name": "Overload",
+  "name": " R ",
+  "nameOff": 33600327,
+  "placeholder": false,
   "tags": [],
-  "target": "50% chance of stock +2"
- },
- "33604216": {
-  "desc": "Additional 10-15% damage.",
-  "ep": null,
-  "name": "Swimsuit",
-  "tags": [
-   "Skill points +10%"
-  ],
-  "target": "Agl +1"
- },
- "33605076": {
-  "desc": "Increase Physical Defense.",
-  "ep": null,
-  "name": "Auxiliary Armor A",
-  "tags": [],
-  "target": "Arm +30"
- },
- "33605130": {
-  "desc": "Increase Physical Defense.",
-  "ep": null,
-  "name": "Auxiliary Armor B",
-  "tags": [],
-  "target": "Arm +40"
- },
- "33605214": {
-  "desc": "Increase Ether Defense.",
-  "ep": null,
-  "name": "EF Circuit A",
-  "tags": [],
-  "target": "Edef +20"
- },
- "33605261": {
-  "desc": "Increase Ether Defense.",
-  "ep": null,
-  "name": "EF Circuit B",
-  "tags": [],
-  "target": "Edef +30"
- },
- "33605651": {
-  "desc": "using the STOCK command.",
-  "ep": null,
-  "name": "Charge Recover",
-  "tags": [],
-  "target": "Recover 5% of maximum HP by"
- },
- "33612577": {
-  "desc": "with the number 2 written on it.",
-  "ep": null,
-  "name": "ZAZA's Clue 1",
-  "tags": [],
-  "target": "A memo left by Elsa's robot ZAZA"
- },
- "33612658": {
-  "desc": "with the number 5 written on it.",
-  "ep": null,
-  "name": "ZAZA's Clue 2",
-  "tags": [],
-  "target": "A memo left by Elsa's robot ZAZA"
- },
- "33612739": {
-  "desc": "with the number 8 written on it.",
-  "ep": null,
-  "name": "ZAZA's Clue 3",
-  "tags": [],
-  "target": "A memo left by Elsa's robot ZAZA"
- },
- "33612820": {
-  "desc": "with the number 7 written on it.",
-  "ep": null,
-  "name": "ZAZA's Clue 4",
-  "tags": [],
-  "target": "A memo left by Elsa's robot ZAZA"
- },
- "33612901": {
-  "desc": "with the number 6 written on it.",
-  "ep": null,
-  "name": "ZAZA's Clue 5",
-  "tags": [],
-  "target": "A memo left by Elsa's robot ZAZA"
- },
- "33612982": {
-  "desc": "with the number 4 written on it.",
-  "ep": null,
-  "name": "ZAZA's Clue 6",
-  "tags": [],
-  "target": "A memo left by Elsa's robot ZAZA"
- },
- "33613063": {
-  "desc": "with the number 3 written on it.",
-  "ep": null,
-  "name": "ZAZA's Clue 7",
-  "tags": [],
-  "target": "A memo left by Elsa's robot ZAZA"
- },
- "33613144": {
-  "desc": "a mail-order catalog.",
-  "ep": null,
-  "name": "Spade Letter",
-  "tags": [],
-  "target": "A letter shaped like a Spade which contains"
- },
- "33613224": {
-  "desc": "work-related documents.",
-  "ep": null,
-  "name": "Heart Letter",
-  "tags": [],
-  "target": "A letter shaped like a Heart which contains"
- },
- "33613306": {
-  "desc": "be from a niece to her aunt.",
-  "ep": null,
-  "name": "Club Letter",
-  "tags": [],
-  "target": "A letter shaped like a Club which appears to"
- },
- "33613393": {
-  "desc": "a description of days and nights on Second Miltia.",
-  "ep": null,
-  "name": "Diamond Letter",
-  "tags": [],
-  "target": "A letter shaped like a Diamond which appears to be"
- },
- "33614417": {
-  "desc": "accelerates the growth of plants.",
-  "ep": null,
-  "name": "Hyper Fertilizer",
-  "tags": [],
-  "target": "Second Miltia's natural fertilizer that"
- },
- "33614509": {
-  "desc": "the number 0813 written on it.",
-  "ep": null,
-  "name": "Vault Key",
-  "tags": [],
-  "target": "Key to Our Treasure's vault with"
- },
- "33614584": {
-  "desc": "filled with receipts for mice.",
-  "ep": null,
-  "name": "Secret Box",
-  "tags": [],
-  "target": "A box with 'Dominic' written on top and"
- },
- "33614895": {
-  "desc": "filled with entertainment information.",
-  "ep": null,
-  "name": "Entertainment Guide",
-  "tags": [],
-  "target": "A paper-based antique document"
- },
- "33614986": {
-  "desc": "filled with rules for high society living.",
-  "ep": null,
-  "name": "Rules of High Society",
-  "tags": [],
-  "target": "A paper-based antique document"
- },
- "33615289": {
-  "desc": "the Foundation that Janet was looking for.",
-  "ep": null,
-  "name": "Statue Blueprint",
-  "tags": [],
-  "target": "Blueprint for the stone statue on"
- },
- "33615496": {
-  "desc": "Pass code is '4949'.",
-  "ep": null,
-  "name": "Toy Store Key",
-  "tags": [],
-  "target": "Key to Toy's Universe warehouse. Can only be used once."
- },
- "33615588": {
-  "desc": "ravaged the Foundation's beaches.",
-  "ep": null,
-  "name": "Red Eye Fish Print",
-  "tags": [],
-  "target": "Fish print of the giant fish that"
- },
- "33615676": {
-  "desc": "composed by Margoyles.",
-  "ep": null,
-  "name": "Iron 4 Sheet Music",
-  "tags": [],
-  "target": "Sheet music of the Iron 4 theme song"
- },
- "33615756": {
-  "desc": "Number 3859 is written on it.",
-  "ep": null,
-  "name": "Unlock Code",
-  "tags": [],
-  "target": "Code that reveals the trick in the Foundation's stone statue."
- },
- "33615861": {
-  "desc": "Number 1857 is written on it.",
-  "ep": null,
-  "name": "King's Key",
-  "tags": [],
-  "target": "Key to King's secret storage."
- },
- "33615933": {
-  "desc": "The robot print on the back is amazing!",
-  "ep": null,
-  "name": "Geriatric Swimsuit",
-  "tags": [],
-  "target": "Swimsuit made from bio fibers to prevent drowning."
- },
- "33616102": {
-  "desc": "Take both arms to the Professor for an Ether skill!",
-  "ep": null,
-  "name": "Robot Part Right Arm",
-  "tags": [],
-  "target": "The right arm of a giant robot."
- },
- "33616208": {
-  "desc": "Take both arms to the Professor for an Ether skill!",
-  "ep": null,
-  "name": "Robot Part Left Arm",
-  "tags": [],
-  "target": "The left arm of a giant robot."
- },
- "33616312": {
-  "desc": "Take both legs to the Professor for an Ether skill!",
-  "ep": null,
-  "name": "Robot Part Right Leg",
-  "tags": [],
-  "target": "The right leg of a giant robot."
- },
- "33616418": {
-  "desc": "Take both legs to the Professor for an Ether skill!",
-  "ep": null,
-  "name": "Robot Part Left Leg",
-  "tags": [],
-  "target": "The left leg of a giant robot."
- },
- "33616522": {
-  "desc": "Take it to the Professor for an Ether skill!",
-  "ep": null,
-  "name": "Robot Part Head",
-  "tags": [],
-  "target": "The head of a giant robot."
- },
- "33616611": {
-  "desc": "Take it to the Professor for an Ether skill!",
-  "ep": null,
-  "name": "Robot Part Body",
-  "tags": [],
-  "target": "The body of a giant robot."
- },
- "33618960": {
-  "desc": "Ice sword slashes the enemy.",
-  "ep": null,
-  "name": "Ice Brand",
-  "tags": [
-   "P",
-   "Slash",
-   "Ice"
-  ],
-  "target": "Single enemy"
- },
- "33619025": {
-  "desc": "Doubles the effect of Veil Ether skills.",
-  "ep": null,
-  "name": "Burst Veil",
-  "tags": [
-   "Support (Burst Veil)"
-  ],
-  "target": "All allies"
- },
- "33619110": {
-  "desc": "Double aura attack.",
-  "ep": null,
-  "name": "Elemental Nocturne",
-  "tags": [
-   "E",
-   "Aura"
-  ],
-  "target": "All enemies"
- },
- "33619169": {
-  "desc": "Piercing rain of angel feathers.",
-  "ep": null,
-  "name": "Archangel's Requiem",
-  "tags": [
-   "P",
-   "Pierce"
-  ],
-  "target": "All enemies"
- },
- "33619244": {
-  "desc": "Reinforced Spell Ray.",
-  "ep": null,
-  "name": "Dual Spell Ray",
-  "tags": [
-   "E",
-   "Beam"
-  ],
-  "target": "Single enemy"
- },
- "33619302": {
-  "desc": "Power combination attack.",
-  "ep": null,
-  "name": "Cross Fist",
-  "tags": [
-   "P",
-   "Strike"
-  ],
-  "target": "Single enemy"
- },
- "33619362": {
-  "desc": "Gravity strike.",
-  "ep": null,
-  "name": "Gravity Bomb",
-  "tags": [
-   "P",
-   "Strike (L Slow)"
-  ],
-  "target": "Single enemy"
- },
- "33619423": {
-  "desc": "Chain of punishment.",
-  "ep": null,
-  "name": "Silver Duet",
-  "tags": [
-   "E",
-   "Non-elemental"
-  ],
-  "target": "Single enemy"
- },
- "33619486": {
-  "desc": "Ziggy's self-sacrificing attack.",
-  "ep": null,
-  "name": "Power Strike",
-  "tags": [
-   "P",
-   "Strike",
-   "Fire"
-  ],
-  "target": "Single enemy"
- },
- "33619560": {
-  "desc": "Exorcising sword.",
-  "ep": null,
-  "name": "Lion Heart",
-  "tags": [
-   "P",
-   "Slash"
-  ],
-  "target": "Single enemy"
- },
- "33619611": {
-  "desc": "Attack that uses the Hilbert Effect.",
-  "ep": null,
-  "name": "Cross Hilbert",
-  "tags": [
-   "Status (H Lost)"
-  ],
-  "target": "All enemies"
- },
- "33619691": {
-  "desc": "Auto revive.",
-  "ep": null,
-  "name": "Blessed Miracle",
-  "tags": [
-   "Support (Best Ally)"
-  ],
-  "target": "All allies"
- },
- "33619752": {
-  "desc": "KOS-MOS buster cannon.",
-  "ep": null,
-  "name": "Twin Buster",
-  "tags": [
-   "E",
-   "Beam"
-  ],
-  "target": "Single enemy"
- },
- "33619808": {
-  "desc": "Magnificent combination attack.",
-  "ep": null,
-  "name": "Grand Ronde",
-  "tags": [
-   "P",
-   "Strike"
-  ],
-  "target": "Single enemy"
- },
- "33619876": {
-  "desc": "Scorching rain of bullets.",
-  "ep": null,
-  "name": "Fiery Ritornelle",
-  "tags": [
-   "P",
-   "Pierce",
-   "Fire"
-  ],
-  "target": "All enemies"
- },
- "33619947": {
-  "desc": "Sword dance.",
-  "ep": null,
-  "name": "Phoenix Blade",
-  "tags": [
-   "E",
-   "Aura"
-  ],
-  "target": "Single enemy"
- },
- "33620332": {
-  "desc": "One-arm rocket punch.",
-  "ep": null,
-  "name": "Spiral Fist",
-  "tags": [
-   "Long",
-   "P",
-   "Strike"
-  ],
-  "target": "Single enemy"
- },
- "33620394": {
-  "desc": "Two-arm rocket punch.",
-  "ep": null,
-  "name": "Tornado Fist",
-  "tags": [
-   "Long",
-   "P",
-   "Thunder",
-   "Strike"
-  ],
-  "target": "Single enemy"
- },
- "33620465": {
-  "desc": "Slash enemy like a rising dragon.",
-  "ep": null,
-  "name": "Twin Dragons",
-  "tags": [
-   "Short",
-   "P",
-   "Slash"
-  ],
-  "target": "Single enemy"
- },
- "33620540": {
-  "desc": "Hit enemy with aura energy.",
-  "ep": null,
-  "name": "Chained Blast",
-  "tags": [
-   "Short",
-   "P",
-   "Aura",
-   "Strike"
-  ],
-  "target": "Single enemy"
- },
- "33620616": {
-  "desc": "Concentrated fireball attack.",
-  "ep": null,
-  "name": "Meteor Storm",
-  "tags": [
-   "Long",
-   "E",
-   "Fire"
-  ],
-  "target": "Single enemy"
- },
- "33620685": {
-  "desc": "Spread beam attack.",
-  "ep": null,
-  "name": "X-BUSTER",
-  "tags": [
-   "Long",
-   "E",
-   "Beam"
-  ],
-  "target": "All enemies"
- },
- "33620739": {
-  "desc": "Cut metal without even touching.",
-  "ep": null,
-  "name": "Iron Blade",
-  "tags": [
-   "Long",
-   "P",
-   "Aura",
-   "Slash"
-  ],
-  "target": "Single enemy"
- },
- "33620815": {
-  "desc": "Arrows of light rain from the sky.",
-  "ep": null,
-  "name": "Rain Arrow",
-  "tags": [
-   "Long",
-   "E",
-   "Pierce"
-  ],
-  "target": "All enemies"
- },
- "33620888": {
-  "desc": "Attack of light like a shooting star.",
-  "ep": null,
-  "name": "Starlight Arrow",
-  "tags": [
-   "Long",
-   "E",
-   "Pierce"
-  ],
-  "target": "Single enemy"
- },
- "33620970": {
-  "desc": "Divine arrow attack that also clears status effects.",
-  "ep": null,
-  "name": "Golden Bow",
-  "tags": [
-   "Long",
-   "E",
-   "Aura",
-   "Pierce"
-  ],
-  "target": "Single enemy"
- },
- "33621067": {
-  "desc": "Freezing kicks with the leg blades.",
-  "ep": null,
-  "name": "Ice Rondo",
-  "tags": [
-   "Short",
-   "P",
-   "Ice",
-   "Slash"
-  ],
-  "target": "Single enemy"
- },
- "33621145": {
-  "desc": "Furious rapid-fire attack.",
-  "ep": null,
-  "name": "Power Kick",
-  "tags": [
-   "Short",
-   "P",
-   "Fire",
-   "Strike"
-  ],
-  "target": "Single enemy"
- },
- "33621217": {
-  "desc": "Scatter beam attack.",
-  "ep": null,
-  "name": "Aird",
-  "tags": [
-   "Long",
-   "E",
-   "Beam"
-  ],
-  "target": "All enemies"
- },
- "33621268": {
-  "desc": "Giant meteor attack.",
-  "ep": null,
-  "name": "Meteor Blast",
-  "tags": [
-   "Long",
-   "E",
-   "Fire"
-  ],
-  "target": "Single enemy"
- },
- "33621328": {
-  "desc": "Fire a spear-like beam.",
-  "ep": null,
-  "name": "Shot Buster",
-  "tags": [
-   "Long",
-   "E",
-   "Beam"
-  ],
-  "target": "Single enemy"
- },
- "33621390": {
-  "desc": "Rapid-fire annihilation.",
-  "ep": null,
-  "name": "Gatling Blast",
-  "tags": [
-   "Long",
-   "P",
-   "Pierce"
-  ],
-  "target": "Single enemy"
- },
- "33621457": {
-  "desc": "Two beams of light slash enemy.",
-  "ep": null,
-  "name": "Wings of Light",
-  "tags": [
-   "Short",
-   "P",
-   "Aura",
-   "Slash"
-  ],
-  "target": "Single enemy"
- },
- "33621537": {
-  "desc": "A blast of ice and wind.",
-  "ep": null,
-  "name": "Ice Storm",
-  "tags": [
-   "Long",
-   "E",
-   "Ice"
-  ],
-  "target": "Single enemy"
- },
- "33621597": {
-  "desc": "A red-hot cannon shot from above.",
-  "ep": null,
-  "name": "Corona Buster",
-  "tags": [
-   "Long",
-   "E",
-   "Fire"
-  ],
-  "target": "Single enemy"
- },
- "33621671": {
-  "desc": "Shot synchronized to attacker's mind.",
-  "ep": null,
-  "name": "Odin Buster",
-  "tags": [
-   "Long",
-   "E",
-   "Beam"
-  ],
-  "target": "Single enemy"
- },
- "33621747": {
-  "desc": "A blast like moonlight flashing off a drawn sword.",
-  "ep": null,
-  "name": "Moonlight Blade",
-  "tags": [
-   "Long",
-   "E",
-   "Aura"
-  ],
-  "target": "All enemies"
- },
- "33622000": {
-  "desc": "Improved rapid-fire gatling gun.",
-  "ep": null,
-  "name": "MINIGUN",
-  "tags": [
-   "Long",
-   "P",
-   "Pierce"
-  ],
-  "target": "Single enemy"
- },
- "33622069": {
-  "desc": "Fire small missiles from both arms.",
-  "ep": null,
-  "name": "MICRO MISSILE",
-  "tags": [
-   "Long",
-   "P",
-   "Strike"
-  ],
-  "target": "All enemies"
- },
- "33622146": {
-  "desc": "Fire energy beam from rifle mode.",
-  "ep": null,
-  "name": "DRAGON BLADE",
-  "tags": [
-   "Long",
-   "E",
-   "Beam"
-  ],
-  "target": "Single enemy"
- },
- "33622219": {
-  "desc": "Abdominal spread beam weapon.",
-  "ep": null,
-  "name": "X-BUSTER",
-  "tags": [
-   "Long",
-   "E",
-   "Beam"
-  ],
-  "target": "All enemies in 120 deg. arc"
+  "target": ""
  }
 }

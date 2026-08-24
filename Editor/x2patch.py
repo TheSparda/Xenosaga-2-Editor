@@ -977,8 +977,11 @@ def _sync_to(primary_path, other_path):
                              f"pass the other disc")
         n = dst.disc
         recs, fields = sync_discs(src, dst)
-    if recs:
-        print(f"synced onto disc {n}: {fields} field(s) across {recs} record(s)")
+    with Iso(primary_path) as src, Iso(other_path, write=True) as dst:
+        sk = sync_skills(src, dst)
+    if recs or sk:
+        print(f"synced onto disc {n}: {fields} field(s) across {recs} record(s)"
+              + (f" + the ether-skill table" if sk else ""))
     else:
         print(f"synced onto disc {n}: already identical")
     return recs, fields
@@ -1127,6 +1130,37 @@ def cmd_verify_tables(a):
                   f"F.ENEMY_TABLES[{disc}] before the editor patches this image.")
         return 0
 
+def read_skill(iso, i):
+    """Named numeric fields of ether-skill record `i` (0..56), from the disc."""
+    base = F.skill_table_off(iso.disc) + i * F.SKILL_STRIDE
+    rec = iso.read(base, F.SKILL_STRIDE)
+    return {lbl: int.from_bytes(rec[off:off + w], "little")
+            for (lbl, off, w, _k) in F.SKILL_NUM_FIELDS}
+
+def write_skill(iso, i, edits):
+    """Write named numeric fields of ether-skill record `i`. Returns count."""
+    if not 0 <= i < F.SKILL_VERIFIED_COUNT:
+        raise SystemExit(f"skill index {i} outside the verified block "
+                         f"0..{F.SKILL_VERIFIED_COUNT - 1}")
+    base = F.skill_table_off(iso.disc) + i * F.SKILL_STRIDE
+    n = 0
+    for (lbl, off, w, _k) in F.SKILL_NUM_FIELDS:
+        if lbl in edits and edits[lbl] is not None:
+            v = max(0, min(int(edits[lbl]), (1 << (8 * w)) - 1))
+            iso.write(base + off, v.to_bytes(w, "little"))
+            n += 1
+    return n
+
+def sync_skills(src, dst):
+    """Copy the verified ether-skill records from one disc to the other."""
+    sb, db = F.skill_table_off(src.disc), F.skill_table_off(dst.disc)
+    span = F.SKILL_VERIFIED_COUNT * F.SKILL_STRIDE
+    blob = src.read(sb, span)
+    if dst.read(db, span) == blob:
+        return 0
+    dst.write(db, blob)
+    return F.SKILL_VERIFIED_COUNT
+
 def cmd_skills(a):
     """List the skill/tech catalog extracted from the disc."""
     cat = F.skill_catalog()
@@ -1145,12 +1179,55 @@ def cmd_skills(a):
         return 0
     print(f"{len(rows)} skill(s)"
           + (f" matching {a.grep!r}" if a.grep else "") + "\n")
-    for o, v in rows:
-        ep = f"EP {v['ep']}" if v["ep"] is not None else ""
+    for i, v in rows:
+        if v.get("placeholder"):
+            continue
+        num = v.get("numeric") or {}
+        ep = f"EP {num['ep']}" if num.get("ep") else (f"EP {v['ep']}" if v["ep"] else "")
+        pw = f"pow {num['power']}" if "power" in num else ""
+        el = F.skill_element_text(num["element"]) if num.get("element") else ""
         tags = "/".join(v["tags"])
-        print(f"  {v['name']:<24} {v['target']:<30} {tags:<22} {ep}")
+        print(f"  {i:3d} {v['name']:<22} {v['target']:<28} {tags:<18} "
+              f"{ep:<6} {pw:<8} {el}")
         if a.verbose and v["desc"]:
             print(f"      {v['desc']}")
+    return 0
+
+def cmd_skill_set(a):
+    """Write numeric fields of one ether skill: --set Power=50 --set EP=2."""
+    edits = {}
+    known = {f[0].upper(): f[0] for f in F.SKILL_NUM_FIELDS}
+    for pair in a.set or []:
+        if "=" not in pair:
+            raise SystemExit(f"--set expects FIELD=VALUE, got {pair!r}")
+        k, v = pair.split("=", 1)
+        if k.strip().upper() not in known:
+            raise SystemExit(f"unknown field {k!r}; known: "
+                             f"{', '.join(f[0] for f in F.SKILL_NUM_FIELDS)}")
+        edits[known[k.strip().upper()]] = int(v, 0)
+    if not edits:
+        raise SystemExit("nothing to do — pass at least one --set FIELD=VALUE")
+    name = F.skill_names().get(a.index, "?")
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        before = read_skill(iso, a.index)
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        n = write_skill(iso, a.index, edits)
+    with Iso(a.iso) as iso:
+        after = read_skill(iso, a.index)
+    print(f"wrote {n} field(s) to skill {a.index:3d} · {name}")
+    for k in edits:
+        print(f"  {k:<8} {before[k]:>6} -> {after[k]:>6}")
+    if a.also:
+        with Iso(a.iso) as src, Iso(a.also, write=True) as dst:
+            require_version(src); require_version(dst)
+            if src.disc == dst.disc:
+                raise SystemExit("--also: both images are the same disc")
+            n2 = sync_skills(src, dst)
+        print(f"synced skill table onto the other disc"
+              + ("" if n2 else " (already identical)"))
     return 0
 
 def cmd_enemy_columns(a):
@@ -1304,6 +1381,14 @@ def main():
     sp.add_argument("--csv", action="store_true")
     sp.add_argument("--verbose", action="store_true", help="also print descriptions")
     sp.set_defaults(fn=cmd_skills)
+
+    sp = sub.add_parser("skill-set", help="write numeric fields of one ether skill")
+    sp.add_argument("iso"); sp.add_argument("index", type=lambda x: int(x, 0))
+    sp.add_argument("--set", action="append", metavar="FIELD=VALUE")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="after editing, copy the skill table onto the other disc")
+    sp.add_argument("--backup", action="store_true")
+    sp.set_defaults(fn=cmd_skill_set)
 
     sp = sub.add_parser("sync", help="copy the enemy tables from one disc onto the other")
     sp.add_argument("src"); sp.add_argument("dst")
