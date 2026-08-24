@@ -13,8 +13,8 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
 - **Save Editor** (works everywhere, incl. phones) — edit gold and every character's level,
   HP, stats, and E.S. mech gear. Opens **PCSX2 memory-card images** (`.ps2`/`.mcd`) and lets
   you pick which in-game slot to edit, plus **`.psu`** (EMS), **`.psv`** (PS3),
-  **`.sps`/`.xps`** (SharkPort), and **`.cbs`** (CodeBreaker). Powered by the real Python
-  engine compiled to WebAssembly (Pyodide).
+  **`.sps`/`.xps`** (SharkPort), **`.cbs`** (CodeBreaker) and **`.max`** (AR Max / MAX
+  Drive). Powered by the real Python engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
   one**. Every enemy's **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle
   rewards** (EXP, SP, CP), **damage affinities** (per element, including absorb) and
@@ -35,8 +35,9 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
 
 Working today:
 
-- **Save editing** — gold + the full character sheet, across every common container
-  including PCSX2 memory-card images (one entry per in-game slot).
+- **Save editing** — gold + the full character sheet, across **every** common container:
+  PCSX2 memory-card images (one entry per in-game slot), `.psu`, `.psv`, SharkPort,
+  CodeBreaker and AR Max `.max`.
 - **ISO enemy editing** — stats, rewards and **Break sequences** for all 125 records, on
   **both discs**, plus battle-pacing profiles, patch files, and comparison against the retail
   values (with restore). The enemy tables are verified against two independent sources: 74/76
@@ -53,8 +54,8 @@ Two things worth stating plainly:
 
 Next reverse-engineering targets: the **numeric** skill table (power/cast time — the catalog
 below is the text half), the enemy **status resistances**, and the E.S. item id space; then
-the save checksum, party, and inventory, which need a PCSX2 session to anchor. `.max` (AR Max / LZARI) is the one
-container still unsupported.
+the save checksum, party, and inventory, which need a PCSX2 session to anchor.
+**Every common save container is now supported**, `.max` included.
 
 ### Both discs, edited as one
 
@@ -169,6 +170,7 @@ Editor/
   x2editor.py   local web app (desktop)
   x2save.py     save engine (container decode + edit, gamedata layout)
   x2mc.py       PS2 memory-card filesystem (PS2MFS + ECC) and .psu containers
+  x2lzari.py    LZARI codec for AR Max (.max) saves
   x2patch.py    ISO engine + CLI (verify / extract / enemy read-write / rebalance / zone hunt)
   x2fields.py   verified offsets + schema + battle-pacing profiles
   x2selftest.py engine self-test against a synthetic disc (needs no game data)
@@ -186,4 +188,4 @@ ROM/ISO, saves, or audio** — only small reverse-engineered reference data (ser
 id→name maps, item descriptions) the editor needs to show meaningful labels. That's
 interoperability data, not the game.
 
-Made by **Sparda**. · **v1.5.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
+Made by **Sparda**. · **v1.6.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).

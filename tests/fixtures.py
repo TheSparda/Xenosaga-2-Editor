@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "Editor"))
 
 import x2fields as F          # noqa: E402
 import x2mc as MC             # noqa: E402
+import x2lzari as LZ          # noqa: E402
 import x2save as SV           # noqa: E402
 
 SAVE_ID = "BASLUS-20892"
@@ -303,6 +304,34 @@ def cbs(gd=None, folder=FOLDER):
     struct.pack_into("<I", head, 16, len(comp))                # compressed size
     head[0x20:0x20 + len(folder)] = folder.encode("latin1")
     return bytes(head) + comp
+
+
+def max_save(gd=None, folder=FOLDER, checksum=0x11223344):
+    """An AR Max (.max) container: 0x58 header, then LZARI over the entry stream.
+
+    The entry padding on real files is not a constant alignment (2 bytes after
+    one entry, 12 after the next), so this builder uses a deliberately AWKWARD
+    padding — 6 bytes after the first entry — to prove the reader locates entries
+    by scanning rather than by assuming a rule."""
+    gd = gamedata() if gd is None else gd
+    files = [("system.ico", b"\x01\x02\x03" * 400), (folder, gd),
+             ("icon.sys", icon_sys())]
+    body = bytearray()
+    for i, (name, blob) in enumerate(files):
+        body += struct.pack("<I32s", len(blob), name.encode("latin1").ljust(32, b"\0"))
+        body += blob
+        if i == 0:
+            body += b"\0" * 6
+        elif i == 1:
+            body += b"\0" * 12
+    comp = LZ.compress(bytes(body))
+    head = bytearray(SV.MAX_HDR)
+    head[0:12] = SV.MAX_MAGIC
+    struct.pack_into("<I", head, 0x0C, checksum)
+    head[0x10:0x10 + len(folder)] = folder.encode("latin1")
+    head[0x30:0x30 + 10] = b"XenosagaII"
+    struct.pack_into("<II", head, 0x50, len(comp) + 4, len(files))
+    return bytes(head) + struct.pack("<I", len(body)) + comp
 
 
 # ---------------------------------------------------------------------------

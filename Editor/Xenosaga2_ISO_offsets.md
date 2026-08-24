@@ -25,7 +25,7 @@ Local samples in `../Saves/` (gitignored). `x2save.py ../Saves` inventories them
 | PS2 memory card | `.ps2` `.mcd` | `Sony PS2 Memory Card Format` | (none local yet) |
 | EMS export | `.psu` | dir entries | (none local yet) |
 | PS3 export | `.psv` / `.PSV` | `\x00VSP` | 29,468 (×20 slots) |
-| AR Max / MAX Drive | `.max` | `Ps2PowerSave` | ~11 KB single; 62–75 KB multi |
+| AR Max / MAX Drive | `.max` | `Ps2PowerSave` | ~11 KB single; 62–75 KB multi (LZARI) |
 | SharkPort / X-Port | `.sps` / `.xps` | u32 len + `SharkPortSave` | ~30 KB |
 | CodeBreaker | `.cbs` | `CFU\x00` | ~11 KB (RC4 + zlib) |
 
@@ -78,7 +78,35 @@ All of these decode to the same 20,832-byte gamedata, and all are writable:
 | `.psv` | yes | yes | PS3 export; the wrapper's HMAC is not re-signed |
 | sharkport `.sps`/`.xps` | yes | yes | uncompressed |
 | `.cbs` | yes | yes | RC4 + zlib; re-compressed on write |
-| `.max` | no | no | Ps2PowerSave/LZARI — still TODO |
+| `.max` | yes | yes | Ps2PowerSave: 0x58 header + LZARI (`x2lzari.py`) |
+
+**AR Max `.max` (implemented in `x2lzari.py` + `x2save.py`).** Header is `0x58`
+bytes — magic, an unidentified u32 at `+0x0C`, dir name, display name,
+compressed size (counted from `0x58`), file count — then a u32 decompressed
+length and an LZARI bitstream. LZARI is Okumura's LZSS + adaptive arithmetic
+coding; the position model is his fixed empirical curve (`10000 / (i + 200)`),
+which is part of the format and cannot be changed.
+
+Decoding was validated against all **eight** local samples (including two 6-file
+Japanese saves): every one yields a 20,832-byte gamedata that decodes to sensible
+gold, levels and HP. Our compressor round-trips bit-exactly and lands within
+**0.2%** of the size AR Max itself produced (10,945 vs 10,925 bytes on one
+sample), which is good evidence the implementation matches the reference.
+
+Two things deliberately not done:
+
+- **Entry padding is not modelled.** The decompressed blob is a flat run of
+  `u32 size, char name[32], data, padding`, but the padding is not a constant
+  alignment — 2 bytes after one entry and 12 after the next, in the same file.
+  Rather than guess a rule, the reader locates entries by scanning for the next
+  plausible header, and writes **splice the gamedata in place** at the offset it
+  was found, so whatever padding the original had is preserved byte for byte.
+- **The `+0x0C` checksum is unidentified** and is preserved rather than
+  recomputed. It matches no CRC-32 variant tried (standard, BZIP2, MPEG-2, POSIX,
+  JAMCRC, CRC-32C) nor any byte/word sum, over the compressed data, the
+  decompressed data or the header, across all eight samples. mymc — the reference
+  PS2 save tool — writes literal `0` there and its output works, so the field is
+  evidently not enforced.
 
 **Memory cards (implemented in `x2mc.py`, per the published PS2MFS layout).** The
 superblock is page 0: pagesize/pages-per-cluster at +0x28, `clusters_per_card`,
