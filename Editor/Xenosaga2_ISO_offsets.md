@@ -461,6 +461,43 @@ circular unless something breaks the circle, so two checks gate the write:
 A pristine disc 1 now reports zero differences across all 38 fields, which is the
 end-to-end version of the same statement.
 
+### xdelta / VCDIFF patches
+
+Two ways to share a change, for two different jobs.
+
+A **patch file** (below) names fields — `record 6, HP, 22400 -> 1337`. It is
+readable, it survives being applied to a disc that already has other edits, and
+the importer validates every field before writing. That is the format to share.
+
+An **xdelta patch** is bytes at offsets. It can express anything, including
+regions this tool does not decode, and any VCDIFF decoder applies it:
+
+```
+xdelta3 -d -s <pristine ISO> patch.xdelta out.iso
+```
+
+The CLI (`x2patch.py xdelta-make`) shells out to `xdelta3`, which diffs the two
+images. The web editor cannot — it never holds a pristine copy, and diffing
+4.6 GB in a browser tab is not sensible — so it **synthesizes** the patch from
+the byte runs it has already staged: `web/vcdiff.js` emits COPY-from-source plus
+ADD-literal windows directly. Nothing reads the whole disc, and the patch for a
+handful of field edits comes out around 14 KB.
+
+Two things follow from that, and the UI says both:
+
+* **One patch per disc.** The same edit buffer lands at different offsets on each
+  disc (disc 2's tables sit 0x800 lower), so a single file could only ever be
+  correct for one of them.
+* **No integrity checksum.** Computing one means hashing 4.6 GB. `xdelta3` warns
+  about this itself on decode; applying such a patch to a wrong or
+  already-modified image corrupts it silently. The patch-file format is the
+  source-verified alternative.
+
+Verified end to end against a real disc: a patch built by `web/vcdiff.js` for
+three staged edits (a stat, a reward, a skill), decoded by real `xdelta3` 3.x
+against the 4,682,121,216-byte disc 1 image, reproduced a file differing from the
+source in exactly those five bytes and no others.
+
 ### Patch files (`x2-enemy-patch`, version 1)
 Because `x2_enemies.json` holds the verified retail values, a disc can be diffed
 against retail without a pristine copy — which makes edits exportable as a small

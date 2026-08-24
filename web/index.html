@@ -55,8 +55,10 @@
       one-click <b>battle-pacing profiles</b> that retune what the stock→break→boost combo loop
       costs, and <b>shareable patch files</b>. <b>Skills</b>: EP cost, power and element for
       every Ether and Double skill. It also knows the retail values for all of it, so it can
-      show exactly how your disc differs from an unmodified one — and put it back. Changes
-      write <b>in place</b>; nothing is uploaded. Desktop Chromium only. Back up first.</p>
+      show exactly how your disc differs from an unmodified one — and put it back. Share your
+      work as a readable <b>patch file</b>, or as a standard <b>.xdelta</b> patch built from the
+      staged edits (no diffing, no upload). Changes write <b>in place</b>; nothing is uploaded.
+      Desktop Chromium only. Back up first.</p>
     <div id="isoRoot"></div>
   </section>
 
@@ -92,6 +94,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+<script src="vcdiff.js"></script>
 <script src="app.js"></script>
 <script src="iso.js"></script>
 <script src="ref.js"></script>

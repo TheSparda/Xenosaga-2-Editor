@@ -34,6 +34,11 @@ header h1{margin:0;font-size:19px;letter-spacing:.03em;color:var(--acc2)}
 .modebar.panetabs .mtab{flex:0 0 auto;padding:6px 16px;border-radius:8px;font-size:13px}
 .modebar.panetabs .mtab.on{background:var(--panel2);color:var(--ink);
   border-color:var(--acc);font-weight:600}
+/* a copy-pasteable command line in a dialog */
+pre.cmd{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  padding:9px 11px;margin:8px 0;overflow-x:auto;font-size:12.5px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+
 /* the enemy-only half of the action bar, hidden on the Skills tab */
 .barGroup{display:contents}
 .barGroup[hidden]{display:none}

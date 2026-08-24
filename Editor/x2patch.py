@@ -920,6 +920,56 @@ def cmd_export_patch(a):
     print(f"wrote {a.out} — {len(edits)} record(s), "
           f"{sum(len(v) for v in edits.values())} field(s)")
 
+# ---------------------------------------------------------------------------
+# xdelta / VCDIFF patches.
+#
+# A patch file (above) is the better format for sharing a rebalance: it names
+# fields, it is readable, and it is validated on import. An xdelta patch is the
+# blunt instrument for the cases that one cannot express — any byte anywhere,
+# including regions this tool does not decode.
+#
+# The CLI shells out to xdelta3 because it has both files and can diff them. The
+# web editor cannot (it never has a pristine copy, and diffing 4.6 GB in a tab is
+# not sensible), so it synthesizes the same format directly from the edits it has
+# already staged — see web/vcdiff.js. Both produce standard VCDIFF that any
+# decoder applies.
+# ---------------------------------------------------------------------------
+XDELTA_MISSING = ("xdelta3 is not installed. Install it (brew install xdelta, "
+                  "apt install xdelta3) or export from the web editor, which "
+                  "builds the same format without it.")
+
+def xdelta_available():
+    return shutil.which("xdelta3") is not None
+
+def _xdelta(args, what):
+    import subprocess
+    if not xdelta_available():
+        raise SystemExit(XDELTA_MISSING)
+    r = subprocess.run(["xdelta3", *args], capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(r.stderr.strip() or f"xdelta3 {what} failed")
+
+def make_xdelta(pristine, edited, out):
+    """Diff a pristine image against an edited one. Returns the patch size."""
+    _xdelta(["-e", "-f", "-s", pristine, edited, out], "encode")
+    return os.path.getsize(out)
+
+def apply_xdelta(pristine, patch, out):
+    """Reproduce an edited image from a pristine one plus a patch."""
+    _xdelta(["-d", "-f", "-s", pristine, patch, out], "decode")
+    return os.path.getsize(out)
+
+def cmd_xdelta_make(a):
+    n = make_xdelta(a.pristine, a.iso, a.out)
+    print(f"wrote {a.out}  ({n:,} bytes)")
+    print(f"apply with: xdelta3 -d -s <pristine ISO> {a.out} out.iso")
+    return 0
+
+def cmd_xdelta_apply(a):
+    n = apply_xdelta(a.pristine, a.patch, a.out)
+    print(f"wrote {a.out}  ({n:,} bytes)")
+    return 0
+
 def cmd_apply_patch(a):
     with open(a.patch) as f:
         doc = json.load(f)
@@ -1610,6 +1660,20 @@ def main():
     sp.add_argument("--also", metavar="OTHER_ISO",
                     help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_apply_patch)
+
+    sp = sub.add_parser("xdelta-make",
+                        help="create an xdelta patch (pristine ISO -> edited ISO)")
+    sp.add_argument("iso", help="the EDITED image")
+    sp.add_argument("--pristine", required=True, help="an unmodified image of the same disc")
+    sp.add_argument("--out", required=True)
+    sp.set_defaults(fn=cmd_xdelta_make)
+
+    sp = sub.add_parser("xdelta-apply",
+                        help="apply an xdelta patch (pristine ISO + patch -> new ISO)")
+    sp.add_argument("patch")
+    sp.add_argument("--pristine", required=True)
+    sp.add_argument("--out", required=True)
+    sp.set_defaults(fn=cmd_xdelta_apply)
 
     sp = sub.add_parser("shorten-breaks",
                         help="drop every enemy's break sequence by N hits")
