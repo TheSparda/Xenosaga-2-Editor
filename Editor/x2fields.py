@@ -172,16 +172,40 @@ def es_equip_catalog():
     return {int(k): v for k, v in res_json("x2_es_equip.json").items()}
 
 # ---------------------------------------------------------------------------
-# ISO ENEMY tables (VERIFIED — disc 1). 125 stat records + parallel name table
-# + parallel rewards table. Verified against a strategy guide + xenoserieswiki:
-# 74/76 guide enemies matched on an 8-field signature with exactly one hit each
-# (anchors: Perun rec 6 HP 22,400; Proto Omega 999,999; Dark Erde Kaiser
-# 192,000). See Xenosaga2_ISO_offsets.md for the derivation.
+# ISO ENEMY tables (VERIFIED — both discs). 125 stat records + parallel name
+# table + parallel rewards table. Verified against a strategy guide +
+# xenoserieswiki: 74/76 guide enemies matched on an 8-field signature with
+# exactly one hit each (anchors: Perun rec 6 HP 22,400; Proto Omega 999,999;
+# Dark Erde Kaiser 192,000). See Xenosaga2_ISO_offsets.md for the derivation.
+#
+# BOTH DISCS CARRY THE TABLES (verified 2026-08-23). Disc 2's copy sits exactly
+# 0x800 lower, and the 125 x 0x5C stat records are byte-for-byte identical
+# between the two images — same for the rewards rows and the name blob. That is
+# a correctness fact, not a convenience one: a rebalance written to disc 1 alone
+# silently reverts to retail at the disc swap, so the player would meet retuned
+# enemies for half the game and stock ones for the rest. Patch both discs, with
+# the same values.
 # ---------------------------------------------------------------------------
-ENEMY_TABLE_OFF  = 0x1FFF5F0   # stat records, stride 0x5C, index 0..124
-ENEMY_STRIDE     = 0x5C
+ENEMY_STRIDE     = 0x5C        # stat record stride, index 0..124
 ENEMY_COUNT      = 125
-ENEMY_NAMES_OFF  = 0x2002310   # 125 null-terminated names, parallel to records
+ENEMY_TABLES = {
+    #        stat records  name blob   rewards rows
+    1: {"stats": 0x1FFF5F0, "names": 0x2002310, "rewards": 0x201094C},
+    2: {"stats": 0x1FFEDF0, "names": 0x2001B10, "rewards": 0x201014C},
+}
+# Disc-1 aliases. Every offset cited in the notes and the tests is a disc-1 one,
+# so the historical names stay meaningful rather than becoming dict lookups.
+ENEMY_TABLE_OFF  = ENEMY_TABLES[1]["stats"]
+ENEMY_NAMES_OFF  = ENEMY_TABLES[1]["names"]
+
+def enemy_tables(disc):
+    """Table bases for `disc` (1 or 2). Raises for anything else — guessing a
+    base is how you write enemy stats over the middle of a movie."""
+    try:
+        return ENEMY_TABLES[disc]
+    except KeyError:
+        raise KeyError(f"no enemy tables known for disc {disc!r} "
+                       f"(known: {sorted(ENEMY_TABLES)})") from None
 ENEMY_FIELDS = [               # (label, offset, width, kind) — stat record
     ("HP",   0x36, 4, "num"),  # Perun 22,400 .. Proto Omega 999,999
     ("STR",  0x3C, 2, "num"),  # physical attack (POW in guides)
@@ -193,6 +217,100 @@ ENEMY_FIELDS = [               # (label, offset, width, kind) — stat record
     ("AGL",  0x46, 1, "num"),  # agility / turn speed
 ]
 ENEMY_ID_OFF = 0x52           # u16 enemy id: 501+ field, BOSS_ID_MIN+ boss, 701+ E.S.
+
+# +0x3A: an undecoded u16 sitting between HP and STR, and NOT the constant it
+# looks like. 114 of the 125 records hold 99; the eleven below hold 0, 1, 2 or 10
+# — identical on both discs, so it is real data and not disc-specific.
+#
+# It is recorded here for two reasons. The table-search needle
+# (x2patch.enemy_signature) assumes 99, which is safe only because every anchor
+# record happens to hold 99. And a "does this disc still hold retail values?"
+# comparison that includes this halfword reports 114/125 on pristine retail media
+# — which is exactly the bug that made `rebalance` refuse to run on real discs.
+# The synthetic test fixtures reproduce this distribution so that regression
+# stays caught.
+ENEMY_UNK3A_OFF = 0x3A
+ENEMY_UNK3A_DEFAULT = 99
+ENEMY_UNK3A_EXCEPTIONS = {          # record index -> value (verified, both discs)
+    37: 0,     # Kfuga Lily
+    38: 2,     # E2 Hauser
+    43: 1,     # Yacud Cannon
+    50: 0,     # Stole Marine
+    52: 1,     # Cera 7 F
+    53: 1,     # Cera 6 F
+    54: 1,     # Executus Arma
+    55: 1,     # Cera 7 S
+    56: 1,     # Cera 6 S
+    65: 10,    # U-TIC Soldier A
+    66: 10,    # U-TIC Soldier B
+}
+
+def enemy_unk3a(i):
+    """The +0x3A halfword a retail record holds at index `i`."""
+    return ENEMY_UNK3A_EXCEPTIONS.get(i, ENEMY_UNK3A_DEFAULT)
+
+# ---------------------------------------------------------------------------
+# BREAK / ZONE fields (VERIFIED 2026-08-23) — the combo system's own data.
+#
+# Ep. II's zones are the three attack heights: A (above 3 m, O), B (1-3 m,
+# square), C (below 1 m, triangle). Two separate fields, both one-hot on the same
+# three bits:
+#
+#   +0x4C  u8   HITTABLE-ZONE MASK — which of the three zones this enemy has at
+#               all. bit0 = A, bit1 = B, bit2 = C. Every one of the 125 records
+#               holds a value <= 7.
+#   +0x54  u8[4] BREAK SEQUENCE — the zones you must hit, in order, to Break the
+#               enemy. One slot per hit, 0 = end of sequence, never a gap before
+#               a non-zero. So "CBB" is (4, 2, 2, 0).
+#
+# Derivation: `enemy data.rtf` publishes a "Hit zone" set and a "Break" sequence
+# per enemy. Mapping its 75 entries onto records BY EXACT 8-FIELD STAT SIGNATURE
+# (not by name — the guide's names are per-encounter, and name matching
+# mis-assigned ~20% of rows and buried the field) gave 72 unique, conflict-free
+# assignments. Against that truth the zone scan returned:
+#   +0x4C  consistency 1.000, resolution 1.000 over 51 rows  -> the mask
+#   +0x54  consistency 1.000 (u16 resolution 0.944)          -> the sequence
+# and decoding +0x54..+0x57 reproduces all 46 published sequences EXACTLY, with
+# every slot value in {0, 1, 2, 4} and no gaps. Independent cross-check: no
+# record's sequence uses a zone missing from its own +0x4C mask (0/125
+# violations). Identical on both discs.
+#
+# 16 of the 125 records have an empty sequence — those are the "Cannot" break
+# entries in the guide (mechanisms and scripted fights).
+ZONE_BITS = {"A": 0x01, "B": 0x02, "C": 0x04}
+ZONE_SYMBOLS = {0x01: "A", 0x02: "B", 0x04: "C"}
+ENEMY_ZONE_MASK_OFF = 0x4C
+BREAK_SEQ_OFF = 0x54
+BREAK_SEQ_SLOTS = 4
+# exposed as ordinary editable fields so the generic read/write path covers them
+ZONE_FIELDS = ([("Zones", ENEMY_ZONE_MASK_OFF, 1, "num")] +
+               [(f"Brk{n + 1}", BREAK_SEQ_OFF + n, 1, "num")
+                for n in range(BREAK_SEQ_SLOTS)])
+
+def decode_break_seq(slots):
+    """(4, 2, 2, 0) -> 'CBB'. Unknown/0 slots end the sequence."""
+    out = []
+    for v in slots:
+        sym = ZONE_SYMBOLS.get(v)
+        if sym is None:
+            break
+        out.append(sym)
+    return "".join(out)
+
+def encode_break_seq(text):
+    """'CBB' or 'c-b-b' -> (4, 2, 2, 0). Raises ValueError on a bad sequence."""
+    syms = [c for c in str(text).upper() if not c.isspace() and c != "-"]
+    if len(syms) > BREAK_SEQ_SLOTS:
+        raise ValueError(f"a break sequence is at most {BREAK_SEQ_SLOTS} hits")
+    bad = [c for c in syms if c not in ZONE_BITS]
+    if bad:
+        raise ValueError(f"not a zone letter: {''.join(bad)} (use A, B or C)")
+    vals = [ZONE_BITS[c] for c in syms]
+    return tuple(vals + [0] * (BREAK_SEQ_SLOTS - len(vals)))
+
+def zone_mask_text(mask):
+    """5 -> 'AC' — which zones the enemy has."""
+    return "".join(s for v, s in sorted(ZONE_SYMBOLS.items()) if mask & v)
 
 # +0x04: eight u8 damage-affinity percentages, 0x64 (100) = normal. Lower resists,
 # higher takes extra, 0 is immune.
@@ -216,7 +334,7 @@ ENEMY_CATALOG_KEY = {
     "HP": "hp", "STR": "str", "VIT": "vit", "EATK": "eatk", "EDEF": "edef",
     "DEX": "dex", "EVA": "eva", "AGL": "agl", "EXP": "exp", "SP": "sp", "CP": "cp",
 }
-REWARD_TABLE_OFF = 0x201094C   # rewards, stride 0x10, row = record index
+REWARD_TABLE_OFF = ENEMY_TABLES[1]["rewards"]  # rewards, stride 0x10, row = index
 REWARD_STRIDE    = 0x10
 REWARD_FIELDS = [
     ("EXP", 0x00, 4, "num"),
@@ -252,7 +370,11 @@ ENEMY_FIELD_CAPS = {
 # Byte ranges inside the 0x5C stat record that are NOT decoded yet — 65 bytes.
 # This is where the break/zone data most likely lives (see the combo-system
 # section of Xenosaga2_ISO_offsets.md); `x2patch.py enemy-columns` profiles them.
-ENEMY_UNMAPPED = [(0x00, 0x04), (0x0C, 0x36), (0x47, 0x52), (0x54, 0x5C)]
+# Still-undecoded byte ranges in the 0x5C record. +0x4C (zone mask) and
+# +0x54..+0x57 (break sequence) came out of this set on 2026-08-23; +0x10..+0x19
+# looks like the guide's ten status resistances but is NOT verified, so it stays.
+ENEMY_UNMAPPED = [(0x00, 0x04), (0x0C, 0x36), (0x47, 0x4C), (0x4D, 0x52),
+                  (0x58, 0x5C)]
 
 def enemy_unmapped_offsets():
     """Every still-unknown byte offset within a stat record, ascending."""
@@ -338,7 +460,7 @@ def profile(name):
 TECH_FIELDS = []      # Tech / Ether effect table (names @ISO ~0x2009B58)
 GEAR_FIELDS = []      # Weapon / armor / accessory table
 SHOP_FIELDS = []      # Shop stock / price tables
-ZONE_FIELDS = []      # Break / weak-zone data — hunt in ENEMY_UNMAPPED first
+# ZONE_FIELDS is no longer a stub — see the BREAK / ZONE block above.
 
 
 # ---------------------------------------------------------------------------
@@ -361,8 +483,12 @@ def web_tables():
         "serials": SERIALS,
         "gamedataSize": GAMEDATA_SIZE,
         "bossIdMin": BOSS_ID_MIN,
+        # Per-disc table bases. Both discs carry byte-identical enemy data, so a
+        # rebalance has to be written to both or it stops at the disc swap; the
+        # front-end resolves its bases from here after it reads the serial.
+        "enemyTables": {str(d): t for d, t in sorted(ENEMY_TABLES.items())},
         "enemy": {
-            "base": ENEMY_TABLE_OFF,
+            "base": ENEMY_TABLE_OFF,          # disc-1 default; see enemyTables
             "stride": ENEMY_STRIDE,
             "count": ENEMY_COUNT,
             "namesOff": ENEMY_NAMES_OFF,
@@ -371,6 +497,13 @@ def web_tables():
             # unverified slot names — front-ends must gate these, see above
             "affinityFields": fields(ENEMY_AFFINITY_FIELDS),
             "affinityNormal": ENEMY_AFFINITY_NORMAL,
+            # break/zone data (verified): the hittable-zone mask and the four
+            # one-hot break-sequence slots
+            "zoneFields": fields(ZONE_FIELDS),
+            "zoneMaskOff": ENEMY_ZONE_MASK_OFF,
+            "breakSeqOff": BREAK_SEQ_OFF,
+            "breakSeqSlots": BREAK_SEQ_SLOTS,
+            "zoneBits": ZONE_BITS,
         },
         "reward": {
             "base": REWARD_TABLE_OFF,

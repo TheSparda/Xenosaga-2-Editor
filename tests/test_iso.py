@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 import fixtures as FX
 import x2fields as F
@@ -78,7 +79,7 @@ class TestEnemyTables(IsoCase):
 
     def test_write_lands_and_is_surgical(self):
         p = self.fresh("surgical.iso")
-        before = open(p, "rb").read()
+        before = Path(p).read_bytes()
         with X.Iso(p, write=True) as iso:
             n = X.write_enemy(iso, 6, {"HP": 11200, "EXP": 45000})
         self.assertEqual(n, 2)
@@ -87,7 +88,7 @@ class TestEnemyTables(IsoCase):
         self.assertEqual(rec["HP"], 11200)
         self.assertEqual(rec["EXP"], 45000)
         self.assertEqual(rec["STR"], 85)                # untouched
-        after = open(p, "rb").read()
+        after = Path(p).read_bytes()
         self.assertEqual(len(before), len(after))
         changed = {i for i in range(len(before)) if before[i] != after[i]}
         hp = F.ENEMY_TABLE_OFF + 6 * F.ENEMY_STRIDE + 0x36
@@ -182,10 +183,10 @@ class TestCli(IsoCase):
 
     def test_rebalance_dry_run_writes_nothing(self):
         p = self.fresh("cli-dry.iso")
-        before = open(p, "rb").read()
+        before = Path(p).read_bytes()
         out = self.run_cli("rebalance", p, "--profile", "faster", "--dry-run")
         self.assertIn("dry run", out)
-        self.assertEqual(open(p, "rb").read(), before)
+        self.assertEqual(Path(p).read_bytes(), before)
 
     def test_rebalance_lists_the_profiles(self):
         out = self.run_cli("rebalance", "--help")

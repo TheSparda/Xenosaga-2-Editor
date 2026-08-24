@@ -488,57 +488,154 @@ Two judgement calls worth remembering:
 A zero field means "none" (no CP, no SP) and is never scaled up. Every field
 clamps to `ENEMY_FIELD_CAPS`, not just to its byte width.
 
-### Tier 0.5 — OPEN QUESTION: does disc 2 carry these tables?
+### Tier 0.5 — ANSWERED (2026-08-23): disc 2 carries its own copy
 
-Never checked, and it matters: if `SLUS-21133` has its own copy, a rebalance
-applied to disc 1 alone silently stops working at the disc swap.
-`x2patch.py verify-tables <iso>` answers it — it confirms the known base first,
-then signature-scans the whole image (one pass, all anchors at once) for the
-17-byte `+0x36..+0x46` run and reports any base it finds. **Run it on disc 2 and
-record the result here.**
+**Yes, and it must be patched too.** `verify-tables` on `SLUS-21133`
+signature-scanned the image and found the stat table at **`0x1FFEDF0`** — exactly
+**`0x800` below** disc 1's `0x1FFF5F0`. The whole table region is shifted by the
+same delta:
 
-### Tier 1 — READY TO RUN: find the break/weak-zone field
+| table   | disc 1 (SLUS-20892) | disc 2 (SLUS-21133) | delta    |
+|---------|---------------------|---------------------|----------|
+| stats   | `0x1FFF5F0`         | `0x1FFEDF0`         | `-0x800` |
+| names   | `0x2002310`         | `0x2001B10`         | `-0x800` |
+| rewards | `0x201094C`         | `0x201014C`         | `-0x800` |
 
-The 0x5C stat record still has **65 undecoded bytes** (`+0x00..0x03`,
-`+0x0C..0x35`, `+0x47..0x51`, `+0x54..0x5B` — `F.ENEMY_UNMAPPED`), and the
-guides publish a weak-zone sequence per enemy. That's the same shape of problem
-the stat table was, and it doesn't need PCSX2.
+Verified against the catalog: **125/125** stat records and **125/125** reward rows
+match retail on both discs, and the 125 × `0x5C` stat records are
+**byte-for-byte identical** between the two images (a full `0x5C`-wide diff of all
+125 records reports zero differing bytes at any offset). The name blob reads the
+same entries in the same order.
 
-The method avoids guessing the encoding entirely: if a byte column *is* the zone
-field, enemies sharing a zone string must share its value. So score each column
-by how well its value partition agrees with the zone partition —
+Consequences, now handled in code:
 
-- `consistency` = P(same value | same zone string) — **must be 1.0** for the field
-- `resolution` = P(different value | different string) — <1.0 means the column is
-  lossy (a mask or a sequence length, not the sequence itself)
+- The bases live in `x2fields.ENEMY_TABLES[disc]`, resolved per-image from
+  SYSTEM.CNF by `x2patch.Iso.disc` / `.tables`. Nothing hardcodes disc 1 any more.
+- `rebalance` no longer requires disc 1, and prints a reminder to run the same
+  profile on the other disc.
+- The web ISO editor accepts either disc (it used to hard-reject disc 2) and shows
+  a standing warning naming the other disc.
+- **A rebalance applied to one disc only leaves the second half of the game on
+  retail values.** Export a patch from the disc you tuned and apply it to the
+  other — `apply-patch` warns about the serial mismatch and continues, which is
+  the intended workflow. Covered by the `a disc-1 patch replays onto disc 2`
+  self-test check.
 
-Tools, in the order to run them:
+#### `+0x3A` is not the constant it looks like (and it broke `rebalance`)
 
-```bash
-cd Editor
-python3 x2patch.py enemy-columns "../ISO/….(Disc 1).iso" --interesting
-#   survey first, no ground truth needed. Flags: P = values decode as packed
-#   2-bit zone symbols (1=A,2=B,3=C, 0=pad), N = every nibble <=3, M = all <=7.
-#   A low-cardinality column flagged P is the prime suspect.
+The 17-byte search needle assumes `0x0063` at `+0x36+4`. That is true for 114 of
+the 125 records; **eleven real enemies hold something else** — recorded in
+`x2fields.ENEMY_UNK3A_EXCEPTIONS`:
 
-cp x2_zones_template.csv x2_zones.csv      # then paste guide data into it
-python3 x2patch.py find-zones "../ISO/….(Disc 1).iso" --truth x2_zones.csv
-#   perfect hit prints the value <-> zone map, i.e. the encoding.
+| rec | name | `+0x3A` | | rec | name | `+0x3A` |
+|----|------|----|--|----|------|----|
+| 37 | Kfuga Lily     | 0 | | 54 | Executus Arma   | 1 |
+| 38 | E2 Hauser      | 2 | | 55 | Cera 7 S        | 1 |
+| 43 | Yacud Cannon   | 1 | | 56 | Cera 6 S        | 1 |
+| 50 | Stole Marine   | 0 | | 65 | U-TIC Soldier A | 10 |
+| 52 | Cera 7 F       | 1 | | 66 | U-TIC Soldier B | 10 |
+| 53 | Cera 6 F       | 1 | |    |                 |   |
 
-python3 x2patch.py find-zones … --truth x2_zones.csv --region 0x1FF0000,0x40000
-#   fallback if the record has no such column: sweeps for a separate
-#   parallel-indexed table (the rewards table is laid out that way).
-#   Slow path — roughly 3 minutes per 0x40000 x 9 strides.
+Identical on both discs, so it is real per-enemy data (a small count of some
+kind — still undecoded). All five anchor records hold 99, which is why the table
+locator was never affected.
+
+`_confirm_base()` used to answer *"does this disc still hold retail values?"* by
+comparing that same raw 17-byte run, so it reported **114/125 on pristine retail
+media**. `disc_is_pristine()` therefore returned False on an unmodified disc, and
+`rebalance` refused with *"refusing to compound — pass --force"*. The flagship
+v1.3.0 feature could not run on a real disc at all; only the synthetic fixtures
+passed, because they wrote 99 across the board. Fixed by comparing the **verified
+fields** (`F.ENEMY_FIELDS`) instead of the raw run — both discs now report 125/125
+— and both fixtures now reproduce the real `+0x3A` distribution so the regression
+stays caught (reverting the fix drops the self-test to 9/11).
+
+Lesson, same shape as the B12 correction above: a byte run that is *good enough to
+locate* a table is not automatically *correct to compare* against it. Keep the
+needle and the equality test separate.
+
+### Tier 1 — SOLVED (2026-08-23): the break sequence and the zone mask
+
+Both fields were in the stat record all along. **Two** separate fields, both
+one-hot on the same three zone bits (`A = 0x01`, `B = 0x02`, `C = 0x04`):
+
+| offset | width | field |
+|--------|-------|-------|
+| `+0x4C` | u8 | **hittable-zone mask** — which of the three attack heights this enemy has at all. All 125 records hold a value `<= 7`. |
+| `+0x54..+0x57` | u8 x4 | **break sequence** — the zones to hit, *in order*, to Break it. One slot per hit, `0` = end of sequence, never a gap before a non-zero. `"CBB"` is `(4, 2, 2, 0)`. |
+
+Zones are the attack heights: **A** above 3 m (O), **B** 1-3 m (square),
+**C** below 1 m (triangle).
+
+#### How it was found — and the mistake that nearly buried it
+
+Ground truth came from `enemy data.rtf`, which publishes a `Hit zone` set *and* a
+`Break` sequence per enemy. The first attempt mapped its 75 entries onto records
+**by name** and the scan returned nothing: every `consistency = 1.0` column was
+degenerate (constant across the truth rows, so `resolution = 0.0`), and the
+`--region` sweep found nothing either.
+
+The mapping was the problem. Cross-checking each assignment against the catalog's
+own stats showed **13 of 64 rows contradicted the disc on HP**, plus 3 collisions
+— the guide's names are per-*encounter* (E2 Hauser appears at 320, 1000 and 1760
+HP), so name matching silently attached ~20% of the zone labels to the wrong
+record. Exactly the failure the tooling warns about: one wrong row breaks the
+perfect-consistency test the scan depends on.
+
+Re-mapping by **exact 8-field stat signature** (the same eight fields the table
+was solved with) gave **72 unique, conflict-free, zero-ambiguity** assignments.
+Against that truth:
+
+| field | consistency | resolution | rows |
+|-------|-------------|------------|------|
+| `+0x4C` u8 | 1.000 | 1.000 | 51 (breakable) |
+| `+0x54` u16 | 1.000 | 0.944 | 46 |
+| `+0x54` u8 | 1.000 | 0.696 | 46 — exactly 4 distinct values |
+
+Decoding `+0x54..+0x57` then reproduced **all 46 published sequences exactly**:
+
+```
+AA -> (1,1,0,0)   BB -> (2,2,0,0)   BC -> (2,4,0,0)   CB -> (4,2,0,0)
+CC -> (4,4,0,0)   ABB -> (1,2,2,0)  CBB -> (4,2,2,0)  CCB -> (4,4,2,0)
+BCBC -> (2,4,2,4) BCCB -> (2,4,4,2) CBAA -> (4,2,1,1) CCBB -> (4,4,2,2)
 ```
 
-Ground truth needs **30+ enemies, several sharing a zone string** (the shared
-ones are the entire signal). One wrong row hides the real column, because the
-test demands perfect consistency.
+Confidence checks, all clean:
 
-Payoff once found: edit each enemy's break sequence — shorten 4-hit boss
-sequences to 2, normalise weak zones so the fight stops being a FAQ lookup, or
-randomise them. Break durability, AIR/DOWN susceptibility and the break-bonus
-stock grant are likely neighbours in the same record.
+- every slot value across all 125 records is in `{0, 1, 2, 4}` — 0 exceptions
+- no record has a `0` slot before a non-zero one — 0 gaps
+- `+0x4C <= 7` for all 125 records
+- **no record's sequence uses a zone missing from its own `+0x4C` mask** (0/125
+  violations) — an independent check that the two fields share one bit encoding
+- byte-identical on disc 2
+
+`+0x4C` is **not** merely the OR of the sequence slots (80/125 disagree): an
+enemy can have a zone it is never broken through. That is also why the guide's
+`Hit zone` column matched `+0x4C` rather than the sequence — `Hit zone` is which
+heights the model *has*, not which ones Break it.
+
+16 of the 125 records have an empty sequence: the guide's `Cannot` entries
+(mechanisms and scripted fights).
+
+#### Exposed as
+
+`F.ZONE_FIELDS` (`Zones`, `Brk1..Brk4`), with `F.encode_break_seq()` /
+`F.decode_break_seq()` / `F.zone_mask_text()` as the codec. Editable from the CLI
+(`x2patch.py enemy-set <iso> <n> --break CBB`, and `enemy` prints both fields),
+from the web ISO editor (one text box over the four bytes, with a warning if the
+sequence uses a zone the enemy lacks), and through patch files. Covered by the
+`break sequence round-trips through the record` self-test check.
+
+Shortening a boss's 4-hit sequence is the single largest cut available to how long
+a fight drags — it is the combo loop's actual gate, not a stat multiplier.
+
+#### Still undecoded in the record
+
+`+0x00..0x03`, `+0x0C..0x35`, `+0x47..0x4B`, `+0x4D..0x51`, `+0x58..0x5B`
+(`F.ENEMY_UNMAPPED`, now 60 bytes). One strong lead: **`+0x10..+0x19` is very
+likely the guide's ten STATUS RESISTANCE percentages** — ten consecutive bytes
+whose values cluster on 0/10/20/25/50/60/120, exactly the shape of that table.
+Not verified, so not exposed; the same signature method would confirm it.
 
 ### Tier 2 — BLOCKED on runtime: the global battle constants
 
