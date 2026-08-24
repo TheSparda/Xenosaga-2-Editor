@@ -782,13 +782,251 @@ through Erde Kaiser Fury.** Byte-identical across discs.
 | `+0x12` u16 | effect chance (100 everywhere seen) | pattern |
 | `+0x13` u8 | effect kind: 1 inflict / 2 block / 3 add-buff / 4 damage-cut | pattern |
 | `+0x14` u16 | effect's own element/flag mask (Flame Veil 0x08, Ice Veil 0x10) | element bits |
-| `+0x16` u16 | **string id, 1-based text index** | **57/57 exact** |
+| `+0x16` u16 | pool index, 1-based | see the correction below |
 | `+0x1C` u16 | animation/VFX id | name unverified |
 
 Exposed as `F.SKILL_NUM_FIELDS` (EP / Element / Power / EffPct / EffMask),
 editable via `x2patch.py skill-set <iso> <idx> --set Power=50 [--also <other>]`,
 carried by disc sync, covered by the `ether-skill numeric table` self-test check,
 and merged into `x2_skills.json` as a `numeric` block per entry.
+
+#### CORRECTION to v1.8.0: `+0x16` is not a global text index
+
+v1.8.0 claimed `+0x16` equals *skill text index + 1*, "57/57 exact". That was
+over-claimed. The ether block's ids run 1..57 and its text indices run 0..56 —
+**both are simply sequential**, so the agreement could not distinguish an offset
+of 1 from any other constant. It was one sequence matching another sequence.
+
+The doubles block disproves the general form: its 29 records carry ids
+**80..108** while mapping to text **59..87** — offset **+21**, not +1. So `+0x16`
+is a 1-based index into whatever pool its block uses, and the offset between that
+pool and our text-pair walk varies per block. It is recorded as a pool index, and
+each block's text range is established by semantic anchoring instead (below).
+
+The ether block's field map itself is unaffected — that rests on the EP column
+(56/56 against the descriptions) and the element bits, not on `+0x16`.
+
+#### Why both earlier searches failed — and what finally worked
+
+The v1.7.0 attempt scanned for the 56 EP costs as a strided column using indices
+from the old skill catalog. That catalog had **two silent index-compaction bugs**:
+it dropped `予備` placeholder pairs (there are placeholders at true indices 57, 58
+and 173) *and* dropped every skill whose description has no `\n` — which is all
+the passive equip skills. So the scan searched for the right values at the wrong
+indices, everywhere, and correctly found nothing. Same failure shape as the E.S.
+item ids: **placeholders occupy index space**.
+
+Rebuilding the true index space (every name/description pair from `0x2009B58`
+kept, including placeholders → exactly 174 entries, 0..173) and re-running the
+identical scan found the EP column at stride 32 **immediately, 56/56**, in the
+first region tried — the bytes right before the name pool.
+
+The frame (where each 32-byte record begins) was then fixed two independent ways:
+records begin with the `64 55 01 xx` accuracy block (the preceding table rows
+start `5A 55` — real data, not a constant), and the `+0x16` string id equals
+text index + 1 on 57/57. The pointer-array search also gets its explanation:
+records carry their string id **inside** the record, so no pointer table into the
+name pool ever existed to find.
+
+#### The block map (2026-08-24) — and a trap inside it
+
+The region `~0x2002800..0x2009B58` is many blocks of 32-byte records. `+0x16`
+runs identify block boundaries cheaply, but **the record LAYOUT is not shared
+across block types** — same stride, different meaning. Applying the ether field
+map to another block silently produces nonsense.
+
+| block | disc 1 | recs | text / pool | layout | exposed |
+|---|---|---|---|---|---|
+| ether actives | `0x2007CA0` | 57 | skill text 0..56 | ether | **yes** |
+| doubles/combos | `0x2008400` | 29 | skill text 59..87 | ether | **yes** |
+| two-char combination attacks | `0x20077A0` | 16 | pool `0x200FC10` (16 entries) | *different* | no |
+| per-character techs | `0x2006AE0`+ | 7×7 | pool not yet paired | unknown | no |
+| E.S. craft techs | `0x20072C0`+ | 4×7 | pool `0x201016C` (25 entries) — not paired | unknown | no |
+| enemy-skill blocks | `0x20087C0`, `0x20089A0` | 6, 4 | ids 501..506 / 100..103 | unknown | no |
+
+**The doubles block is editable** and was confirmed two independent ways:
+elements agree 7/7 (Flame Storm `0x08` Fire, Thunder Storm `0x04`, Ice Storm
+`0x10`, Aura Storm `0x02`, and the three Bursts), and — the stronger check —
+**each double's EP equals the EP of the base skill named in its own description**
+on **25/25** (`Double Refresh L` 4 = `Refresh L` 4, `Lost Mist` 6 = `Misty` 6,
+`Miracle Stars` 8 = `Miracle Star` 8...). That cross-check comes from the text,
+entirely independently of the numbers.
+
+**The combination-attack block is the trap.** Its 16 records pair with the
+16-entry pool at `0x200FC10` by count and by a clean 1..16 id run — but its
+records are nearly all constant: power reads `0x14` for every entry, EP reads 0,
+element reads 0. Under the ether layout it would look like sixteen identical
+20-power skills. The only field that varies is `+0x03` (values 01/02/03/04/08/40
+— almost certainly a character-pair mask, since combos require two specific
+characters). So it is mapped and named but **deliberately not exposed**, and
+`skill_record_off()` returns None for anything outside the two verified blocks
+rather than letting a write land there.
+
+Still to pair: the per-character tech pool (not yet located — pools A/B/C at
+`0x200FC10`, `0x201016C`, `0x20107F0` are combination attacks, E.S. craft techs
+and E.S. weapon techs respectively), and the E.S. tech blocks' layout. The save's
+learned-skill ids (character record `+0x33..`) should index one of these.
+
+### 2026-08-23 — STATUS RESISTANCES SOLVED (8 of 10 named)
+
+Enemy `i`'s resistance block sits at **`base + i*0x5C + 0x6C`** — which is `0x10`
+bytes *into record `i+1`*. One `u8` percentage per status; higher resists more.
+
+| byte | status | agreement |
+|---|---|---|
+| `+0`  | Slow  | 50/51 |
+| `+2`  | Blind | 70/71 |
+| `+3`  | Heavy | 70/71 |
+| `+4`  | Weak  | 70/71 |
+| `+6`  | EthPD | 70/71 |
+| `+7`  | EthDD | 70/71 |
+| `+9`  | ResDw | 50/51 |
+| `+10` | Junk  | 29/29 |
+
+**479/486 overall (98.6%)**, byte-identical on both discs.
+
+#### The shifted frame, again
+
+This is the third field to sit outside our nominal record, and the pattern is now
+unmistakable. Per enemy `i`, relative to `base + i*0x5C`:
+
+```
++0x36..  stats          125/125
++0x58    affinities      71/71   (runs 4 bytes past the record)
++0x6C    resistances    479/486  (entirely inside record i+1)
+```
+
+So the game's real record boundary is **not** where our stat base puts it. Every
+field is verified at the offset above and the editor addresses them absolutely,
+so nothing is wrong in practice — but a scanner that slices `0x5C` per record
+cannot see the affinity or resistance blocks at all, which is exactly why both
+searches came up empty until the window was widened past the record end. **When a
+field "isn't in the record", check past the record end before concluding it isn't
+in the table.**
+
+#### What is NOT resolved
+
+- Bytes `+1`, `+5`, `+8` of the block. `+5` carries real per-enemy data (15
+  distinct values); `+1` and `+8` are almost always 0 with a few exceptions.
+- The guide's other two columns, **Lost** and **Curse**. Lost peaks at 38%
+  agreement against any byte; Curse "matches" a zero byte 96% of the time only
+  because Curse is nearly always 0, which is not evidence. Both are left
+  unassigned rather than guessed. The disc block has room for them — the three
+  unidentified bytes are the obvious candidates — but nothing here distinguishes
+  which.
+- Bytes `+11` onward are 0 across all 125 records.
+
+The earlier disc-wide sweep for a *separate* resistance table found nothing, which
+was correct: the data was in the enemy table all along, just past the record edge.
+
+### 2026-08-23 — E.S. ITEM IDS SOLVED (one unified item table)
+
+The disc holds **one** item table at ISO **`0x200C5D4`** — name/description pairs
+covering E.S. gear, consumables, Awakenings and Secret Keys. Extracted to
+`Editor/x2_items.json`: **139 entries, 126 real and 13 placeholders**.
+
+The placeholders are the key. Thirteen slots hold the Japanese string **`予備`**
+("spare/reserve") — unused item ids the localisation never filled. They occupy id
+space. Skipping them, which `x2_es_equip.json` did, makes ids drift by a growing
+amount at each block of spares, which is precisely why the drop table's category-2
+ids appeared to match the accessory catalog at no constant offset (the guide's
+pairs implied +1, +4, +7 and +8 for different entries — the accumulating drift).
+
+Counting them, both drop categories index this one table with a **1-based** id,
+each from its own base:
+
+```
+category 2 (E.S. gear)  -> x2_items[id - 1]        base 0
+category 1 (consumable) -> x2_items[id - 1 + 40]   base 40  (Med Kit S)
+```
+
+All 15 unambiguous E.S. pairs from the guide resolve exactly (id 1 = Auxiliary
+Armor A, 6 = EF Circuit A past three spares, 22 = G Blind Guard, 30 = G Boost
+Guard, 36 = EMAX300, 37 = Auto Recover). Drop labelling went from 119/144 exact
+with 21 unnamed, to **137/144 exact with none unnamed**.
+
+#### This also settles the Skill Upgrade B/C conflict
+
+The unified table has Skill Upgrade **A(61) B(62) C(63) D(64) E(65)** with no gap.
+Consumable base 40 makes those ids 21, 22, 23, 24, 25 — so `x2_consumables.json`,
+derived from the disc-1 pnach, is **missing id 22 and mislabels id 23 as "Skill
+Upgrade B" when it is Skill Upgrade C**. The guide was right and our catalog was
+wrong; the earlier note recording this as an unresolved two-source conflict is
+now resolved in the guide's favour. The pnach-derived catalog is left in place for
+its existing uses, and drop naming goes through the disc's own table.
+
+#### Still open: the SAVE-side gear slots
+
+The four `Gear 1..4` slots in a save record are a **different** id space, and this
+does not settle them. Checking every non-zero gear value across the 24 local
+saves: under `index = id` five values land on `予備` placeholders, and under
+`index = id - 1` three do — neither is clean. That fits the standing note that the
+four slots are probably weapon/frame/armor/anima indexing *separate* tables. The
+save editor's gear picker is unchanged and remains explicitly experimental.
+
+### 2026-08-23 — SKILL / TECH catalog extracted (174 skills)
+
+The skill table's text lives at **ISO `0x2009B58`..`0x20108D4`** as alternating
+NAME then DESCRIPTION strings, and the description's first line is *structured*:
+
+```
+"All enemies/Long/P/Pierce/Fire\nScorching rain of bullets."
+ target     range type element
+```
+
+with the cost carried inline as `(EP 4)` on the skills that have one. So
+targeting, physical-vs-ether, damage type, element and EP cost all come **off the
+disc directly** — the guide is not needed for any of it. Extracted to
+`Editor/x2_skills.json`: **174 skills, zero unparsed**, 56 with an EP cost, and a
+tag vocabulary of Long/Short, P/E, Beam/Strike/Slash/Pierce and
+Fire/Ice/Thunder/Aura.
+
+Gotcha worth recording: the text is ASCII **with occasional EUC-JP glyphs** —
+`0xA1 0xDF` is the multiplication sign, used in names like
+`All allies (Medica × 2)`. A naive ASCII-only string scan silently truncates 25
+of the 174 into fragments, which is exactly what the first pass did.
+
+`x2patch.py skills [--grep X] [--csv] [--verbose]` lists it.
+
+### 2026-08-24 — SKILL NUMERIC TABLE SOLVED (the two failed searches, explained)
+
+**32-byte records at ISO `0x2007CA0` (disc 1) / `0x20074A0` (disc 2, the usual
+`-0x800`), 57 records covering the ether skills — text indices 0..56, Medica
+through Erde Kaiser Fury.** Byte-identical across discs.
+
+| offset | field | verification |
+|---|---|---|
+| `+0x00` u8 | accuracy-like (100 across the block) | name unverified |
+| `+0x03` u8 | category: 1 attack / 2 heal / 4 support / 0 self | pattern |
+| `+0x06` u8 | **EP cost** | **56/56** vs the "(EP n)" in each skill's own description |
+| `+0x08` u16 | **element mask** — Aura 0x02, Thunder 0x04, Fire 0x08, Ice 0x10 | 4/4 elemental Blasts; same bit order as the affinity elements; Beam 0x01 inferred |
+| `+0x0A` u16 | **power** — Medica 5, Medica 2 10, Medica All 5, Blasts 20, EKF 250 | family consistency (no guide publishes ether powers) |
+| `+0x12` u16 | effect chance (100 everywhere seen) | pattern |
+| `+0x13` u8 | effect kind: 1 inflict / 2 block / 3 add-buff / 4 damage-cut | pattern |
+| `+0x14` u16 | effect's own element/flag mask (Flame Veil 0x08, Ice Veil 0x10) | element bits |
+| `+0x16` u16 | pool index, 1-based | see the correction below |
+| `+0x1C` u16 | animation/VFX id | name unverified |
+
+Exposed as `F.SKILL_NUM_FIELDS` (EP / Element / Power / EffPct / EffMask),
+editable via `x2patch.py skill-set <iso> <idx> --set Power=50 [--also <other>]`,
+carried by disc sync, covered by the `ether-skill numeric table` self-test check,
+and merged into `x2_skills.json` as a `numeric` block per entry.
+
+#### CORRECTION to v1.8.0: `+0x16` is not a global text index
+
+v1.8.0 claimed `+0x16` equals *skill text index + 1*, "57/57 exact". That was
+over-claimed. The ether block's ids run 1..57 and its text indices run 0..56 —
+**both are simply sequential**, so the agreement could not distinguish an offset
+of 1 from any other constant. It was one sequence matching another sequence.
+
+The doubles block disproves the general form: its 29 records carry ids
+**80..108** while mapping to text **59..87** — offset **+21**, not +1. So `+0x16`
+is a 1-based index into whatever pool its block uses, and the offset between that
+pool and our text-pair walk varies per block. It is recorded as a pool index, and
+each block's text range is established by semantic anchoring instead (below).
+
+The ether block's field map itself is unaffected — that rests on the EP column
+(56/56 against the descriptions) and the element bits, not on `+0x16`.
 
 #### Why both earlier searches failed — and what finally worked
 

@@ -224,9 +224,16 @@ def keyitem_names():
 # ether block. Their name pools live elsewhere (0x200FC10 'Ice Brand',
 # 0x20107F0 'MINIGUN'...), so they are mapped but not yet name-verified — only
 # the 57-record ether block is exposed as editable.
-SKILL_TABLES = {1: 0x2007CA0, 2: 0x20074A0}
+# Two blocks share this record layout, both verified (see notes):
+#   ether   0x2007CA0, 57 records, skill text indices  0..56
+#   doubles 0x2008400, 29 records, skill text indices 59..87
+# Disc 2 is the usual -0x800. Records are addressed by TEXT INDEX (what
+# `x2patch.py skills` prints), not by position within a block.
+SKILL_BLOCKS = {
+    1: (("ether", 0x2007CA0, 57, 0), ("double", 0x2008400, 29, 59)),
+    2: (("ether", 0x20074A0, 57, 0), ("double", 0x2007C00, 29, 59)),
+}
 SKILL_STRIDE = 32
-SKILL_VERIFIED_COUNT = 57          # ether actives, text indices 0..56
 SKILL_NUM_FIELDS = [               # exposed, editable
     ("EP",      0x06, 1, "num"),
     ("Element", 0x08, 2, "num"),
@@ -237,11 +244,27 @@ SKILL_NUM_FIELDS = [               # exposed, editable
 SKILL_ELEMENT_BITS = {"Beam": 0x01, "Aura": 0x02, "Thunder": 0x04,
                       "Fire": 0x08, "Ice": 0x10}
 
-def skill_table_off(disc):
+def skill_blocks(disc):
     try:
-        return SKILL_TABLES[disc]
+        return SKILL_BLOCKS[disc]
     except KeyError:
-        raise KeyError(f"no skill table known for disc {disc!r}") from None
+        raise KeyError(f"no skill blocks known for disc {disc!r}") from None
+
+def skill_editable_indices(disc=1):
+    """Every skill text index backed by a verified numeric record."""
+    out = []
+    for _n, _b, count, text0 in skill_blocks(disc):
+        out.extend(range(text0, text0 + count))
+    return out
+
+def skill_record_off(disc, text_index):
+    """Absolute ISO offset of a skill's 32-byte record, or None if that skill
+    has no verified numeric record (the tech/combo blocks use a DIFFERENT
+    layout — see the notes — so they are deliberately not addressable here)."""
+    for _name, base, count, text0 in skill_blocks(disc):
+        if text0 <= text_index < text0 + count:
+            return base + (text_index - text0) * SKILL_STRIDE
+    return None
 
 def skill_element_text(mask):
     """0x08 -> 'Fire'; 0 -> '-'; unknown bits shown raw."""

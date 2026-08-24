@@ -108,16 +108,18 @@ def build_fixture(path, disc=1):
 
         # the verified ether-skill numeric block (32-byte records; EP at +0x06,
         # element at +0x08, power at +0x0A, 1-based string id at +0x16)
-        skb = F.skill_table_off(disc)
-        for i in range(F.SKILL_VERIFIED_COUNT):
-            rec = bytearray(F.SKILL_STRIDE)
-            rec[0], rec[1], rec[2], rec[3] = 100, 85, 1, 2
-            rec[0x06] = (i % 30) + 2                       # EP
-            struct.pack_into("<H", rec, 0x08, 1 << (i % 5))
-            struct.pack_into("<H", rec, 0x0A, 5 * (i + 1)) # power
-            struct.pack_into("<H", rec, 0x16, i + 1)       # string id
-            f.seek(skb + i * F.SKILL_STRIDE)
-            f.write(rec)
+        # both verified skill blocks (ether + doubles), each at its own base
+        for _bn, skb, count, text0 in F.skill_blocks(disc):
+            for k in range(count):
+                i = text0 + k
+                rec = bytearray(F.SKILL_STRIDE)
+                rec[0], rec[1], rec[2], rec[3] = 100, 85, 1, 2
+                rec[0x06] = (i % 30) + 2                       # EP
+                struct.pack_into("<H", rec, 0x08, 1 << (i % 5))
+                struct.pack_into("<H", rec, 0x0A, 5 * (i + 1)) # power
+                struct.pack_into("<H", rec, 0x16, k + 1)       # pool index
+                f.seek(skb + k * F.SKILL_STRIDE)
+                f.write(rec)
 
         # The LAST record's affinity block runs four bytes past the table, into
         # the gap before the name table — the retail disc really does store them
@@ -505,25 +507,36 @@ def t_skills(iso_path, tmp):
     with X.Iso(iso_path, write=True) as iso:
         eq(X.write_skill(iso, 0, {"Power": 250, "EP": 50, "Element": 0x10}), 3,
            "three fields written")
-        try:
-            X.write_skill(iso, F.SKILL_VERIFIED_COUNT, {"EP": 1})
-            raise AssertionError("wrote past the verified block")
-        except SystemExit:
-            pass
+        # 57/58 are placeholders between the blocks — not addressable
+        for gap in (57, 58, 88):
+            try:
+                X.write_skill(iso, gap, {"EP": 1})
+                raise AssertionError(f"wrote to unbacked skill index {gap}")
+            except SystemExit:
+                pass
     with X.Iso(iso_path) as iso:
         sk = X.read_skill(iso, 0)
         eq((sk["Power"], sk["EP"], sk["Element"]), (250, 50, 0x10), "write round-trips")
         eq(X.read_skill(iso, 1), before1, "neighbour untouched")
 
+    # the doubles block shares this layout and is editable too
+    with X.Iso(iso_path, write=True) as iso:
+        eq(X.write_skill(iso, 59, {"Power": 777}), 1, "doubles block is writable")
+    with X.Iso(iso_path) as iso:
+        eq(X.read_skill(iso, 59)["Power"], 777, "doubles write round-trips")
+        eq(X.read_skill(iso, 56)["Power"], 5 * 57, "ether block untouched by it")
+
     d2 = build_fixture(os.path.join(tmp, "skill-d2.iso"), disc=2)
     with X.Iso(d2) as iso:
         eq(iso.disc, 2, "fixture is disc 2")
         eq(X.read_skill(iso, 3)["Power"], 20, "disc 2 resolves its own skill base")
+        eq(X.read_skill(iso, 59)["Power"], 5 * 60, "disc 2 doubles base too")
     # and the disc sync primitive carries the skill table across
     with X.Iso(iso_path) as src, X.Iso(d2, write=True) as dst:
         eq(X.sync_skills(src, dst) > 0, True, "skill sync copied")
     with X.Iso(d2) as iso:
-        eq(X.read_skill(iso, 0)["Power"], 250, "edit arrived on disc 2")
+        eq(X.read_skill(iso, 0)["Power"], 250, "ether edit arrived on disc 2")
+        eq(X.read_skill(iso, 59)["Power"], 777, "doubles edit arrived on disc 2")
     with X.Iso(iso_path) as src, X.Iso(d2, write=True) as dst:
         eq(X.sync_skills(src, dst), 0, "second sync is a no-op")
 
