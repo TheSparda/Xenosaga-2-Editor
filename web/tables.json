@@ -66,17 +66,19 @@
     "stride": 264
   },
   "enemy": {
+    "affinityElements": ["Beam", "Aura", "Thunder", "Fire", "Ice", "Pierce", "Slash", "Hit"],
     "affinityFields": [
-      ["Aff1", 4, 1],
-      ["Aff2", 5, 1],
-      ["Aff3", 6, 1],
-      ["Aff4", 7, 1],
-      ["Aff5", 8, 1],
-      ["Aff6", 9, 1],
-      ["Aff7", 10, 1],
-      ["Aff8", 11, 1]
+      ["Beam", 88, 1],
+      ["Aura", 89, 1],
+      ["Thunder", 90, 1],
+      ["Fire", 91, 1],
+      ["Ice", 92, 1],
+      ["Pierce", 93, 1],
+      ["Slash", 94, 1],
+      ["Hit", 95, 1]
     ],
     "affinityNormal": 100,
+    "affinityScale": 5,
     "base": 33551856,
     "breakSeqOff": 84,
     "breakSeqSlots": 4,

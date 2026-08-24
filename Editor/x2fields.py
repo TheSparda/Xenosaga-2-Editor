@@ -312,20 +312,64 @@ def zone_mask_text(mask):
     """5 -> 'AC' — which zones the enemy has."""
     return "".join(s for v, s in sorted(ZONE_SYMBOLS.items()) if mask & v)
 
-# +0x04: eight u8 damage-affinity percentages, 0x64 (100) = normal. Lower resists,
-# higher takes extra, 0 is immune.
+# ---------------------------------------------------------------------------
+# DAMAGE AFFINITIES (VERIFIED 2026-08-23) — eight per-element damage multipliers.
 #
-# UNVERIFIED, and deliberately labelled by position rather than element name. That
-# there are eight of them and that they hold 0x64 in vanilla records is solid; what
-# each slot *is* is not. The game's elements are known from elsewhere (the E.S.
-# Anti-Fire/Ice/Thunder/Beam armors, plus the physical attack types) but nothing on
-# disc ties a slot to a name, and this project's rule is not to write a field under
-# a name it hasn't earned. Front-ends gate these behind an explicit opt-in.
-ENEMY_AFFINITY_OFF = 0x04
+#   +0x58, eight SIGNED bytes, percent = byte * 5.
+#
+# Element order is the strategy guide's column order, confirmed by the match:
+#   Beam, Aura, Thunder, Fire, Ice, Pierce, Slash, Hit
+#
+# 100% is normal, below resists, above takes extra, 0% is immune, and NEGATIVE
+# absorbs (Svarozic at -200% on Fire heals for double). Values seen on disc run
+# -200..+300, all multiples of 5, which is exactly what a byte*5 encoding buys.
+# Verified against 71 guide entries with complete damage rows: **71/71 exact**.
+# Byte-identical on both discs.
+#
+# NOTE ON THE STRADDLE. The eight bytes for enemy `i` sit at
+# `base + i*0x5C + 0x58`, which runs four bytes past the nominal 0x5C record --
+# so they occupy the last four bytes of record `i` and the first four of record
+# `i+1`. That is verified, not assumed: record `i`'s `+0x00..0x03` equals enemy
+# `i-1`'s affinity elements 4..7 for all 124 pairs. The last record's block lands
+# in the 52-byte gap before the name table, so there is room. Practically this
+# needs no special handling -- the read/write path computes `base + off`, so
+# offsets 0x58..0x5F address the right bytes -- but it does mean `+0x00..0x03`
+# was never "unknown", and a scanner that slices 0x5C per record cannot see the
+# whole block.
+#
+# THE PREVIOUS DEFINITION WAS WRONG. Up to v1.4.0 this project exposed eight
+# "affinity" slots at +0x04 as an opt-in experiment. Those bytes are not
+# affinities: they read 0x64 (100) in 124 of the 125 records and carry ASCII in
+# the one exception, so they never varied per enemy and editing them changed
+# nothing. The guide's damage rows vary heavily (70 of 72 mapped entries have a
+# non-100 value), which is what exposed the mismatch. +0x04..+0x0B is left
+# documented-but-unexposed below.
+AFFINITY_ELEMENTS = ("Beam", "Aura", "Thunder", "Fire", "Ice",
+                     "Pierce", "Slash", "Hit")
+ENEMY_AFFINITY_OFF = 0x58
 ENEMY_AFFINITY_COUNT = 8
-ENEMY_AFFINITY_NORMAL = 0x64
-ENEMY_AFFINITY_FIELDS = [(f"Aff{i + 1}", ENEMY_AFFINITY_OFF + i, 1, "num")
-                         for i in range(ENEMY_AFFINITY_COUNT)]
+ENEMY_AFFINITY_SCALE = 5            # stored byte * 5 == percent
+ENEMY_AFFINITY_NORMAL = 100         # percent, i.e. a stored byte of 20
+ENEMY_AFFINITY_FIELDS = [(name, ENEMY_AFFINITY_OFF + i, 1, "num")
+                         for i, name in enumerate(AFFINITY_ELEMENTS)]
+
+# +0x04..+0x0B: constant 0x64 x8 in 124/125 records (the exception holds ASCII).
+# Whatever it is, it is not per-enemy tuning. Recorded so nobody re-derives it.
+ENEMY_CONST64_OFF = 0x04
+ENEMY_CONST64_COUNT = 8
+
+def affinity_pct(byte):
+    """Stored byte -> percent. Signed: 0xD8 -> -40 -> -200%."""
+    return (byte - 256 if byte > 127 else byte) * ENEMY_AFFINITY_SCALE
+
+def affinity_byte(pct):
+    """Percent -> stored byte. Rounds to the nearest representable step (5%)."""
+    step = int(round(pct / float(ENEMY_AFFINITY_SCALE)))
+    step = max(-128, min(step, 127))
+    return step & 0xFF
+
+AFFINITY_PCT_MIN = affinity_pct(0x80)   # -640
+AFFINITY_PCT_MAX = affinity_pct(0x7F)   # +635
 
 # Field label -> key in x2_enemies.json, so a disc can be diffed against the
 # verified vanilla values (and restored to them). Affinities are absent from the
@@ -370,11 +414,12 @@ ENEMY_FIELD_CAPS = {
 # Byte ranges inside the 0x5C stat record that are NOT decoded yet — 65 bytes.
 # This is where the break/zone data most likely lives (see the combo-system
 # section of Xenosaga2_ISO_offsets.md); `x2patch.py enemy-columns` profiles them.
-# Still-undecoded byte ranges in the 0x5C record. +0x4C (zone mask) and
-# +0x54..+0x57 (break sequence) came out of this set on 2026-08-23; +0x10..+0x19
-# looks like the guide's ten status resistances but is NOT verified, so it stays.
-ENEMY_UNMAPPED = [(0x00, 0x04), (0x0C, 0x36), (0x47, 0x4C), (0x4D, 0x52),
-                  (0x58, 0x5C)]
+# Still-undecoded byte ranges in the 0x5C record. Solved out of this set on
+# 2026-08-23: +0x4C (zone mask), +0x54..+0x57 (break sequence), and +0x58..+0x5F
+# (damage affinities) -- the last of which also accounts for +0x00..+0x03, since
+# an affinity block straddles the record boundary. +0x10..+0x19 still looks like
+# the guide's ten status resistances but does NOT match it, so it stays here.
+ENEMY_UNMAPPED = [(0x0C, 0x36), (0x47, 0x4C), (0x4D, 0x52)]
 
 def enemy_unmapped_offsets():
     """Every still-unknown byte offset within a stat record, ascending."""
@@ -494,9 +539,11 @@ def web_tables():
             "namesOff": ENEMY_NAMES_OFF,
             "idOff": ENEMY_ID_OFF,
             "fields": fields(ENEMY_FIELDS),
-            # unverified slot names — front-ends must gate these, see above
+            # verified: eight signed bytes at +0x58, percent = byte * 5
             "affinityFields": fields(ENEMY_AFFINITY_FIELDS),
             "affinityNormal": ENEMY_AFFINITY_NORMAL,
+            "affinityScale": ENEMY_AFFINITY_SCALE,
+            "affinityElements": list(AFFINITY_ELEMENTS),
             # break/zone data (verified): the hittable-zone mask and the four
             # one-hot break-sequence slots
             "zoneFields": fields(ZONE_FIELDS),

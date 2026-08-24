@@ -15,10 +15,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   you pick which in-game slot to edit, plus **`.psu`** (EMS), **`.psv`** (PS3),
   **`.sps`/`.xps`** (SharkPort), and **`.cbs`** (CodeBreaker). Powered by the real Python
   engine compiled to WebAssembly (Pyodide).
-- **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — works on **either disc**. Edit every
-  enemy's **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle rewards** (EXP, SP,
-  CP) and **Break sequence** for all 125 enemy records, written **in place** into your disc
-  image — plus one-click **battle-pacing profiles** that retune what the stock→break→boost
+- **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
+  one**. Every enemy's **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle
+  rewards** (EXP, SP, CP), **damage affinities** (per element, including absorb) and
+  **Break sequence** for all 125 records, written **in place** into your disc images — plus
+  one-click **battle-pacing profiles** that retune what the stock→break→boost
   combo loop costs, **shareable patch files**, and a **compare-to-retail** view that shows
   exactly how your disc differs from an unmodified one (and can restore it).
 - **Reference** — searchable bestiary (verified stats & rewards, filter by ID band or major
@@ -44,23 +45,47 @@ Working today:
   [`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md) for both derivations).
 - **Reference** — bestiary + item / key-item / E.S.-gear catalogs.
 
-Three things worth stating plainly:
+Two things worth stating plainly:
 
-- **Both discs carry the same enemy tables**, so any enemy edit has to be applied to *both*
-  or the second half of the game silently reverts to retail values at the disc swap. The
-  editor says so on every disc you open; export a patch from the disc you tuned and apply it
-  to the other to keep them in step.
 - The in-game **save checksum isn't cracked yet**, so an edited *save* may be rejected by
   the game until it is. ISO edits are unaffected. A `.bak` is always kept.
-- The eight enemy **damage-affinity slots** are editable but **unverified** — we know there
-  are eight percentages and that they read 100 in ordinary records, but not which element
-  each slot is, so they're numbered rather than named and kept behind an opt-in.
+- The enemy record still has **52 undecoded bytes**. Nothing is written there.
 
-Next reverse-engineering targets: the enemy record's ten likely **status-resistance** bytes
-(`+0x10..+0x19` — a strong lead, same method as the Break field, no emulator needed), then
-the save checksum, skill/tech editing (power, targeting, cast times), party, and inventory —
-those four need a PCSX2 session to anchor. `.max` (AR Max / LZARI) is the one container still
-unsupported.
+Next reverse-engineering targets: enemy **item drops** and the **skill/tech** table (both
+have published ground truth and need no emulator), then the save checksum, party, and
+inventory — those need a PCSX2 session to anchor. `.max` (AR Max / LZARI) is the one
+container still unsupported.
+
+### Both discs, edited as one
+
+Xenosaga II ships on two discs and **both carry the same enemy tables** — so an edit made to
+one alone silently reverts to retail values at the disc swap, giving you a retuned first half
+and a stock second half with nothing to warn you.
+
+The editor handles this for you: open both discs and every change is written to each of them
+at its own offsets. There is one set of values being edited, mirrored on save, so the two
+discs cannot drift apart. If you open a second disc that *already* disagrees with the first
+(because it was patched on its own earlier), the editor says so and asks which disc's values
+to keep rather than guessing. You can also deliberately target a single disc.
+
+On the command line the same thing is one flag — `--also` — or the `sync` command:
+
+```bash
+python3 x2patch.py rebalance "…(Disc 1).iso" --profile faster --also "…(Disc 2).iso"
+python3 x2patch.py sync "…(Disc 1).iso" "…(Disc 2).iso"     # copy tables disc-to-disc
+```
+
+### Damage affinities
+
+Every enemy has eight per-element damage multipliers — **Beam, Aura, Thunder, Fire, Ice,
+Pierce, Slash, Hit**. 100% is normal, lower resists, higher takes extra, **0% is immune** and
+**negative absorbs** (Svarozic takes −200% Fire, so fire heals it for double). They're stored
+as a signed byte ×5, so values move in 5% steps.
+
+These were previously shipped as eight unnamed, unverified slots — and they were reading the
+wrong bytes entirely, so editing them did nothing. Both the location and the element order
+are now verified against a strategy guide: 71 of 71 enemies with complete published data
+match the disc exactly.
 
 ### Battle pacing (the combo system)
 
@@ -108,7 +133,7 @@ python3 x2patch.py rebalance "../ISO/...iso" --profile faster --dry-run
 python3 x2patch.py diff "../ISO/...iso"                      # how it differs from retail
 python3 x2patch.py export-patch "../ISO/...iso" --out mod.json
 python3 x2patch.py apply-patch "../ISO/...iso" mod.json      # share a rebalance
-python3 x2patch.py apply-patch "../ISO/...(Disc 2).iso" mod.json   # ...and keep disc 2 in step
+python3 x2patch.py sync "../ISO/...(Disc 1).iso" "../ISO/...(Disc 2).iso"
 python3 x2patch.py restore "../ISO/...iso"                   # back to retail values
 python3 x2save.py slots "…/Mcd001.ps2"                       # list a card's saves
 python3 x2save.py "…/Mcd001.ps2" --slot 2                    # decode one of them

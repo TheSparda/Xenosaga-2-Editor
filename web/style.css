@@ -72,6 +72,18 @@ tr.gearrow .fl{color:var(--acc2)} tr.gearrow .fl::before{content:"⚙ "}
 .es td.name{color:var(--mut)}
 .gpick{cursor:pointer;text-decoration:underline dotted}
 .note{color:var(--mut);font-size:12.5px;margin:10px 0 0}
+/* one row per disc in the open step */
+.discrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.discrow .status{flex:1 1 auto;min-width:12ch}
+/* where a Save goes: both discs, or one of them */
+.discbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;
+  font-size:12.5px;user-select:none}
+.pill input{margin-right:5px;vertical-align:-1px}
+.pill.on{border-color:var(--acc);color:var(--acc);font-weight:600}
+/* damage affinities, now verified and named */
+.affbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+.affbox .fl{margin-bottom:6px}
 /* break-sequence editor — one text box standing in for four bytes */
 .brkbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
 .brkbox input{margin-right:3px;font-family:ui-monospace,Menlo,Consolas,monospace;

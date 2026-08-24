@@ -763,10 +763,15 @@ def break_seq_of(rec):
     """The record's break sequence as text ('CBB'), or '' if it can't be broken."""
     return F.decode_break_seq([rec[f"Brk{n + 1}"] for n in range(F.BREAK_SEQ_SLOTS)])
 
-AFFINITY_WARNING = (
-    f"note: Aff1..Aff{F.ENEMY_AFFINITY_COUNT} are damage-affinity percentages "
-    f"({F.ENEMY_AFFINITY_NORMAL} = normal), but which element each slot is has "
-    f"NOT been confirmed. Treat them as an experiment.")
+AFFINITY_NOTE = (
+    f"affinities are percentages ({F.ENEMY_AFFINITY_NORMAL} = normal damage, "
+    f"below resists, above takes extra, 0 is immune, negative absorbs); stored as "
+    f"a signed byte x{F.ENEMY_AFFINITY_SCALE}, so they move in "
+    f"{F.ENEMY_AFFINITY_SCALE}% steps.")
+
+def affinity_pcts(rec):
+    """{element: percent} for one record."""
+    return {name: F.affinity_pct(rec[name]) for name in F.AFFINITY_ELEMENTS}
 
 def cmd_enemy_list(a):
     """Print the whole bestiary straight from the disc (optionally as CSV)."""
@@ -803,8 +808,15 @@ def cmd_enemy_get(a):
           f"   (which heights this enemy can be hit at)")
     print(f"  {'break':<5} {seq or '(cannot)':>10}"
           f"   (hit these zones in order to Break it)")
-    print("  affinities " + " ".join(f"{rec[c]}" for c in _affinity_cols()))
-    print(f"  {AFFINITY_WARNING}")
+    pcts = affinity_pcts(rec)
+    print("  damage taken:")
+    for name in F.AFFINITY_ELEMENTS:
+        v = pcts[name]
+        tag = "" if v == F.ENEMY_AFFINITY_NORMAL else (
+            "  absorbs" if v < 0 else "  immune" if v == 0 else
+            "  resists" if v < F.ENEMY_AFFINITY_NORMAL else "  WEAK")
+        print(f"    {name:<8} {v:>5}%{tag}")
+    print(f"  {AFFINITY_NOTE}")
 
 def cmd_enemy_set(a):
     """Write named fields of one enemy record: --set HP=5000 --set EXP=1200."""
@@ -829,7 +841,7 @@ def cmd_enemy_set(a):
     if not edits:
         raise SystemExit("nothing to do — pass at least one --set FIELD=VALUE")
     if any(k in _affinity_cols() for k in edits):
-        print(AFFINITY_WARNING)
+        print(AFFINITY_NOTE)
     with Iso(a.iso) as iso:
         require_version(iso)
         before = read_enemy(iso, a.index)
@@ -845,6 +857,8 @@ def cmd_enemy_set(a):
         print(f"  {k:<5} {before[k]:>10,} -> {after[k]:>10,}")
         if after[k] != max(0, min(edits[k], 0xFFFFFFFF)):
             print(f"  ! {k} did not read back as requested (clamped to field width?)")
+    if a.also:
+        _sync_to(a.iso, a.also)
 
 def cmd_diff(a):
     """Show every enemy field that differs from the verified retail values."""
@@ -905,6 +919,86 @@ def cmd_apply_patch(a):
     with Iso(a.iso, write=True) as iso:
         recs, fields = apply_patch(iso, edits)
     print(f"applied {fields} field(s) across {recs} record(s)")
+    if a.also:
+        _sync_to(a.iso, a.also)
+
+# ---------------------------------------------------------------------------
+# MULTI-DISC — keeping the two discs' enemy tables in step.
+#
+# Both retail discs carry the same enemy data at different bases, so any edit has
+# to be made twice or the game reverts to retail values at the disc swap. Rather
+# than duplicate every command's logic, there is one primitive: copy every
+# verified field from one disc to the other. `--also` on the write commands runs
+# the edit on the first disc and then syncs, which means the two discs cannot end
+# up with different values however the edit was produced.
+# ---------------------------------------------------------------------------
+def sync_discs(src, dst):
+    """Copy every verified enemy field from `src` to `dst`.
+
+    Returns (records touched, fields written). Reads and writes through the
+    normal field path, so each disc uses its own bases and the affinity block's
+    straddle is handled the same way it is everywhere else."""
+    labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
+                             F.ZONE_FIELDS + F.REWARD_FIELDS)]
+    recs = fields = 0
+    for i in range(F.ENEMY_COUNT):
+        want = read_enemy(src, i)
+        have = read_enemy(dst, i)
+        delta = {k: want[k] for k in labels if want.get(k) != have.get(k)}
+        if delta:
+            fields += write_enemy(dst, i, delta)
+            recs += 1
+    return recs, fields
+
+def _sync_to(primary_path, other_path):
+    """Mirror primary_path's enemy tables onto other_path, with a short report."""
+    with Iso(primary_path) as src, Iso(other_path, write=True) as dst:
+        require_version(src); require_version(dst)
+        if src.disc == dst.disc:
+            raise SystemExit(f"--also: both images are disc {src.disc} — "
+                             f"pass the other disc")
+        n = dst.disc
+        recs, fields = sync_discs(src, dst)
+    if recs:
+        print(f"synced onto disc {n}: {fields} field(s) across {recs} record(s)")
+    else:
+        print(f"synced onto disc {n}: already identical")
+    return recs, fields
+
+def cmd_sync(a):
+    """Copy the enemy tables from one disc onto the other."""
+    with Iso(a.src) as src, Iso(a.dst) as dst:
+        require_version(src); require_version(dst)
+        if src.disc == dst.disc:
+            raise SystemExit(f"both images are disc {src.disc} — "
+                             f"pass one of each")
+        print(f"source : disc {src.disc} ({a.src})")
+        print(f"target : disc {dst.disc} ({a.dst})")
+        labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
+                                 F.ZONE_FIELDS + F.REWARD_FIELDS)]
+        diff = []
+        for i in range(F.ENEMY_COUNT):
+            w, h = read_enemy(src, i), read_enemy(dst, i)
+            d = {k: (h.get(k), w.get(k)) for k in labels if w.get(k) != h.get(k)}
+            if d:
+                diff.append((i, d))
+    names = F.enemy_names()
+    if not diff:
+        print("the two discs already hold identical enemy tables — nothing to do")
+        return 0
+    print(f"\n{len(diff)} record(s) differ:")
+    for i, d in diff[:a.show]:
+        body = "  ".join(f"{k} {h}→{w}" for k, (h, w) in sorted(d.items()))
+        print(f"  {i:3d} {names.get(i, '?'):<24} {body}")
+    if len(diff) > a.show:
+        print(f"  … {len(diff) - a.show} more (use --show)")
+    if a.dry_run:
+        print("\n(dry run — nothing written)")
+        return 0
+    if a.backup:
+        print(f"backup -> {backup(a.dst)}")
+    _sync_to(a.src, a.dst)
+    return 0
 
 def cmd_restore(a):
     """Put the retail values back — for the whole bestiary or named records."""
@@ -934,6 +1028,8 @@ def cmd_restore(a):
         for i, fields in delta.items():
             n += write_enemy(iso, i, {k: want for k, (_have, want) in fields.items()})
     print(f"restored {n} field(s)")
+    if a.also:
+        _sync_to(a.iso, a.also)
 def cmd_rebalance(a):
     """Apply a battle-pacing profile to every enemy record (combo-loop tuning)."""
     prof = dict(F.profile(a.profile))
@@ -977,6 +1073,8 @@ def cmd_rebalance(a):
             print(f"backup: {backup(a.iso)}")
         recs, fields = apply_rebalance(iso, plan)
         print(f"\n✓ wrote {fields} field(s) across {recs} record(s)")
+    if a.also:
+        _sync_to(a.iso, a.also)
     return 0
 
 def cmd_verify_tables(a):
@@ -1135,6 +1233,8 @@ def main():
                     help="set the Break sequence, e.g. CB or C-B-B (max "
                          "4 hits, zones A/B/C; empty string = cannot be broken)")
     sp.add_argument("--backup", action="store_true", help="copy the ISO to .bak first")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_enemy_set)
 
     sp = sub.add_parser("diff", help="show enemy fields that differ from retail")
@@ -1151,7 +1251,16 @@ def main():
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--show", type=int, default=20)
     sp.add_argument("--backup", action="store_true")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_apply_patch)
+
+    sp = sub.add_parser("sync", help="copy the enemy tables from one disc onto the other")
+    sp.add_argument("src"); sp.add_argument("dst")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--show", type=int, default=20)
+    sp.add_argument("--backup", action="store_true")
+    sp.set_defaults(fn=cmd_sync)
 
     sp = sub.add_parser("restore", help="put the retail enemy values back")
     sp.add_argument("iso")
@@ -1160,6 +1269,8 @@ def main():
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--show", type=int, default=20)
     sp.add_argument("--backup", action="store_true")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_restore)
 
     sp = sub.add_parser("rebalance", help="apply a battle-pacing profile to every enemy")
@@ -1178,6 +1289,8 @@ def main():
     for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL", "EXP", "SP", "CP"):
         sp.add_argument(f"--{lbl.lower()}", type=int, metavar="PCT",
                         help=f"override {lbl} scaling for both groups (percent)")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_rebalance)
 
     sp = sub.add_parser("verify-tables", help="confirm/locate the enemy table on a disc")
