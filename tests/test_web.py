@@ -165,6 +165,11 @@ class TestDomReferences(unittest.TestCase):
         # Every engine file the Pyodide boot loop fetches must also be precached,
         # or the save editor works online and breaks offline — a split that is
         # invisible in normal testing.
+        # anything iso.js fetches from Editor/ at runtime must be precached too
+        for m in re.finditer(r'fetch\("(\.\./Editor/[^"]+)"', read("iso.js")):
+            with self.subTest(runtime=m.group(1)):
+                self.assertIn(m.group(1), urls,
+                              f"iso.js fetches {m.group(1)} but it is not precached")
         boot = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
         self.assertTrue(boot, "could not find the engine file list in app.js")
         for name in re.findall(r'"([^"]+)"', boot.group(1)):

@@ -1,0 +1,836 @@
+{
+ "0": {
+  "desc": "Arm +30\\nIncrease Physical Defense.",
+  "name": "Auxiliary Armor A",
+  "off": 33605076,
+  "placeholder": false
+ },
+ "1": {
+  "desc": "Arm +40\\nIncrease Physical Defense.",
+  "name": "Auxiliary Armor B",
+  "off": 33605130,
+  "placeholder": false
+ },
+ "10": {
+  "desc": "Lower fire damage 25%.",
+  "name": "Anti-Fire Armor",
+  "off": 33605338,
+  "placeholder": false
+ },
+ "100": {
+  "desc": "Key to open the Lv 3 Class H skill, Experience Up 10.",
+  "name": "Secret Key 21",
+  "off": 33610035,
+  "placeholder": false
+ },
+ "101": {
+  "desc": "Key to open the Lv 3 Class H skill, Combo Boost.",
+  "name": "Secret Key 22",
+  "off": 33610103,
+  "placeholder": false
+ },
+ "102": {
+  "desc": "Key to open the Lv 3 Class H skill, EP Half.",
+  "name": "Secret Key 23",
+  "off": 33610166,
+  "placeholder": false
+ },
+ "103": {
+  "desc": "Key to open the Lv 4 Class A skill, Curse.",
+  "name": "Secret Key 24",
+  "off": 33610225,
+  "placeholder": false
+ },
+ "104": {
+  "desc": "Key to open the Lv 4 Class B skill, Focus 2.",
+  "name": "Secret Key 25",
+  "off": 33610282,
+  "placeholder": false
+ },
+ "105": {
+  "desc": "Key to open the Lv 4 Class C skill, Overload.",
+  "name": "Secret Key 26",
+  "off": 33610341,
+  "placeholder": false
+ },
+ "106": {
+  "desc": "Key to open the Lv 4 Class C skill, ST Double.",
+  "name": "Secret Key 27",
+  "off": 33610401,
+  "placeholder": false
+ },
+ "107": {
+  "desc": "Key to open the Lv 4 Class D skill, Best Ally.",
+  "name": "Secret Key 28",
+  "off": 33610462,
+  "placeholder": false
+ },
+ "108": {
+  "desc": "Key to open the Lv 4 Class D skill, Skill Up 15.",
+  "name": "Secret Key 29",
+  "off": 33610523,
+  "placeholder": false
+ },
+ "109": {
+  "desc": "Key to open the Lv 4 Class D skill, Experience Up 15.",
+  "name": "Secret Key 30",
+  "off": 33610586,
+  "placeholder": false
+ },
+ "11": {
+  "desc": "Lower ice damage 25%.",
+  "name": "Anti-Ice Armor",
+  "off": 33605377,
+  "placeholder": false
+ },
+ "110": {
+  "desc": "Key to open the Lv 4 Class D skill, Rebound.",
+  "name": "Secret Key 31",
+  "off": 33610654,
+  "placeholder": false
+ },
+ "111": {
+  "desc": "Decoder to unlock Segment Address No. 01.",
+  "name": "Decoder 01",
+  "off": 33611572,
+  "placeholder": false
+ },
+ "112": {
+  "desc": "Decoder to unlock Segment Address No. 02.",
+  "name": "Decoder 02",
+  "off": 33611625,
+  "placeholder": false
+ },
+ "113": {
+  "desc": "Decoder to unlock Segment Address No. 03.",
+  "name": "Decoder 03",
+  "off": 33611678,
+  "placeholder": false
+ },
+ "114": {
+  "desc": "Decoder to unlock Segment Address No. 04.",
+  "name": "Decoder 04",
+  "off": 33611731,
+  "placeholder": false
+ },
+ "115": {
+  "desc": "Decoder to unlock Segment Address No. 05.",
+  "name": "Decoder 05",
+  "off": 33611784,
+  "placeholder": false
+ },
+ "116": {
+  "desc": "Decoder to unlock Segment Address No. 06.",
+  "name": "Decoder 06",
+  "off": 33611837,
+  "placeholder": false
+ },
+ "117": {
+  "desc": "Decoder to unlock Segment Address No. 07.",
+  "name": "Decoder 07",
+  "off": 33611890,
+  "placeholder": false
+ },
+ "118": {
+  "desc": "Decoder to unlock Segment Address No. 08.",
+  "name": "Decoder 08",
+  "off": 33611943,
+  "placeholder": false
+ },
+ "119": {
+  "desc": "Decoder to unlock Segment Address No. 09.",
+  "name": "Decoder 09",
+  "off": 33611996,
+  "placeholder": false
+ },
+ "12": {
+  "desc": "Lower thunder damage 25%.",
+  "name": "Anti-Thunder Armor",
+  "off": 33605414,
+  "placeholder": false
+ },
+ "120": {
+  "desc": "Decoder to unlock Segment Address No. 10.",
+  "name": "Decoder 10",
+  "off": 33612049,
+  "placeholder": false
+ },
+ "121": {
+  "desc": "Decoder to unlock Segment Address No. 11.",
+  "name": "Decoder 11",
+  "off": 33612102,
+  "placeholder": false
+ },
+ "122": {
+  "desc": "Decoder to unlock Segment Address No. 12.",
+  "name": "Decoder 12",
+  "off": 33612155,
+  "placeholder": false
+ },
+ "123": {
+  "desc": "Decoder to unlock Segment Address No. 13.",
+  "name": "Decoder 13",
+  "off": 33612208,
+  "placeholder": false
+ },
+ "124": {
+  "desc": "Decoder to unlock Segment Address No. 14.",
+  "name": "Decoder 14",
+  "off": 33612261,
+  "placeholder": false
+ },
+ "125": {
+  "desc": "Decoder to unlock Segment Address No. 15.",
+  "name": "Decoder 15",
+  "off": 33612314,
+  "placeholder": false
+ },
+ "126": {
+  "desc": "Decoder to unlock Segment Address No. 16.",
+  "name": "Decoder 16",
+  "off": 33612367,
+  "placeholder": false
+ },
+ "127": {
+  "desc": "Decoder to unlock Segment Address No. 17.",
+  "name": "Decoder 17",
+  "off": 33612420,
+  "placeholder": false
+ },
+ "128": {
+  "desc": "Decoder to unlock Segment Address No. 18.",
+  "name": "Decoder 18",
+  "off": 33612473,
+  "placeholder": false
+ },
+ "129": {
+  "desc": "Love letter from Jacqueline to Sidney.",
+  "name": "Love Letter",
+  "off": 33612526,
+  "placeholder": false
+ },
+ "13": {
+  "desc": "Lower beam damage 25%.",
+  "name": "Anti-Beam Armor",
+  "off": 33605459,
+  "placeholder": false
+ },
+ "130": {
+  "desc": "A memo left by Elsa's robot ZAZA\\nwith the number 2 written on it.",
+  "name": "ZAZA's Clue 1",
+  "off": 33612577,
+  "placeholder": false
+ },
+ "131": {
+  "desc": "A memo left by Elsa's robot ZAZA\\nwith the number 5 written on it.",
+  "name": "ZAZA's Clue 2",
+  "off": 33612658,
+  "placeholder": false
+ },
+ "132": {
+  "desc": "A memo left by Elsa's robot ZAZA\\nwith the number 8 written on it.",
+  "name": "ZAZA's Clue 3",
+  "off": 33612739,
+  "placeholder": false
+ },
+ "133": {
+  "desc": "A memo left by Elsa's robot ZAZA\\nwith the number 7 written on it.",
+  "name": "ZAZA's Clue 4",
+  "off": 33612820,
+  "placeholder": false
+ },
+ "134": {
+  "desc": "A memo left by Elsa's robot ZAZA\\nwith the number 6 written on it.",
+  "name": "ZAZA's Clue 5",
+  "off": 33612901,
+  "placeholder": false
+ },
+ "135": {
+  "desc": "A memo left by Elsa's robot ZAZA\\nwith the number 4 written on it.",
+  "name": "ZAZA's Clue 6",
+  "off": 33612982,
+  "placeholder": false
+ },
+ "136": {
+  "desc": "A memo left by Elsa's robot ZAZA\\nwith the number 3 written on it.",
+  "name": "ZAZA's Clue 7",
+  "off": 33613063,
+  "placeholder": false
+ },
+ "137": {
+  "desc": "A letter shaped like a Spade which contains\\na mail-order catalog.",
+  "name": "Spade Letter",
+  "off": 33613144,
+  "placeholder": false
+ },
+ "138": {
+  "desc": "A letter shaped like a Heart which contains\\nwork-related documents.",
+  "name": "Heart Letter",
+  "off": 33613224,
+  "placeholder": false
+ },
+ "14": {
+  "desc": "Agility +1.",
+  "name": "Tuned Circuit",
+  "off": 33605498,
+  "placeholder": false
+ },
+ "15": {
+  "desc": "Increase charge 25% by using the STOCK command.",
+  "name": "Charge Boost",
+  "off": 33605524,
+  "placeholder": false
+ },
+ "16": {
+  "desc": "Clear all status effects by using the STOCK command.",
+  "name": "Charge Clean",
+  "off": 33605585,
+  "placeholder": false
+ },
+ "17": {
+  "desc": "Recover 5% of maximum HP by\\nusing the STOCK command.",
+  "name": "Charge Recover",
+  "off": 33605651,
+  "placeholder": false
+ },
+ "18": {
+  "desc": "Damage reduction +20% when defending.",
+  "name": "Power Shield",
+  "off": 33605720,
+  "placeholder": false
+ },
+ "19": {
+  "desc": "Slow resistance +25%.",
+  "name": "G Slow Guard",
+  "off": 33605771,
+  "placeholder": false
+ },
+ "2": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33605184,
+  "placeholder": true
+ },
+ "20": {
+  "desc": "Poison resistance +25%.",
+  "name": "G Poison Guard",
+  "off": 33605806,
+  "placeholder": false
+ },
+ "21": {
+  "desc": "Blind resistance +25%.",
+  "name": "G Blind Guard",
+  "off": 33605845,
+  "placeholder": false
+ },
+ "22": {
+  "desc": "Heavy resistance +25%.",
+  "name": "G Heavy Guard",
+  "off": 33605882,
+  "placeholder": false
+ },
+ "23": {
+  "desc": "Weak resistance +25%.",
+  "name": "G Weak Guard",
+  "off": 33605919,
+  "placeholder": false
+ },
+ "24": {
+  "desc": "Stun resistance +25%.",
+  "name": "G Stun Guard",
+  "off": 33605954,
+  "placeholder": false
+ },
+ "25": {
+  "desc": "Ether PD resistance +25%.",
+  "name": "G Ether PD Guard",
+  "off": 33605989,
+  "placeholder": false
+ },
+ "26": {
+  "desc": "Ether DD resistance +25%.",
+  "name": "G Ether DD Guard",
+  "off": 33606032,
+  "placeholder": false
+ },
+ "27": {
+  "desc": "Bind resistance +25%.",
+  "name": "G Bind Guard",
+  "off": 33606075,
+  "placeholder": false
+ },
+ "28": {
+  "desc": "Lost resistance +25%.",
+  "name": "G Lost Guard",
+  "off": 33606110,
+  "placeholder": false
+ },
+ "29": {
+  "desc": "Boost Lock resistance +25%.",
+  "name": "G Boost Guard",
+  "off": 33606145,
+  "placeholder": false
+ },
+ "3": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33605194,
+  "placeholder": true
+ },
+ "30": {
+  "desc": "Poison EP resistance +25%.",
+  "name": "G Poison EP Guard",
+  "off": 33606187,
+  "placeholder": false
+ },
+ "31": {
+  "desc": "Charge Down resistance +25%.",
+  "name": "G Energy Guard",
+  "off": 33606232,
+  "placeholder": false
+ },
+ "32": {
+  "desc": "Resistance to all status effects +25%.",
+  "name": "G Power Charge",
+  "off": 33606276,
+  "placeholder": false
+ },
+ "33": {
+  "desc": "Double duration of status effects.",
+  "name": "G ST Double",
+  "off": 33606330,
+  "placeholder": false
+ },
+ "34": {
+  "desc": "EC is charged to 100 at the start of battle.",
+  "name": "Quick Charge",
+  "off": 33606377,
+  "placeholder": false
+ },
+ "35": {
+  "desc": "Make maximum charge 300.",
+  "name": "EMAX300",
+  "off": 33606435,
+  "placeholder": false
+ },
+ "36": {
+  "desc": "Recover 50% HP when incapacitated (once).",
+  "name": "Auto Recover",
+  "off": 33606468,
+  "placeholder": false
+ },
+ "37": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33606523,
+  "placeholder": true
+ },
+ "38": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33606533,
+  "placeholder": true
+ },
+ "39": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33606543,
+  "placeholder": true
+ },
+ "4": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33605204,
+  "placeholder": true
+ },
+ "40": {
+  "desc": "Recover 25% of MAX HP.",
+  "name": "Med Kit S",
+  "off": 33607196,
+  "placeholder": false
+ },
+ "41": {
+  "desc": "Recover 50% of MAX HP.",
+  "name": "Med Kit M",
+  "off": 33607229,
+  "placeholder": false
+ },
+ "42": {
+  "desc": "Recover 75% of MAX HP.",
+  "name": "Med Kit L",
+  "off": 33607262,
+  "placeholder": false
+ },
+ "43": {
+  "desc": "Recover all HP.",
+  "name": "Med Kit DX",
+  "off": 33607295,
+  "placeholder": false
+ },
+ "44": {
+  "desc": "Recover 25% of MAX EP.",
+  "name": "Ether Pack S",
+  "off": 33607322,
+  "placeholder": false
+ },
+ "45": {
+  "desc": "Recover 50% of MAX EP.",
+  "name": "Ether Pack M",
+  "off": 33607358,
+  "placeholder": false
+ },
+ "46": {
+  "desc": "Recover all EP.",
+  "name": "Ether Pack DX",
+  "off": 33607394,
+  "placeholder": false
+ },
+ "47": {
+  "desc": "Recover 50% of MAX HP and EP.",
+  "name": "Rejuvenator M",
+  "off": 33607424,
+  "placeholder": false
+ },
+ "48": {
+  "desc": "Recover all HP and EP.",
+  "name": "Rejuvenator DX",
+  "off": 33607468,
+  "placeholder": false
+ },
+ "49": {
+  "desc": "Recover all HP and EP for all allies.",
+  "name": "Rejuvenator E",
+  "off": 33607506,
+  "placeholder": false
+ },
+ "5": {
+  "desc": "Edef +20\\nIncrease Ether Defense.",
+  "name": "EF Circuit A",
+  "off": 33605214,
+  "placeholder": false
+ },
+ "50": {
+  "desc": "Heal L-type status effects.",
+  "name": "Antidote L",
+  "off": 33607558,
+  "placeholder": false
+ },
+ "51": {
+  "desc": "Heal H-type status effects.",
+  "name": "Antidote H",
+  "off": 33607597,
+  "placeholder": false
+ },
+ "52": {
+  "desc": "Revive & recover 25% of MAX HP.",
+  "name": "Revive S",
+  "off": 33607636,
+  "placeholder": false
+ },
+ "53": {
+  "desc": "Revive & recover all HP.",
+  "name": "Revive DX",
+  "off": 33607677,
+  "placeholder": false
+ },
+ "54": {
+  "desc": "Boost Gauge maximum +1 (up to 5).",
+  "name": "Boost Max",
+  "off": 33607712,
+  "placeholder": false
+ },
+ "55": {
+  "desc": "Disable an enemy's defense shield.",
+  "name": "CF Bomb",
+  "off": 33607756,
+  "placeholder": false
+ },
+ "56": {
+  "desc": "Set HP to 1.",
+  "name": "Hemlock",
+  "off": 33607799,
+  "placeholder": false
+ },
+ "57": {
+  "desc": "予備説明",
+  "name": "予備",
+  "off": 33607820,
+  "placeholder": true
+ },
+ "58": {
+  "desc": "予備説明",
+  "name": "予備",
+  "off": 33607834,
+  "placeholder": true
+ },
+ "59": {
+  "desc": "予備説明",
+  "name": "予備",
+  "off": 33607848,
+  "placeholder": true
+ },
+ "6": {
+  "desc": "Edef +30\\nIncrease Ether Defense.",
+  "name": "EF Circuit B",
+  "off": 33605261,
+  "placeholder": false
+ },
+ "60": {
+  "desc": "Recover all HP and EP (entire party).",
+  "name": "Bio Sphere",
+  "off": 33607862,
+  "placeholder": false
+ },
+ "61": {
+  "desc": "Skill Points +10.",
+  "name": "Skill Upgrade A",
+  "off": 33607911,
+  "placeholder": false
+ },
+ "62": {
+  "desc": "Skill Points +30.",
+  "name": "Skill Upgrade B",
+  "off": 33607945,
+  "placeholder": false
+ },
+ "63": {
+  "desc": "Skill Points +50.",
+  "name": "Skill Upgrade C",
+  "off": 33607979,
+  "placeholder": false
+ },
+ "64": {
+  "desc": "Skill Points +100.",
+  "name": "Skill Upgrade D",
+  "off": 33608013,
+  "placeholder": false
+ },
+ "65": {
+  "desc": "Skill Points +500.",
+  "name": "Skill Upgrade E",
+  "off": 33608048,
+  "placeholder": false
+ },
+ "66": {
+  "desc": "Class Points +10.",
+  "name": "Class Upgrade A",
+  "off": 33608083,
+  "placeholder": false
+ },
+ "67": {
+  "desc": "Class Points +50.",
+  "name": "Class Upgrade B",
+  "off": 33608117,
+  "placeholder": false
+ },
+ "68": {
+  "desc": "Class Points +100.",
+  "name": "Class Upgrade C",
+  "off": 33608151,
+  "placeholder": false
+ },
+ "69": {
+  "desc": "Recover 25% of MAX HP and EP (E.S. only).",
+  "name": "Nano Repair A",
+  "off": 33608186,
+  "placeholder": false
+ },
+ "7": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33605308,
+  "placeholder": true
+ },
+ "70": {
+  "desc": "Recover 50% of MAX HP and EP (E.S. only).",
+  "name": "Nano Repair Z",
+  "off": 33608242,
+  "placeholder": false
+ },
+ "71": {
+  "desc": "Recover all HP and EP of all crafts (E.S. only).",
+  "name": "Nano Sphere",
+  "off": 33608298,
+  "placeholder": false
+ },
+ "72": {
+  "desc": "Remains of a machine.",
+  "name": "Scrap Iron",
+  "off": 33608359,
+  "placeholder": false
+ },
+ "73": {
+  "desc": "A destroyed circuit.",
+  "name": "Junked Circuit",
+  "off": 33608392,
+  "placeholder": false
+ },
+ "74": {
+  "desc": "A rare part used to fix broken Ether.",
+  "name": "Ether Core",
+  "off": 33608428,
+  "placeholder": false
+ },
+ "75": {
+  "desc": "予備説明",
+  "name": "予備",
+  "off": 33608477,
+  "placeholder": true
+ },
+ "76": {
+  "desc": "Double Attack for Jr. and MOMO.",
+  "name": "Awakening I",
+  "off": 33608491,
+  "placeholder": false
+ },
+ "77": {
+  "desc": "Double Attack for Shion and KOS-MOS.",
+  "name": "Awakening II",
+  "off": 33608535,
+  "placeholder": false
+ },
+ "78": {
+  "desc": "Double Attack for Jin and Shion.",
+  "name": "Awakening III",
+  "off": 33608585,
+  "placeholder": false
+ },
+ "79": {
+  "desc": "Double Attack for chaos and MOMO.",
+  "name": "Awakening IV",
+  "off": 33608632,
+  "placeholder": false
+ },
+ "8": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33605318,
+  "placeholder": true
+ },
+ "80": {
+  "desc": "Key to open the Lv 1 Class H skill, Psycho Pocket.",
+  "name": "Secret Key 1",
+  "off": 33608804,
+  "placeholder": false
+ },
+ "81": {
+  "desc": "Key to open the Lv 1 Class H skill, Break B10.",
+  "name": "Secret Key 2",
+  "off": 33608868,
+  "placeholder": false
+ },
+ "82": {
+  "desc": "Key to open the Lv 1 Class H skill, Focus 1.",
+  "name": "Secret Key 3",
+  "off": 33608928,
+  "placeholder": false
+ },
+ "83": {
+  "desc": "Key to open the Lv 1 Class H skill, EP Regen.",
+  "name": "Secret Key 4",
+  "off": 33608986,
+  "placeholder": false
+ },
+ "84": {
+  "desc": "Key to open the Lv 2 Class D skill, Stock 1.",
+  "name": "Secret Key 5",
+  "off": 33609045,
+  "placeholder": false
+ },
+ "85": {
+  "desc": "Key to open the Lv 2 Class D skill, Rare+10.",
+  "name": "Secret Key 6",
+  "off": 33609103,
+  "placeholder": false
+ },
+ "86": {
+  "desc": "Key to open the Lv 2 Class F skill, Junk Beam.",
+  "name": "Secret Key 7",
+  "off": 33609161,
+  "placeholder": false
+ },
+ "87": {
+  "desc": "Key to open the Lv 2 Class H skill, Boost 1.",
+  "name": "Secret Key 8",
+  "off": 33609221,
+  "placeholder": false
+ },
+ "88": {
+  "desc": "Key to open the Lv 2 Class H skill, Expansion Pack.",
+  "name": "Secret Key 9",
+  "off": 33609279,
+  "placeholder": false
+ },
+ "89": {
+  "desc": "Key to open the Lv 2 Class H skill, Inner Peace.",
+  "name": "Secret Key 10",
+  "off": 33609344,
+  "placeholder": false
+ },
+ "9": {
+  "desc": "予備",
+  "name": "予備",
+  "off": 33605328,
+  "placeholder": true
+ },
+ "90": {
+  "desc": "Key to open the Lv 2 Class H skill, ST Resist 20.",
+  "name": "Secret Key 11",
+  "off": 33609407,
+  "placeholder": false
+ },
+ "91": {
+  "desc": "Key to open the Lv 3 Class A skill, Safety Level.",
+  "name": "Secret Key 12",
+  "off": 33609471,
+  "placeholder": false
+ },
+ "92": {
+  "desc": "Key to open the Lv 3 Class A skill, Limiter Up.",
+  "name": "Secret Key 13",
+  "off": 33609535,
+  "placeholder": false
+ },
+ "93": {
+  "desc": "Key to open the Lv 3 Class C skill, Rapid Refresh.",
+  "name": "Secret Key 14",
+  "off": 33609597,
+  "placeholder": false
+ },
+ "94": {
+  "desc": "Key to open the Lv 3 Class C skill, Last Revenge.",
+  "name": "Secret Key 15",
+  "off": 33609662,
+  "placeholder": false
+ },
+ "95": {
+  "desc": "Key to open the Lv 3 Class E skill, First Combo.",
+  "name": "Secret Key 16",
+  "off": 33609726,
+  "placeholder": false
+ },
+ "96": {
+  "desc": "Key to open the Lv 3 Class F skill, Break B15.",
+  "name": "Secret Key 17",
+  "off": 33609789,
+  "placeholder": false
+ },
+ "97": {
+  "desc": "Key to open the Lv 3 Class F skill, Rare+30.",
+  "name": "Secret Key 18",
+  "off": 33609850,
+  "placeholder": false
+ },
+ "98": {
+  "desc": "Key to open the Lv 3 Class G skill, Ether Burst.",
+  "name": "Secret Key 19",
+  "off": 33609909,
+  "placeholder": false
+ },
+ "99": {
+  "desc": "Key to open the Lv 3 Class H skill, Skill Up 10.",
+  "name": "Secret Key 20",
+  "off": 33609972,
+  "placeholder": false
+ }
+}

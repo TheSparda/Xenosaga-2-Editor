@@ -95,6 +95,16 @@
     ],
     "idOff": 82,
     "namesOff": 33563408,
+    "statusResFields": [
+      ["Slow", 108, 1],
+      ["Blind", 110, 1],
+      ["Heavy", 111, 1],
+      ["Weak", 112, 1],
+      ["EthPD", 114, 1],
+      ["EthDD", 115, 1],
+      ["ResDw", 117, 1],
+      ["Junk", 118, 1]
+    ],
     "stride": 92,
     "zoneBits": {
       "A": 1,
@@ -212,6 +222,10 @@
   },
   "reward": {
     "base": 33622348,
+    "dropCatBase": {
+      "1": 40,
+      "2": 0
+    },
     "dropCatConsumable": 1,
     "dropCatNames": {
       "0": "nothing",

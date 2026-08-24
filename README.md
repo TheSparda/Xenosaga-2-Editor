@@ -18,7 +18,8 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
   one**. Every enemy's **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle
   rewards** (EXP, SP, CP), **damage affinities** (per element, including absorb) and
-  **Break sequence** for all 125 records, written **in place** into your disc images — plus
+  **Break sequence**, **status resistances** and **item drops** for all 125 records, written
+  **in place** into your disc images — plus
   one-click **battle-pacing profiles** that retune what the stock→break→boost
   combo loop costs, **shareable patch files**, and a **compare-to-retail** view that shows
   exactly how your disc differs from an unmodified one (and can restore it).
@@ -53,8 +54,8 @@ Two things worth stating plainly:
 - The enemy record still has **52 undecoded bytes**. Nothing is written there.
 
 Next reverse-engineering targets: the **numeric** skill table (power/cast time — the catalog
-below is the text half), the enemy **status resistances**, and the E.S. item id space; then
-the save checksum, party, and inventory, which need a PCSX2 session to anchor.
+below is the text half, and two search approaches have already come up empty; see the notes),
+then the save checksum, party, and inventory, which need a PCSX2 session to anchor.
 **Every common save container is now supported**, `.max` included.
 
 ### Both discs, edited as one
@@ -83,13 +84,21 @@ physical-vs-ether split, damage type, element and EP cost, all extracted straigh
 image (`x2patch.py skills --grep fire`). Editing what a skill *does* needs a numeric table
 that hasn't been located yet; this is the reference half.
 
+### Status resistances
+
+Every enemy carries a percentage per status effect — **Slow, Blind, Heavy, Weak, EthPD,
+EthDD, ResDw, Junk** — and all eight are editable. They're verified against a strategy
+guide at 98.6% agreement (479 of 486 published values). The block holds three more bytes
+we haven't identified, so they aren't shown.
+
 ### Item drops
 
 Each enemy has a common and a rare drop — a percentage, a category (consumable or E.S. gear)
 and an item id — and all of it is editable. Drop rates are verified against the guide on 138
-of 144 comparisons. Consumable drops are shown by name; E.S. gear appears as a bare id
-(`E.S. gear #14`) because that id space hasn't been pinned down yet, and the editor won't
-print a name it hasn't earned.
+of 144 comparisons. Both consumables and E.S. gear are now shown **by name**: the disc keeps
+one unified item table, and both drop categories index it from their own base. The catch that hid this for a
+while is that the table contains thirteen unused "spare" slots which still occupy id
+space — skip them and every id past the first block drifts.
 
 ### Damage affinities
 
@@ -188,4 +197,4 @@ ROM/ISO, saves, or audio** — only small reverse-engineered reference data (ser
 id→name maps, item descriptions) the editor needs to show meaningful labels. That's
 interoperability data, not the game.
 
-Made by **Sparda**. · **v1.6.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
+Made by **Sparda**. · **v1.7.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).

@@ -207,7 +207,8 @@ def backup(path):
 def _enemy_tables(iso, i):
     t = iso.tables
     return ((t["stats"] + i * F.ENEMY_STRIDE,
-             F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.ZONE_FIELDS),
+             F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.ZONE_FIELDS +
+             F.STATUS_RES_FIELDS),
             (t["rewards"] + i * F.REWARD_STRIDE, F.REWARD_FIELDS + F.DROP_FIELDS))
 
 def read_enemy(iso, i):
@@ -281,7 +282,7 @@ def parse_patch(doc):
         raise ValueError(f"patch version {version!r} is not supported "
                          f"(this build reads version {PATCH_VERSION})")
     known = {f[0] for f in F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-             F.ZONE_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS}
+             F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS}
     out = {}
     for key, fields in (doc.get("edits") or {}).items():
         try:
@@ -755,6 +756,9 @@ def _affinity_cols():
 def _zone_cols():
     return [f[0] for f in F.ZONE_FIELDS]
 
+def _res_cols():
+    return [f[0] for f in F.STATUS_RES_FIELDS]
+
 def _drop_cols():
     return [f[0] for f in F.DROP_FIELDS]
 
@@ -765,7 +769,8 @@ def drops_of(rec):
 
 def _enemy_field_names():
     """Every writable field, including the unverified affinity slots."""
-    return _summary_cols() + _affinity_cols() + _zone_cols() + _drop_cols()
+    return (_summary_cols() + _affinity_cols() + _zone_cols() + _res_cols()
+            + _drop_cols())
 
 def break_seq_of(rec):
     """The record's break sequence as text ('CBB'), or '' if it can't be broken."""
@@ -820,6 +825,8 @@ def cmd_enemy_get(a):
     print(f"  {'break':<5} {seq or '(cannot)':>10}"
           f"   (hit these zones in order to Break it)")
     pcts = affinity_pcts(rec)
+    print("  status resistance: " +
+          "  ".join(f"{n} {rec[n]}%" for n in F.STATUS_RES_NAMES))
     print("  damage taken:")
     for name in F.AFFINITY_ELEMENTS:
         v = pcts[name]
@@ -950,7 +957,7 @@ def sync_discs(src, dst):
     normal field path, so each disc uses its own bases and the affinity block's
     straddle is handled the same way it is everywhere else."""
     labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-                             F.ZONE_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
+                             F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
     recs = fields = 0
     for i in range(F.ENEMY_COUNT):
         want = read_enemy(src, i)
@@ -986,7 +993,7 @@ def cmd_sync(a):
         print(f"source : disc {src.disc} ({a.src})")
         print(f"target : disc {dst.disc} ({a.dst})")
         labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-                                 F.ZONE_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
+                                 F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
         diff = []
         for i in range(F.ENEMY_COUNT):
             w, h = read_enemy(src, i), read_enemy(dst, i)
