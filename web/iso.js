@@ -124,6 +124,47 @@
     return (key && cat[i] && cat[i][key]!==undefined) ? cat[i][key] : undefined;
   };
 
+  // Every field the editor can write, compared against the retail baseline —
+  // one helper, because the per-enemy line and the Compare dialog kept drifting
+  // apart. It used to be SFIELDS+RFIELDS only, so break sequences, zones,
+  // affinities, resistances and drops were silently exempt: shorten every boss's
+  // break and the editor still reported the disc matched retail.
+  //
+  // Break slots are collapsed into one "Break" row and shown as zone letters,
+  // because "Brk3 2 → 0" is not a thing anyone can read.
+  const BRK_LABELS=()=>Array.from({length:BRK_SLOTS},(_,n)=>"Brk"+(n+1));
+  function retailBreak(i){
+    let s="";
+    for(const l of BRK_LABELS()){
+      const v=retail(i,l); if(v===undefined) return undefined;
+      const sym=ZSYM[v]; if(!sym) break;
+      s+=sym;
+    }
+    return s;
+  }
+  const dash=(s)=>s===""?"—":s;
+  function retailDiffs(i){
+    const out=[];
+    const van=retailBreak(i), cur=breakSeq(i);
+    if(van!==undefined && van!==cur)
+      out.push({label:"Break", van:dash(van), cur:dash(cur)});
+    const zs=ZFIELDS.find(x=>x[0]==="Zones");
+    if(zs){
+      const v=retail(i,"Zones");
+      if(v!==undefined && v!==get(S,i,zs[1],zs[2]))
+        out.push({label:"Zones", van:dash(zoneMaskText(v)),
+                  cur:dash(zoneMaskText(get(S,i,zs[1],zs[2])))});
+    }
+    for(const [l,o,w] of SFIELDS.concat(AFIELDS,RFIELDS_RES,RFIELDS,DFIELDS)){
+      const v=retail(i,l); if(v===undefined) continue;
+      const c=get(tableOf(l),i,o,w); if(c===v) continue;
+      const aff=AFIELDS.some(x=>x[0]===l);
+      out.push({label:l, van:(aff?affPct(v):v).toLocaleString()+(aff?"%":""),
+                cur:(aff?affPct(c):c).toLocaleString()+(aff?"%":"")});
+    }
+    return out;
+  }
+
   async function loadCat(){ if(cat)return cat;
     try{cat=await (await fetch("../Editor/x2_enemies.json")).json();}catch(e){cat={};}
     // the disc's unified item table — both drop categories index it, each from
@@ -510,6 +551,9 @@
   // Warn if the disc no longer matches the verified retail tables. Stats *and*
   // rewards, both: a reward-only profile leaves every stat byte untouched, so a
   // stats-only check would miss it and the multipliers would quietly stack.
+  // Deliberately narrower than the retail comparison: this warns about
+  // double-SCALING, so it looks only at fields a profile scales. A disc whose
+  // break sequences were shortened is not "already rebalanced" in that sense.
   function checkPristine(){
     const w=$("#sclWarn"); if(!w) return;
     let clean=true;
@@ -574,11 +618,10 @@
     $("#erow3").innerHTML=AFIELDS.map(([l,o,w])=>
       cellHtml(l,o,w,affPct(get(S,i,o,w)),affPct(getOrig(S,i,o,w)),true)).join("");
     // how this record compares with an unmodified disc
-    const off=SFIELDS.concat(RFIELDS).filter(([l,o,w])=>{
-      const v=retail(i,l); return v!==undefined && get(tableOf(l),i,o,w)!==v; });
+    const off=retailDiffs(i);
     $("#eretail").innerHTML = off.length
-      ? "Differs from retail: "+off.map(([l,o,w])=>esc(l)+" "+get(tableOf(l),i,o,w).toLocaleString()+
-          " (retail "+retail(i,l).toLocaleString()+")").join(", ")
+      ? "Differs from retail: "+off.map(d=>esc(d.label)+" "+esc(d.cur)+
+          " (retail "+esc(d.van)+")").join(", ")
       : "Matches the retail values for this enemy.";
     const paintDrops=()=>{
       const el=$("#edrops"); if(!el) return;
@@ -600,7 +643,7 @@
     wireBreak(i);
     paintDrops();
     epending();
-    paintBrkOpts();
+    checkBrkPlan(); paintBrkOpts();
   }
 
   // The break sequence is one text box over BRK_SLOTS bytes, so it can't use the
@@ -689,6 +732,21 @@
     return {plan,affected:plan.length,before,after,longest,
             cut: before?Math.round(100*(before-after)/before):0, from};
   }
+  // The impact list is a claim about staged state: "these 108 enemies are set to
+  // change." Revert all restores the buffer, so the claim stops being true — but
+  // the list stayed on screen, which reads as the section not having reverted.
+  // Re-validating against the buffer catches that for every path that can replace
+  // the staged set, not just the ones remembered here.
+  let BRK_PLAN=null;
+  function checkBrkPlan(){
+    if(!BRK_PLAN) return;
+    if(BRK_PLAN.every(([i,,nw])=>breakSeq(i)===nw)) return;
+    BRK_PLAN=null;
+    const info=$("#brkInfo"), prev=$("#brkPreview");
+    if(info) info.textContent="";
+    if(prev) prev.innerHTML="";
+  }
+
   function paintBrkOpts(){
     const el=$("#brkOpts"); if(!el) return;
     const rows=[1,2,3].map(n=>[n,breakStats(n)]);
@@ -723,10 +781,12 @@
     const plan=planShorten(steps);
     const info=$("#brkInfo"), prev=$("#brkPreview");
     if(!plan.length){
+      BRK_PLAN=null;
       info.textContent="nothing to shorten — every sequence is already at the minimum";
       prev.innerHTML=""; return;
     }
     for(const [i,,nw] of plan) setBreakSeq(i,nw);
+    BRK_PLAN=plan;
     const byLen={};
     for(const [,old] of plan) byLen[old.length]=(byLen[old.length]||0)+1;
     info.textContent="staged for "+plan.length+" of "+COUNT+" enemies";
@@ -898,20 +958,19 @@
   }
 
   // ---- patch files, retail comparison, restore ----------------------------
-  // Verified fields are exported against the retail bestiary so a patch describes
-  // a complete mod, not just this session's edits. Affinities have no retail
-  // baseline, so those are exported only where they differ from the opened disc.
+  // Exported against the retail bestiary so a patch describes a complete mod,
+  // not just this session's edits — every writable field, now that every
+  // writable field has a baseline. Affinities used to need a session-relative
+  // fallback here; break sequences, zones, resistances and drops fell through
+  // both paths and were exported by neither, so a patch made after shortening
+  // every boss's break didn't carry the shortening.
   function buildPatch(note){
     const edits={};
     for(let i=0;i<COUNT;i++){
       const f={};
-      for(const [l,o,w] of SFIELDS.concat(RFIELDS)){
+      for(const [l,o,w] of allFields()){
         const cur=get(tableOf(l),i,o,w), van=retail(i,l);
         if(van!==undefined && cur!==van) f[l]=cur;
-      }
-      for(const [l,o,w] of AFIELDS){
-        const cur=get(S,i,o,w);
-        if(cur!==getOrig(S,i,o,w)) f[l]=cur;
       }
       if(Object.keys(f).length) edits[String(i)]=f;
     }
@@ -985,10 +1044,13 @@
       (doc.note?" — "+doc.note:"")+" · review, then Save to ISO");
   }
 
+  // allFields(), not SFIELDS+RFIELDS: a restore that quietly leaves break
+  // sequences, zones, affinities, resistances and drops modified is worse than
+  // no restore, because it reports success.
   function stageRestore(){
     let n=0;
     for(let i=0;i<COUNT;i++)
-      for(const [l,o,w] of SFIELDS.concat(RFIELDS)){
+      for(const [l,o,w] of allFields()){
         const van=retail(i,l), T=tableOf(l);
         if(van!==undefined && get(T,i,o,w)!==van){ put(T,i,o,w,van); n++; }
       }
@@ -1001,13 +1063,10 @@
     let rows="", recs=0, fields=0;
     for(let i=0;i<COUNT;i++){
       let cells="";
-      for(const [l,o,w] of SFIELDS.concat(RFIELDS)){
-        const van=retail(i,l); if(van===undefined) continue;
-        const cur=get(tableOf(l),i,o,w);
-        if(cur===van) continue;
+      for(const d of retailDiffs(i)){
         fields++;
-        cells+='<div class="revrow"><span class="rl">'+esc(l)+'</span><span class="ro">'+
-          van.toLocaleString()+'</span>→ <span class="rn">'+cur.toLocaleString()+'</span></div>';
+        cells+='<div class="revrow"><span class="rl">'+esc(d.label)+'</span><span class="ro">'+
+          esc(d.van)+'</span>→ <span class="rn">'+esc(d.cur)+'</span></div>';
       }
       if(cells){recs++;
         if(recs<=200) rows+='<div class="revgrp">'+String(i).padStart(3,"0")+' · '+
@@ -1015,9 +1074,10 @@
     }
     const head=recs
       ? '<div class="note">'+recs+' record(s), '+fields+' field(s) differ from an unmodified disc '+
-        '(retail → yours). Affinity slots are not listed — the bestiary has no retail baseline '+
-        'for them.</div>'+(recs>200?'<div class="note">…first 200 shown…</div>':'')
-      : '<div class="note">Every enemy stat and reward matches the retail values.</div>';
+        '(retail → yours). Covers everything this editor can write — stats, rewards, drops, '+
+        'break sequences, zones, affinities and status resistances.</div>'+
+        (recs>200?'<div class="note">…first 200 shown…</div>':'')
+      : '<div class="note">Every editable field matches the retail values.</div>';
     if(window.openInfo) await window.openInfo("Compared to retail", head+rows);
   }
 
