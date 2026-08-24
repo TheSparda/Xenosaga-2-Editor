@@ -438,7 +438,56 @@ against retail says the slot changed, not which element changed.
 Next step to actually verify them: a PCSX2 battle with a known element-resistant
 enemy, or the damage-calculation routine in the battle overlay.
 
-### 2026-08-24 — Breakability is NOT the break sequence (open)
+### 2026-08-24 — BREAKABILITY FLAG SOLVED (`+0x51` bit 3) + enemy type (`+0x50`)
+
+The open question below is answered. Partition scan over the stat record against
+the guide's per-enemy property columns, with the guide's **enemy type** used as a
+**positive control** — a property that certainly exists, so a null result there
+would have meant "not in this record" rather than "the scan is too weak".
+
+The control succeeded, which is what makes the rest trustworthy:
+
+| field | meaning | agreement |
+|---|---|---|
+| `+0x50` bits 0-1 | enemy type: 0 = Bio, 1 = Gnosis, 2 = Mechanism | **57/57 exact** |
+| `+0x51` bit 3 | the guide's `Hit zone: None` | **57/57 exact, both discs** |
+
+The first scan produced only false positives — `+0x52` is the enemy id, and the
+guide covers a low-id band, so it "separates" the two sets by ordering and means
+nothing. That is the same trap the `+0x16` retraction came from. Excluding the id
+and its overlapping reads, and testing **bits** rather than only bytes, left
+exactly one candidate. Bit 3's set-records are scattered across the index space
+(2, 4, 14, 0, 7 per 25-record band), so it is not an ordering artifact either.
+
+**The rule:**
+
+```
+unbreakable  ==  (+0x51 bit 3 set)  OR  (empty break sequence)
+```
+
+That reproduces the guide's `Break: Cannot` column **57/57 on both discs**, and
+puts the unbreakable set at **36 of 125** records — not the 16 you get from the
+sequence bytes alone. 15 records carry a perfectly hittable `BB` whose bytes are
+**inert** because the bit is set.
+
+Two consequences, both now handled:
+
+* the enemy card states the type and whether the game will honour a Break
+  sequence at all, naming an inert sequence as inert
+* bulk Break shortening skips those records. It was previously writing 20
+  records' worth of bytes the game never reads (108 affected → 88)
+
+Named for what was verified, not for what it does. The guide column it matches
+is `Hit zone`, so it is recorded as **zone targeting off**, even though
+breakability is the consequence — the caution the `+0x04` affinity retraction
+earned. The other bits of both bytes are **not** identified: counter-boost, air
+effect and down effect were all tested against every bit of both bytes and none
+reached 100% (down-effect tracks breakability at 96%, which is a consequence, not
+an encoding). They stay unexposed.
+
+#### The evidence this replaced (kept for the method)
+
+
 
 Vetting the claim "an empty Break sequence means the enemy cannot be broken"
 against the strategy guide's own per-enemy `Break` column produced a clean result

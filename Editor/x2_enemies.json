@@ -39,7 +39,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 3
+  "rareitem": 3,
+  "type": 33,
+  "nozone": 4
  },
  "1": {
   "name": "Deion",
@@ -81,7 +83,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 5,
-  "rareitem": 6
+  "rareitem": 6,
+  "type": 97,
+  "nozone": 4
  },
  "2": {
   "name": "Aiakos",
@@ -123,7 +127,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 11,
-  "rareitem": 23
+  "rareitem": 23,
+  "type": 65,
+  "nozone": 0
  },
  "3": {
   "name": "Kazfa Jina",
@@ -165,7 +171,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 28
+  "rareitem": 28,
+  "type": 65,
+  "nozone": 4
  },
  "4": {
   "name": "Okypete",
@@ -207,7 +215,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 21,
-  "rareitem": 12
+  "rareitem": 12,
+  "type": 33,
+  "nozone": 0
  },
  "5": {
   "name": "Svarozic",
@@ -249,7 +259,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 8,
-  "rareitem": 25
+  "rareitem": 25,
+  "type": 65,
+  "nozone": 2
  },
  "6": {
   "name": "Perun",
@@ -291,7 +303,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 8,
-  "rareitem": 25
+  "rareitem": 25,
+  "type": 65,
+  "nozone": 0
  },
  "7": {
   "name": "Stribog",
@@ -333,7 +347,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 8,
-  "rareitem": 25
+  "rareitem": 25,
+  "type": 65,
+  "nozone": 0
  },
  "8": {
   "name": "Azazel",
@@ -375,7 +391,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 6
+  "rareitem": 6,
+  "type": 101,
+  "nozone": 2
  },
  "9": {
   "name": "Armaros",
@@ -417,7 +435,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 13,
-  "rareitem": 24
+  "rareitem": 24,
+  "type": 65,
+  "nozone": 4
  },
  "10": {
   "name": "Zwerg Kape",
@@ -459,7 +479,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 6,
-  "rareitem": 24
+  "rareitem": 24,
+  "type": 33,
+  "nozone": 2
  },
  "11": {
   "name": "Ashmed Bapuz",
@@ -501,7 +523,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 30,
-  "rareitem": 28
+  "rareitem": 28,
+  "type": 33,
+  "nozone": 10
  },
  "12": {
   "name": "GNO013",
@@ -543,7 +567,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 1,
+  "nozone": 0
  },
  "13": {
   "name": "Arvakv",
@@ -585,7 +611,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 30,
-  "rareitem": 24
+  "rareitem": 24,
+  "type": 65,
+  "nozone": 12
  },
  "14": {
   "name": "Rod Blondel",
@@ -627,7 +655,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 25,
-  "rareitem": 26
+  "rareitem": 26,
+  "type": 97,
+  "nozone": 0
  },
  "15": {
   "name": "Wraith Virus",
@@ -669,7 +699,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 25,
-  "rareitem": 26
+  "rareitem": 26,
+  "type": 109,
+  "nozone": 0
  },
  "16": {
   "name": "Grips Sister",
@@ -711,7 +743,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 25,
-  "rareitem": 26
+  "rareitem": 26,
+  "type": 65,
+  "nozone": 4
  },
  "17": {
   "name": "Grips Sister (2)",
@@ -753,7 +787,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 25,
-  "rareitem": 26
+  "rareitem": 26,
+  "type": 65,
+  "nozone": 4
  },
  "18": {
   "name": "Wraith Feeler",
@@ -795,7 +831,9 @@
   "dropcat": 0,
   "rarecat": 0,
   "dropitem": 0,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 109,
+  "nozone": 0
  },
  "19": {
   "name": "Expression",
@@ -837,7 +875,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 11,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 33,
+  "nozone": 2
  },
  "20": {
   "name": "Necessity",
@@ -879,7 +919,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 1,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 65,
+  "nozone": 4
  },
  "21": {
   "name": "Vacillation",
@@ -921,7 +963,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 13
+  "rareitem": 13,
+  "type": 101,
+  "nozone": 2
  },
  "22": {
   "name": "Information Type",
@@ -963,7 +1007,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 5,
-  "rareitem": 11
+  "rareitem": 11,
+  "type": 97,
+  "nozone": 2
  },
  "23": {
   "name": "Infected U.R.T.V.",
@@ -1005,7 +1051,9 @@
   "dropcat": 0,
   "rarecat": 1,
   "dropitem": 0,
-  "rareitem": 22
+  "rareitem": 22,
+  "type": 32,
+  "nozone": 0
  },
  "24": {
   "name": "CRE006",
@@ -1047,7 +1095,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 0,
+  "nozone": 0
  },
  "25": {
   "name": "Glare",
@@ -1089,7 +1139,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 11,
-  "rareitem": 12
+  "rareitem": 12,
+  "type": 33,
+  "nozone": 2
  },
  "26": {
   "name": "Catharsis",
@@ -1131,7 +1183,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 1,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 65,
+  "nozone": 4
  },
  "27": {
   "name": "Piercing Scream",
@@ -1173,7 +1227,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 13
+  "rareitem": 13,
+  "type": 101,
+  "nozone": 2
  },
  "28": {
   "name": "Creation Type",
@@ -1215,7 +1271,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 5,
-  "rareitem": 11
+  "rareitem": 11,
+  "type": 97,
+  "nozone": 2
  },
  "29": {
   "name": "Vive II Prototype",
@@ -1257,7 +1315,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 5,
-  "rareitem": 11
+  "rareitem": 11,
+  "type": 32,
+  "nozone": 2
  },
  "30": {
   "name": "Calx II Prototype",
@@ -1299,7 +1359,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 12
+  "rareitem": 12,
+  "type": 96,
+  "nozone": 0
  },
  "31": {
   "name": "Vive II Revised",
@@ -1341,7 +1403,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 5,
-  "rareitem": 11
+  "rareitem": 11,
+  "type": 32,
+  "nozone": 2
  },
  "32": {
   "name": "Calx II Revised",
@@ -1383,7 +1447,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 12
+  "rareitem": 12,
+  "type": 96,
+  "nozone": 0
  },
  "33": {
   "name": "Ortu Ria Kufli",
@@ -1425,7 +1491,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 35,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 66,
+  "nozone": 0
  },
  "34": {
   "name": "Ortu Ria Lukia",
@@ -1467,7 +1535,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 35,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 66,
+  "nozone": 2
  },
  "35": {
   "name": "Ortu Ria Hins",
@@ -1509,7 +1579,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 35,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 98,
+  "nozone": 4
  },
  "36": {
   "name": "CRE018",
@@ -1551,7 +1623,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 0,
+  "nozone": 0
  },
  "37": {
   "name": "Kfuga Lily",
@@ -1593,7 +1667,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 30,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 34,
+  "nozone": 8
  },
  "38": {
   "name": "E2 Hauser",
@@ -1635,7 +1711,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 33,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 98,
+  "nozone": 4
  },
  "39": {
   "name": "O-78 Grisly",
@@ -1677,7 +1755,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 33,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 98,
+  "nozone": 4
  },
  "40": {
   "name": "Ratus TI Mk II",
@@ -1719,7 +1799,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 21,
-  "rareitem": 27
+  "rareitem": 27,
+  "type": 98,
+  "nozone": 20
  },
  "41": {
   "name": "Carnicos I",
@@ -1761,7 +1843,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "42": {
   "name": "Testud",
@@ -1803,7 +1887,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 0
  },
  "43": {
   "name": "Yacud Cannon",
@@ -1845,7 +1931,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 8
  },
  "44": {
   "name": "Revised Testud",
@@ -1887,7 +1975,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "45": {
   "name": "Auto Intercept Pod",
@@ -1929,7 +2019,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 8
  },
  "46": {
   "name": "Kfuga Valy",
@@ -1971,7 +2063,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 34,
+  "nozone": 10
  },
  "47": {
   "name": "Carnicos II",
@@ -2013,7 +2107,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "48": {
   "name": "O-78 Grisly 2",
@@ -2055,7 +2151,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "49": {
   "name": "UMA013",
@@ -2097,7 +2195,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 34,
+  "nozone": 0
  },
  "50": {
   "name": "Stole Marine",
@@ -2139,7 +2239,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 30,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 98,
+  "nozone": 12
  },
  "51": {
   "name": "Executus Sagitta",
@@ -2181,7 +2283,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 102,
+  "nozone": 4
  },
  "52": {
   "name": "Cera 7 F",
@@ -2223,7 +2327,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 33,
-  "rareitem": 14
+  "rareitem": 14,
+  "type": 98,
+  "nozone": 10
  },
  "53": {
   "name": "Cera 6 F",
@@ -2265,7 +2371,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 33,
-  "rareitem": 25
+  "rareitem": 25,
+  "type": 98,
+  "nozone": 8
  },
  "54": {
   "name": "Executus Arma",
@@ -2307,7 +2415,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 30,
-  "rareitem": 6
+  "rareitem": 6,
+  "type": 98,
+  "nozone": 12
  },
  "55": {
   "name": "Cera 7 S",
@@ -2349,7 +2459,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 33,
-  "rareitem": 14
+  "rareitem": 14,
+  "type": 98,
+  "nozone": 10
  },
  "56": {
   "name": "Cera 6 S",
@@ -2391,7 +2503,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 33,
-  "rareitem": 2
+  "rareitem": 2,
+  "type": 98,
+  "nozone": 8
  },
  "57": {
   "name": "Leviat",
@@ -2433,7 +2547,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 33,
-  "rareitem": 24
+  "rareitem": 24,
+  "type": 66,
+  "nozone": 12
  },
  "58": {
   "name": "Leviat Officer",
@@ -2475,7 +2591,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 33,
-  "rareitem": 7
+  "rareitem": 7,
+  "type": 66,
+  "nozone": 8
  },
  "59": {
   "name": "O-88 Delphinus",
@@ -2517,7 +2635,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 34,
-  "rareitem": 33
+  "rareitem": 33,
+  "type": 98,
+  "nozone": 10
  },
  "60": {
   "name": "Anathema",
@@ -2559,7 +2679,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 34,
-  "rareitem": 27
+  "rareitem": 27,
+  "type": 2,
+  "nozone": 8
  },
  "61": {
   "name": "Maranatha",
@@ -2601,7 +2723,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 34,
-  "rareitem": 22
+  "rareitem": 22,
+  "type": 66,
+  "nozone": 8
  },
  "62": {
   "name": "Anathema Officer",
@@ -2643,7 +2767,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 23,
-  "rareitem": 30
+  "rareitem": 30,
+  "type": 2,
+  "nozone": 10
  },
  "63": {
   "name": "Nova",
@@ -2685,7 +2811,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 35,
-  "rareitem": 12
+  "rareitem": 12,
+  "type": 66,
+  "nozone": 12
  },
  "64": {
   "name": "Crescens",
@@ -2727,7 +2855,9 @@
   "dropcat": 1,
   "rarecat": 2,
   "dropitem": 35,
-  "rareitem": 32
+  "rareitem": 32,
+  "type": 2,
+  "nozone": 10
  },
  "65": {
   "name": "U-TIC Soldier A",
@@ -2769,7 +2899,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 1,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 96,
+  "nozone": 0
  },
  "66": {
   "name": "U-TIC Soldier B",
@@ -2811,7 +2943,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 5,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 96,
+  "nozone": 0
  },
  "67": {
   "name": "P.S.S. - P",
@@ -2853,7 +2987,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 1,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 64,
+  "nozone": 0
  },
  "68": {
   "name": "P.S.S. - B",
@@ -2895,7 +3031,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 5,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 64,
+  "nozone": 0
  },
  "69": {
   "name": "P.S.S. - P2",
@@ -2937,7 +3075,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 1,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 64,
+  "nozone": 0
  },
  "70": {
   "name": "P.S.S. - B2",
@@ -2979,7 +3119,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 5,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 64,
+  "nozone": 0
  },
  "71": {
   "name": "P.S.S. - C",
@@ -3021,7 +3163,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 13
+  "rareitem": 13,
+  "type": 64,
+  "nozone": 0
  },
  "72": {
   "name": "P.S.S. - A",
@@ -3063,7 +3207,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 21,
-  "rareitem": 22
+  "rareitem": 22,
+  "type": 32,
+  "nozone": 0
  },
  "73": {
   "name": "P.S.S. - S",
@@ -3105,7 +3251,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 21
+  "rareitem": 21,
+  "type": 96,
+  "nozone": 0
  },
  "74": {
   "name": "P.S.S. - F",
@@ -3147,7 +3295,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 5,
-  "rareitem": 27
+  "rareitem": 27,
+  "type": 32,
+  "nozone": 0
  },
  "75": {
   "name": "Ormus Knight A",
@@ -3189,7 +3339,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 21
+  "rareitem": 21,
+  "type": 32,
+  "nozone": 0
  },
  "76": {
   "name": "Ormus Knight B",
@@ -3231,7 +3383,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 5,
-  "rareitem": 13
+  "rareitem": 13,
+  "type": 64,
+  "nozone": 0
  },
  "77": {
   "name": "VSS Emissive",
@@ -3273,7 +3427,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "78": {
   "name": "VSS Rayleigh",
@@ -3315,7 +3471,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "79": {
   "name": "VSS Fresnel",
@@ -3357,7 +3515,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "80": {
   "name": "U-TIC Soldier A (2)",
@@ -3399,7 +3559,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 1,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 96,
+  "nozone": 0
  },
  "81": {
   "name": "U-TIC Soldier B (2)",
@@ -3441,7 +3603,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 5,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 96,
+  "nozone": 0
  },
  "82": {
   "name": "Revised E2 Hauser",
@@ -3483,7 +3647,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 33,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 98,
+  "nozone": 4
  },
  "83": {
   "name": "Infected U.R.T.V. (2)",
@@ -3525,7 +3691,9 @@
   "dropcat": 0,
   "rarecat": 1,
   "dropitem": 0,
-  "rareitem": 22
+  "rareitem": 22,
+  "type": 32,
+  "nozone": 0
  },
  "84": {
   "name": "Revised Carnicos I",
@@ -3567,7 +3735,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 4
  },
  "85": {
   "name": "P.S.S. - P2 (2)",
@@ -3609,7 +3779,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 1,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 64,
+  "nozone": 0
  },
  "86": {
   "name": "P.S.S. - B2 (2)",
@@ -3651,7 +3823,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 5,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 64,
+  "nozone": 0
  },
  "87": {
   "name": "P.S.S. - C (2)",
@@ -3693,7 +3867,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 1,
-  "rareitem": 13
+  "rareitem": 13,
+  "type": 64,
+  "nozone": 0
  },
  "88": {
   "name": "Testud II",
@@ -3735,7 +3911,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 98,
+  "nozone": 0
  },
  "89": {
   "name": "O-78 Grisly 2 (2)",
@@ -3777,7 +3955,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 33,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 34,
+  "nozone": 4
  },
  "90": {
   "name": "MON001",
@@ -3819,7 +3999,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 66,
+  "nozone": 0
  },
  "91": {
   "name": "MON002",
@@ -3861,7 +4043,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 66,
+  "nozone": 0
  },
  "92": {
   "name": "MON003",
@@ -3903,7 +4087,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 66,
+  "nozone": 0
  },
  "93": {
   "name": "MON004",
@@ -3945,7 +4131,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 66,
+  "nozone": 0
  },
  "94": {
   "name": "Margulis",
@@ -3987,7 +4175,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 14,
-  "rareitem": 26
+  "rareitem": 26,
+  "type": 224,
+  "nozone": 2
  },
  "95": {
   "name": "O-88 Libra",
@@ -4029,7 +4219,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 2,
-  "rareitem": 34
+  "rareitem": 34,
+  "type": 38,
+  "nozone": 4
  },
  "96": {
   "name": "Scutum",
@@ -4071,7 +4263,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 2,
-  "rareitem": 16
+  "rareitem": 16,
+  "type": 110,
+  "nozone": 4
  },
  "97": {
   "name": "Pilum",
@@ -4113,7 +4307,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 7,
-  "rareitem": 15
+  "rareitem": 15,
+  "type": 110,
+  "nozone": 2
  },
  "98": {
   "name": "Level 4",
@@ -4155,7 +4351,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 7,
-  "rareitem": 26
+  "rareitem": 26,
+  "type": 96,
+  "nozone": 2
  },
  "99": {
   "name": "Albedo",
@@ -4197,7 +4395,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 26,
-  "rareitem": 37
+  "rareitem": 37,
+  "type": 208,
+  "nozone": 0
  },
  "100": {
   "name": "Margulis (2)",
@@ -4239,7 +4439,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 0,
+  "nozone": 0
  },
  "101": {
   "name": "Scutum (2)",
@@ -4281,7 +4483,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 11,
-  "rareitem": 16
+  "rareitem": 16,
+  "type": 66,
+  "nozone": 12
  },
  "102": {
   "name": "Pilum (2)",
@@ -4323,7 +4527,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 13,
-  "rareitem": 15
+  "rareitem": 15,
+  "type": 34,
+  "nozone": 10
  },
  "103": {
   "name": "Orgulla",
@@ -4365,7 +4571,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 26,
-  "rareitem": 38
+  "rareitem": 38,
+  "type": 2,
+  "nozone": 4
  },
  "104": {
   "name": "E.S. Issachar",
@@ -4407,7 +4615,9 @@
   "dropcat": 2,
   "rarecat": 0,
   "dropitem": 36,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 194,
+  "nozone": 8
  },
  "105": {
   "name": "Naglfar Cannons",
@@ -4449,7 +4659,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 17,
-  "rareitem": 36
+  "rareitem": 36,
+  "type": 98,
+  "nozone": 8
  },
  "106": {
   "name": "Margulis (3)",
@@ -4491,7 +4703,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 26,
-  "rareitem": 39
+  "rareitem": 39,
+  "type": 128,
+  "nozone": 4
  },
  "107": {
   "name": "Inversion",
@@ -4533,7 +4747,9 @@
   "dropcat": 2,
   "rarecat": 0,
   "dropitem": 37,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 66,
+  "nozone": 10
  },
  "108": {
   "name": "Cathedral",
@@ -4575,7 +4791,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 26,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 102,
+  "nozone": 0
  },
  "109": {
   "name": "Proto Ω",
@@ -4617,7 +4835,9 @@
   "dropcat": 0,
   "rarecat": 0,
   "dropitem": 0,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 226,
+  "nozone": 64
  },
  "110": {
   "name": "Patriarch",
@@ -4659,7 +4879,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 26,
-  "rareitem": 40
+  "rareitem": 40,
+  "type": 128,
+  "nozone": 2
  },
  "111": {
   "name": "Albedo (2)",
@@ -4701,7 +4923,9 @@
   "dropcat": 0,
   "rarecat": 0,
   "dropitem": 0,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 64,
+  "nozone": 2
  },
  "112": {
   "name": "Scarabeille",
@@ -4743,7 +4967,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 26,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 34,
+  "nozone": 12
  },
  "113": {
   "name": "Dullea Soul",
@@ -4785,7 +5011,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 26,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 49,
+  "nozone": 0
  },
  "114": {
   "name": "Nepos Rigas",
@@ -4827,7 +5055,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 26,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 33,
+  "nozone": 4
  },
  "115": {
   "name": "Mad Skelter",
@@ -4869,7 +5099,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 26,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 33,
+  "nozone": 0
  },
  "116": {
   "name": "Mikumari",
@@ -4911,7 +5143,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 36,
-  "rareitem": 37
+  "rareitem": 37,
+  "type": 66,
+  "nozone": 8
  },
  "117": {
   "name": "Baal Zebul",
@@ -4953,7 +5187,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 36,
-  "rareitem": 37
+  "rareitem": 37,
+  "type": 16,
+  "nozone": 0
  },
  "118": {
   "name": "Phobos Rigas",
@@ -4995,7 +5231,9 @@
   "dropcat": 2,
   "rarecat": 2,
   "dropitem": 36,
-  "rareitem": 37
+  "rareitem": 37,
+  "type": 33,
+  "nozone": 4
  },
  "119": {
   "name": "BOS026",
@@ -5037,7 +5275,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 0,
+  "nozone": 0
  },
  "120": {
   "name": "BOS027",
@@ -5079,7 +5319,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 0,
+  "nozone": 0
  },
  "121": {
   "name": "BOS028",
@@ -5121,7 +5363,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 0,
+  "nozone": 0
  },
  "122": {
   "name": "BOS029",
@@ -5163,7 +5407,9 @@
   "dropcat": 1,
   "rarecat": 1,
   "dropitem": 2,
-  "rareitem": 1
+  "rareitem": 1,
+  "type": 0,
+  "nozone": 0
  },
  "123": {
   "name": "Orgulla (2)",
@@ -5205,7 +5451,9 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 26,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 66,
+  "nozone": 2
  },
  "124": {
   "name": "Dark Erde Kaiser",
@@ -5247,6 +5495,8 @@
   "dropcat": 1,
   "rarecat": 0,
   "dropitem": 26,
-  "rareitem": 0
+  "rareitem": 0,
+  "type": 102,
+  "nozone": 4
  }
 }

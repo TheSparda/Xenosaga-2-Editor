@@ -208,7 +208,7 @@ def _enemy_tables(iso, i):
     t = iso.tables
     return ((t["stats"] + i * F.ENEMY_STRIDE,
              F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS + F.ZONE_FIELDS +
-             F.STATUS_RES_FIELDS),
+             F.FLAG_FIELDS + F.STATUS_RES_FIELDS),
             (t["rewards"] + i * F.REWARD_STRIDE, F.REWARD_FIELDS + F.DROP_FIELDS))
 
 def read_enemy(iso, i):
@@ -287,7 +287,8 @@ def parse_patch(doc):
         raise ValueError(f"patch version {version!r} is not supported "
                          f"(this build reads version {PATCH_VERSION})")
     known = {f[0] for f in F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-             F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS}
+             F.ZONE_FIELDS + F.FLAG_FIELDS + F.STATUS_RES_FIELDS +
+             F.REWARD_FIELDS + F.DROP_FIELDS}
     out = {}
     for key, fields in (doc.get("edits") or {}).items():
         try:
@@ -1016,7 +1017,8 @@ def sync_discs(src, dst):
     normal field path, so each disc uses its own bases and the affinity block's
     straddle is handled the same way it is everywhere else."""
     labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-                             F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
+                             F.ZONE_FIELDS + F.FLAG_FIELDS + F.STATUS_RES_FIELDS +
+                                 F.REWARD_FIELDS + F.DROP_FIELDS)]
     recs = fields = 0
     for i in range(F.ENEMY_COUNT):
         want = read_enemy(src, i)
@@ -1101,7 +1103,7 @@ def parse_enemy_json(doc):
     plain = {f[0]: f for f in F.ENEMY_FIELDS + F.REWARD_FIELDS}
     caps = {f[0]: (1 << (8 * f[2])) - 1 for f in
             (F.ENEMY_FIELDS + F.REWARD_FIELDS + F.ENEMY_AFFINITY_FIELDS
-             + F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.DROP_FIELDS)}
+             + F.ZONE_FIELDS + F.FLAG_FIELDS + F.STATUS_RES_FIELDS + F.DROP_FIELDS)}
     out = {}
     for n, row in enumerate(rows):
         if not isinstance(row, dict):
@@ -1182,9 +1184,12 @@ def cmd_shorten_breaks(a):
     names = F.enemy_names()
     with Iso(a.iso) as iso:
         require_version(iso)
-        seqs = {i: break_seq_of(read_enemy(iso, i)) for i in range(F.ENEMY_COUNT)}
+        recs = {i: read_enemy(iso, i) for i in range(F.ENEMY_COUNT)}
+    seqs = {i: break_seq_of(r) for i, r in recs.items()}
+    # zone targeting off => the sequence bytes are inert, so skip those records
+    nozone = {i: r["NoZone"] for i, r in recs.items()}
     floor = F.BREAK_FLOOR_NONE if a.allow_unbreakable else F.BREAK_MIN_LEN
-    plan = F.plan_break_shortening(seqs, a.steps, floor)
+    plan = F.plan_break_shortening(seqs, a.steps, floor, nozone)
     if not plan:
         print("nothing to shorten — every sequence is already at the minimum")
         return 0
@@ -1277,7 +1282,8 @@ def cmd_sync(a):
         print(f"source : disc {src.disc} ({a.src})")
         print(f"target : disc {dst.disc} ({a.dst})")
         labels = [f[0] for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS +
-                                 F.ZONE_FIELDS + F.STATUS_RES_FIELDS + F.REWARD_FIELDS + F.DROP_FIELDS)]
+                                 F.ZONE_FIELDS + F.FLAG_FIELDS + F.STATUS_RES_FIELDS +
+                                 F.REWARD_FIELDS + F.DROP_FIELDS)]
         diff = []
         for i in range(F.ENEMY_COUNT):
             w, h = read_enemy(src, i), read_enemy(dst, i)

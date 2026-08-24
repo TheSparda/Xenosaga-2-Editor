@@ -60,14 +60,12 @@ Two things worth stating plainly:
 
 - The in-game **save checksum isn't cracked yet**, so an edited *save* may be rejected by
   the game until it is. ISO edits are unaffected. A `.bak` is always kept.
-- The enemy record still has **52 undecoded bytes**. Nothing is written there — which
-  matters more than it sounds: the character and E.S. name table physically occupies the
-  leading bytes of enemy record 0.
-- **Breakability is not the same as having a Break sequence.** 16 records carry no sequence,
-  and every one of those the guide covers is confirmed unbreakable — but the guide also lists
-  15 enemies as unbreakable that *do* carry sequence bytes and live zones. So the disc holds
-  a breakable flag we haven't found, and the editor can currently give an enemy a sequence
-  the game may still refuse to honour.
+- Nothing is written to the undecoded bytes — which matters more than it sounds: the
+  character and E.S. name table physically occupies the leading bytes of enemy record 0.
+- The enemy record now has **50 undecoded bytes**, down two: `+0x50` carries the enemy
+  **type** (Bio / Gnosis / Mechanism) and `+0x51` bit 3 is the **zone-targeting** flag that
+  decides breakability. Both are editable, and both match a strategy guide 57/57 on both
+  discs.
 
 Next reverse-engineering targets: pairing the **tech blocks** with their name pools and
 working out their record layout (mapped but unexposed), then the save checksum, party, and
@@ -133,7 +131,8 @@ Two ways to change a lot at once:
   each length becomes (`4→3  3→2  2→1`), and the total break hits a full pass through the
   bestiary costs — then lists every affected enemy. Trimming takes hits off the *end*, so the
   opening zone you already know stays right, and an already-unbreakable enemy is never
-  touched.
+  touched — including the 15 whose sequence bytes are *inert* because zone targeting is off
+  for them, which the game never reads.
 
   A **"Keep every enemy breakable"** shield is on by default. Emptying a sequence doesn't
   shorten the break, it *removes* it, and with the shield off `−2 hits` would strand 84 of

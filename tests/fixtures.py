@@ -397,7 +397,8 @@ def write_fake_disc(path, enemies=None):
     for i, fields in over.items():
         for label, value in fields.items():
             spec = next((f for f in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS
-                                     + F.ZONE_FIELDS + F.STATUS_RES_FIELDS)
+                                     + F.ZONE_FIELDS + F.FLAG_FIELDS
+                                     + F.STATUS_RES_FIELDS)
                          if f[0] == label), None)
             if spec is not None:
                 place(stats, i, F.ENEMY_STRIDE, spec[1], spec[2], value)
