@@ -70,15 +70,49 @@
     root.innerHTML='<div class="card"><h2>1 · Open disc 1 ISO</h2>'+
       '<button id="isoPick" class="btn primary">Choose ISO…</button> '+
       '<span id="isoStatus" class="status"></span>'+
+      '<div id="isoRecent"></div>'+
       '<p class="note">Xenosaga II (USA) <b>Disc 1</b> — SLUS-20892. Enemy edits apply to a new game. '+
-      'Edits write in place; work on a copy or tick backup.</p></div>'+
+      'Edits write in place; work on a copy or tick backup. Your last disc is remembered for '+
+      'one-tap reopening (only the file reference is stored — never the disc itself).</p></div>'+
       '<div id="isoEdit"></div>';
     $("#isoPick").onclick=openISO;
+    showLastIso();
   };
+
+  // ---- remember last opened ISO (stores the file HANDLE only — the 4.6 GB is never copied) ----
+  const IDB=()=>window.x2idb;
+  function rememberIso(name,h){ const k=IDB(); if(k) k.set("lastIso",{name,handle:h,at:Date.now()}).catch(()=>{}); }
+  async function showLastIso(){
+    const el=$("#isoRecent"), k=IDB(); if(!el||!k) return;
+    let rec; try{ rec=await k.get("lastIso"); }catch(e){ return; }
+    if(!rec||!rec.handle){ el.innerHTML=""; return; }
+    const when=k.fmtWhen?k.fmtWhen(rec.at):"";
+    el.innerHTML='<div class="recent"><span class="muted small">Last opened:</span>'+
+      '<button class="chip" id="isoReopen" title="Reopen this disc">↻ '+esc(rec.name)+
+      (when?' <span class="muted">('+esc(when)+')</span>':'')+'</button>'+
+      '<button class="chip mini" id="isoForget" title="Forget this disc" aria-label="Forget this disc">✕</button></div>';
+    $("#isoReopen").onclick=()=>reopenLastIso(rec);
+    $("#isoForget").onclick=async()=>{await k.del("lastIso").catch(()=>{});showLastIso();};
+  }
+  async function reopenLastIso(rec){
+    const st=$("#isoStatus"), k=IDB();
+    try{
+      if(!(await k.ensureWritable(rec.handle))){
+        st.textContent="✗ Reopen cancelled — write permission denied."; st.className="status err"; return; }
+      handle=rec.handle;
+      await commitISO(await handle.getFile());
+    }catch(e){
+      st.textContent="✗ Could not reopen — the file may have moved. Pick it again."; st.className="status err";
+    }
+  }
 
   async function openISO(){
     try{ [handle]=await window.showOpenFilePicker(); }catch(e){ return; }
-    const f=await handle.getFile();
+    return commitISO(await handle.getFile());
+  }
+
+  // Validate + commit an ISO from a File (handle is already set by the caller).
+  async function commitISO(f){
     const st=$("#isoStatus"); st.textContent="checking disc…"; st.className="status";
     const head=new Uint8Array(await f.slice(0,0x200000).arrayBuffer());
     const asc=s=>{let o=-1;const t=[...s].map(c=>c.charCodeAt(0));
@@ -93,11 +127,16 @@
     S={buf:sb,orig:sb.slice(),dv:new DataView(sb.buffer),base:SBASE};
     R={buf:rb,orig:rb.slice(),dv:new DataView(rb.buffer),base:RBASE};
     backedUp=false;
-    // sanity anchor: Perun (rec 6) HP must be 22400 in an unmodified disc — warn if not
-    const perun=get(S,6,0x36,4);
-    st.textContent="✓ Disc 1 loaded ("+f.name+")"+(perun!==22400?" — note: Perun HP reads "+perun+" (modified disc?)":"");
+    // sanity anchor: Perun (rec 6) HP must match the bestiary on an unmodified disc
+    const [,hpO,hpW]=SFIELDS.find(f=>f[0]==="HP");
+    const perun=get(S,6,hpO,hpW), want=retail(6,"HP");
+    st.textContent="✓ Disc 1 loaded ("+f.name+")"+
+      (want!==undefined&&perun!==want?" — note: "+esc(cat[6]?cat[6].name:"record 6")+" HP reads "+
+        perun.toLocaleString()+" not "+want.toLocaleString()+" (modified disc?)":"");
     st.className="status ok";
+    rememberIso(f.name||"disc1.iso",handle);   // one-tap reopen next visit
     renderEnemy();
+    showLastIso();
   }
 
   function renderEnemy(){
