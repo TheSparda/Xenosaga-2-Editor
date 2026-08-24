@@ -53,9 +53,9 @@ Two things worth stating plainly:
   the game until it is. ISO edits are unaffected. A `.bak` is always kept.
 - The enemy record still has **52 undecoded bytes**. Nothing is written there.
 
-Next reverse-engineering targets: the **numeric** skill table (power/cast time — the catalog
-below is the text half, and two search approaches have already come up empty; see the notes),
-then the save checksum, party, and inventory, which need a PCSX2 session to anchor.
+Next reverse-engineering targets: the per-character **tech blocks** (same 32-byte record as
+the ether skills, name pools located but not yet paired), then the save checksum, party, and
+inventory, which need a PCSX2 session to anchor.
 **Every common save container is now supported**, `.max` included.
 
 ### Both discs, edited as one
@@ -77,12 +77,21 @@ python3 x2patch.py rebalance "…(Disc 1).iso" --profile faster --also "…(Disc
 python3 x2patch.py sync "…(Disc 1).iso" "…(Disc 2).iso"     # copy tables disc-to-disc
 ```
 
-### Skill & tech reference
+### Skill editing
 
-The disc carries a full skill catalog — **174 skills** with their targeting, range,
-physical-vs-ether split, damage type, element and EP cost, all extracted straight off the
-image (`x2patch.py skills --grep fire`). Editing what a skill *does* needs a numeric table
-that hasn't been located yet; this is the reference half.
+The ether skills are **numerically editable**: EP cost, power, element and status-effect
+fields, for all 57 castable ethers (Medica through Erde Kaiser Fury), on both discs.
+
+```bash
+python3 x2patch.py skills --grep blast                    # browse, with numbers
+python3 x2patch.py skill-set "…(Disc 1).iso" 30 --set Power=50 --set EP=2 --also "…(Disc 2).iso"
+```
+
+The numeric table hid through two releases because the skill index space contains
+placeholder entries that our catalog silently skipped — with the true indices rebuilt, the
+EP costs printed in the skills' own descriptions matched a 32-byte-stride column **56 of 56**
+on the first scan, and every record carries its own 1-based name index (57/57 exact). The
+full 174-skill text catalog (targeting, range, element, descriptions) is browsable too.
 
 ### Status resistances
 
@@ -197,4 +206,4 @@ ROM/ISO, saves, or audio** — only small reverse-engineered reference data (ser
 id→name maps, item descriptions) the editor needs to show meaningful labels. That's
 interoperability data, not the game.
 
-Made by **Sparda**. · **v1.7.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
+Made by **Sparda**. · **v1.8.0** — see [Releases](https://github.com/TheSparda/Xenosaga-2-Editor/releases).
