@@ -1120,6 +1120,32 @@ def cmd_verify_tables(a):
                   f"F.ENEMY_TABLES[{disc}] before the editor patches this image.")
         return 0
 
+def cmd_skills(a):
+    """List the skill/tech catalog extracted from the disc."""
+    cat = F.skill_catalog()
+    rows = sorted(cat.items())
+    if a.grep:
+        needle = a.grep.lower()
+        rows = [(o, v) for o, v in rows
+                if needle in v["name"].lower() or needle in v["desc"].lower()
+                or needle in " ".join(v["tags"]).lower()]
+    if a.csv:
+        print("offset,name,target,tags,ep,desc")
+        for o, v in rows:
+            desc = v["desc"].replace('"', "'")
+            print(f'0x{o:X},"{v["name"]}","{v["target"]}",'
+                  f'"{"|".join(v["tags"])}",{v["ep"] if v["ep"] is not None else ""},"{desc}"')
+        return 0
+    print(f"{len(rows)} skill(s)"
+          + (f" matching {a.grep!r}" if a.grep else "") + "\n")
+    for o, v in rows:
+        ep = f"EP {v['ep']}" if v["ep"] is not None else ""
+        tags = "/".join(v["tags"])
+        print(f"  {v['name']:<24} {v['target']:<30} {tags:<22} {ep}")
+        if a.verbose and v["desc"]:
+            print(f"      {v['desc']}")
+    return 0
+
 def cmd_enemy_columns(a):
     """Survey the 65 undecoded bytes of the stat record — the break/zone hunt."""
     with Iso(a.iso) as iso:
@@ -1265,6 +1291,12 @@ def main():
     sp.add_argument("--also", metavar="OTHER_ISO",
                     help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_apply_patch)
+
+    sp = sub.add_parser("skills", help="list the skill/tech catalog read off the disc")
+    sp.add_argument("--grep", help="filter by name, tag or description text")
+    sp.add_argument("--csv", action="store_true")
+    sp.add_argument("--verbose", action="store_true", help="also print descriptions")
+    sp.set_defaults(fn=cmd_skills)
 
     sp = sub.add_parser("sync", help="copy the enemy tables from one disc onto the other")
     sp.add_argument("src"); sp.add_argument("dst")

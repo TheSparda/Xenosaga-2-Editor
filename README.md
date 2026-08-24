@@ -51,9 +51,9 @@ Two things worth stating plainly:
   the game until it is. ISO edits are unaffected. A `.bak` is always kept.
 - The enemy record still has **52 undecoded bytes**. Nothing is written there.
 
-Next reverse-engineering targets: the **skill/tech** table (its name table is located on
-disc and the guide supplies SP/EP costs — no emulator needed) and the E.S. item id space,
-then the save checksum, party, and inventory — those need a PCSX2 session to anchor. `.max` (AR Max / LZARI) is the one
+Next reverse-engineering targets: the **numeric** skill table (power/cast time — the catalog
+below is the text half), the enemy **status resistances**, and the E.S. item id space; then
+the save checksum, party, and inventory, which need a PCSX2 session to anchor. `.max` (AR Max / LZARI) is the one
 container still unsupported.
 
 ### Both discs, edited as one
@@ -74,6 +74,13 @@ On the command line the same thing is one flag — `--also` — or the `sync` co
 python3 x2patch.py rebalance "…(Disc 1).iso" --profile faster --also "…(Disc 2).iso"
 python3 x2patch.py sync "…(Disc 1).iso" "…(Disc 2).iso"     # copy tables disc-to-disc
 ```
+
+### Skill & tech reference
+
+The disc carries a full skill catalog — **174 skills** with their targeting, range,
+physical-vs-ether split, damage type, element and EP cost, all extracted straight off the
+image (`x2patch.py skills --grep fire`). Editing what a skill *does* needs a numeric table
+that hasn't been located yet; this is the reference half.
 
 ### Item drops
 

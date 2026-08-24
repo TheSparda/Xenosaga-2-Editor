@@ -164,6 +164,34 @@ def keyitem_names():
     """{int id: name} for the 107 key items."""
     return {i: v["name"] for i, v in keyitem_catalog().items()}
 
+# ---------------------------------------------------------------------------
+# SKILL / TECH catalog (VERIFIED — extracted from disc 1, 2026-08-23).
+#
+# The game stores each skill as a NAME string immediately followed by a
+# DESCRIPTION string, in one run at ISO 0x2009B58..0x20108D4. The description's
+# first line is structured metadata, e.g.
+#
+#     "All enemies/Long/P/Pierce/Fire\nScorching rain of bullets."
+#      target      range type element
+#
+# and healing/ether skills carry their cost inline as "(EP 4)". So targeting,
+# physical-vs-ether, damage type, element and EP cost all come straight off the
+# disc — no guide needed. 174 skills, extracted with zero unparsed entries.
+#
+# Text is ASCII with occasional EUC-JP glyphs (0xA1DF is the multiplication sign,
+# used in "All allies (Medica x 2)"), which is why a naive ASCII-only scan
+# truncates 25 of them.
+#
+# This is the CATALOG only. The numeric table behind it — raw power, cast time,
+# accuracy — has not been located yet; that still needs ground truth to anchor.
+def skill_catalog():
+    """{name-offset: {name, target, tags, ep, desc}} for the 174 skills."""
+    return {int(k): v for k, v in res_json("x2_skills.json").items()}
+
+def skill_names():
+    """{name-offset: name}."""
+    return {k: v["name"] for k, v in skill_catalog().items()}
+
 def es_equip_catalog():
     """{int id: {name, desc}} for the E.S. accessory/circuit table (from ISO
     ~0x200C5D4). Covers ids 0-30 — id base (Auxiliary Armor A = 0) CONFIRMED by
