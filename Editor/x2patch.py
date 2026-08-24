@@ -1183,11 +1183,16 @@ def cmd_shorten_breaks(a):
     with Iso(a.iso) as iso:
         require_version(iso)
         seqs = {i: break_seq_of(read_enemy(iso, i)) for i in range(F.ENEMY_COUNT)}
-    plan = F.plan_break_shortening(seqs, a.steps)
+    floor = F.BREAK_FLOOR_NONE if a.allow_unbreakable else F.BREAK_MIN_LEN
+    plan = F.plan_break_shortening(seqs, a.steps, floor)
     if not plan:
         print("nothing to shorten — every sequence is already at the minimum")
         return 0
     print(f"shortening by {a.steps} hit(s): {len(plan)} of {F.ENEMY_COUNT} records\n")
+    emptied = [i for i, _o, n in plan if not n]
+    if emptied:
+        print(f"  ⚠ {len(emptied)} enemy(s) lose their break sequence entirely and become "
+              f"UNBREAKABLE — that makes those fights longer, not shorter\n")
     by_len = collections.Counter(len(o) for _i, o, _n in plan)
     print("  affected by original length: " +
           ", ".join(f"{n}-hit x{c}" for n, c in sorted(by_len.items(), reverse=True)))
@@ -1679,7 +1684,11 @@ def main():
                         help="drop every enemy's break sequence by N hits")
     sp.add_argument("iso")
     sp.add_argument("--steps", type=int, default=1,
-                    help="hits to remove (default 1); never empties a sequence")
+                    help="hits to remove (default 1)")
+    sp.add_argument("--allow-unbreakable", action="store_true",
+                    help="let a sequence be emptied. By default the last hit is kept, "
+                         "because an empty sequence removes the break instead of "
+                         "shortening it and makes the fight longer")
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--show", type=int, default=15)
     sp.add_argument("--backup", action="store_true")

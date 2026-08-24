@@ -494,27 +494,35 @@ def encode_break_seq(text):
 # A 1-hit sequence is left alone rather than emptied — an empty sequence means
 # "cannot be broken", which is a different thing entirely and would make a fight
 # harder, not faster. Enemies that already can't be broken stay that way.
+# The floor exists because emptying a sequence does not speed a fight up — it
+# removes the break entirely. 16 retail enemies ship with no sequence, and 15 of
+# them still carry a live zone mask, so "no sequence" is not "no weak zones": it
+# means there is no break to reach, and the fight gets longer. Keeping the floor
+# at 1 is therefore the safe default, but it is a balance choice rather than a
+# correctness one, so callers can lower it deliberately.
 BREAK_MIN_LEN = 1
+BREAK_FLOOR_NONE = 0
 
-def shorten_break_seq(seq, steps=1):
+def shorten_break_seq(seq, steps=1, floor=BREAK_MIN_LEN):
     """'CBAA' -> 'CBA' (steps=1) -> 'CB' (steps=2). Trims from the END, so the
-    opening zone a player already knows stays correct. Never empties a sequence
-    and never touches one that is already empty."""
+    opening zone a player already knows stays correct. Never touches a sequence
+    that is already empty. With the default floor a sequence is never emptied;
+    pass floor=BREAK_FLOOR_NONE to allow that (it makes the enemy unbreakable)."""
     if not seq:
         return seq
-    n = max(BREAK_MIN_LEN, len(seq) - max(0, int(steps)))
+    n = max(max(0, int(floor)), len(seq) - max(0, int(steps)))
     return seq[:n]
 
-def plan_break_shortening(sequences, steps=1):
+def plan_break_shortening(sequences, steps=1, floor=BREAK_MIN_LEN):
     """[(index, old, new), ...] for every record the shortening would change.
 
-    `sequences` is {record index: sequence text}. Records already at the minimum,
+    `sequences` is {record index: sequence text}. Records already at the floor,
     or unbreakable, are omitted — so the caller can show exactly what it touches
     before writing anything."""
     plan = []
     for i in sorted(sequences):
         old = sequences[i] or ""
-        new = shorten_break_seq(old, steps)
+        new = shorten_break_seq(old, steps, floor)
         if new != old:
             plan.append((i, old, new))
     return plan
