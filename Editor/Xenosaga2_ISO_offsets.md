@@ -314,7 +314,9 @@ exist past the 97 — likely a second stat block, TODO.
 The gap between the enemy name table and the skills strings (ISO ~0x2002900-0x2009B58)
 is **pure binary** — data tables with no embedded name anchors. Char growth/base stats
 and shop stock/price tables are almost certainly here (or in the ELF data seg), but:
-- No name anchor (unlike the enemy table, whose adjacent name table let us align it).
+- ~~No name anchor (unlike the enemy table, whose adjacent name table let us align it).~~
+  **Superseded 2026-08-24** — there is one, at `0x1FFF5B8`; see "Character + E.S. name
+  table" below.
 - No code anchor: the ELF has no shop/buy/sell/growth strings to disassemble from, and
   this data is **dynamically loaded from XENOSAGA.01** (not at a static ELF address), so
   there's no straightforward disassembly entry point.
@@ -435,6 +437,79 @@ against retail says the slot changed, not which element changed.
 
 Next step to actually verify them: a PCSX2 battle with a known element-resistant
 enemy, or the damage-calculation routine in the battle overlay.
+
+### 2026-08-24 — Breakability is NOT the break sequence (open)
+
+Vetting the claim "an empty Break sequence means the enemy cannot be broken"
+against the strategy guide's own per-enemy `Break` column produced a clean result
+in the direction claimed, and an unexpected one in the other.
+
+Of the 16 records that carry no sequence bytes, the guide covers 6, and all 6 are
+listed `Break: Cannot`. Zero contradictions. Empty ⇒ unbreakable holds.
+
+The converse does not. Matching all 125 records by name against the guide's 75
+entries gives 42 agreements and **15 disagreements — every one the same shape**:
+the disc holds `BB`, the guide says `Cannot`.
+
+| | count |
+|---|---|
+| disc has a reachable sequence, guide says breakable | 36 |
+| disc has no sequence, guide says Cannot | 6 |
+| **disc has `BB`, guide says Cannot** | **15** |
+
+All 15 are `type=Mechanism, Hit zone: None` in the guide. Two hypotheses tested:
+
+* **The zone mask makes the sequence unreachable.** *Disproved.* All 15 have zone
+  mask 6 (B+C), so `BB` is perfectly hittable. Zones and breakability are
+  independent — a published battle-mechanics guide records enemies with all of
+  A, B and C that still cannot be broken.
+* **`Mechanism` type ⇒ cannot break.** *Disproved.* The same source lists
+  Mechanism enemies that *can* be broken.
+
+So the disc carries a breakability flag we have not located, and the sequence
+bytes for these 15 are inert. Consequences, stated in the README rather than left
+to be discovered:
+
+* the editor can give an enemy a sequence the game may still refuse to honour
+* "16 unbreakable" is a floor, not a count — the true set is at least 31
+
+Where to look: the 52 undecoded bytes of the stat record. This is a clean
+partition problem of exactly the kind `column_profile()` / `_partition_scores()`
+were written for — 15 known-unbreakable against 36 known-breakable, both sets
+name-matched to the guide, is unusually good ground truth. Not yet run.
+
+### 2026-08-24 — Character + E.S. name table (a name anchor that was said not to exist)
+
+The "Character-growth & shop tables (BLOCKED)" note above states there is *"no
+name anchor (unlike the enemy table, whose adjacent name table let us align
+it)"*. That is wrong. At **`0x1FFF5B8`**, immediately before the enemy stat
+table, sits a packed NUL-terminated name list:
+
+```
+0  0x1FFF5B8  chaos          5  0x1FFF5D6  MOMO           10  0x1FFF5F4  E.S.Dinah
+1  0x1FFF5BE  KOS-MOS        6  0x1FFF5DB  Jr.            11  0x1FFF5FE  E.S.Zebulun
+2  0x1FFF5C6  Shion          7  0x1FFF5DF  予備１          12  0x1FFF60A  E.S.Asher
+3  0x1FFF5CC  Jin            8  0x1FFF5E6  予備２          13  0x1FFF614  予備４
+4  0x1FFF5D0  Ziggy          9  0x1FFF5ED  予備３          14  0x1FFF61B  予備５
+```
+
+**Exactly 15 entries**, matching `CHAR_COUNT = 15` in the save's character table
+— and with the same `予備` ("spare") placeholders that solved the E.S. item id
+space, in the same role: occupying id space so the ids stay aligned.
+
+Two things follow.
+
+First, a safety note worth recording on its own: entries 10-14 sit at `0x1FFF5F4`
+and beyond, which is **inside enemy record 0** (`ENEMY_TABLE_OFF = 0x1FFF5F0`).
+The name pool's tail physically occupies that record's undecoded leading bytes.
+Writing there would corrupt E.S. names. Nothing does — every write goes to a
+verified field at `+0x36` or later — but "the undecoded bytes are unused" is not
+true, and this is why nothing should be written there speculatively.
+
+Second, this is the anchor the character-growth hunt was said to lack. The next
+step is the same one that worked for the enemy table: find a record table whose
+entry count and ordering line up with these 15, then confirm it against ground
+truth (a level-1 character's stats) rather than on shape alone. Not yet run.
 
 ### Retail baseline (`x2_enemies.json`)
 
