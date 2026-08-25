@@ -157,15 +157,15 @@ python3 x2patch.py import-json "…(Disc 1).iso" enemies.json --dry-run
 
 ### Item drops
 
-Each enemy has a common and a rare drop — a percentage, a category (consumable or E.S. gear)
-and an item id — and all of it is editable. Both slots are picked **by name**: the id is
-1-based *within* its category, and the two categories are windows onto one unified item
-table at different bases, so the same number means different items depending on which
-category it sits in. Changing the category reloads the item list. Drop rates are verified against the guide on 138
-of 144 comparisons. Both consumables and E.S. gear are now shown **by name**: the disc keeps
-one unified item table, and both drop categories index it from their own base. The catch that hid this for a
-while is that the table contains thirteen unused "spare" slots which still occupy id
-space — skip them and every id past the first block drifts.
+Each enemy has a common and a rare drop — a percentage, a category, and an item — and all of
+it is editable. Both slots are picked **by name**, consumables and E.S. gear alike, because a
+raw id is meaningless on its own: the disc keeps one unified item table and each category
+indexes it from its own base, so the same number means different items depending on which
+category it sits in. Changing the category reloads the item list.
+
+Drop rates are verified against the guide on 138 of 144 comparisons. The catch that hid the
+id space for a while is that the table contains thirteen unused "spare" slots which still
+occupy ids — skip them and every id past the first block drifts.
 
 ### Damage affinities
 
