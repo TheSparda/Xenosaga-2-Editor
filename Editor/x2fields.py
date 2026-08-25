@@ -844,11 +844,11 @@ def enemy_names():
     """{int idx: name} for the 125 enemy records (Ai Apaec .. Dark Erde Kaiser)."""
     return {i: v["name"] for i, v in enemy_catalog().items()}
 
-# Enemy ids (record +0x52) fall in bands: 501+ field enemies, 561+ the boss band,
-# 701+ E.S./special encounters. Useful for *labelling* a record in a browser or
-# reference listing — but NOT for deciding what a rebalance may touch: the 561+
-# band mixes late-game field Gnosis in with real bosses. Scaling groups records on
-# their own HP instead (MAJOR_HP_THRESHOLD below).
+# Enemy ids (record +0x52) fall in bands: 501+ field enemies, 561+ the "boss"
+# band, 701+ E.S./special encounters. The bands are a real disc fact and fine for
+# *labelling* a record in a reference listing — but they do not say what a fight
+# actually is, and neither does HP. See ENCOUNTER CLASS below for the audited
+# per-record answer that rebalancing uses.
 BOSS_ID_MIN = 561
 
 # Per-field write caps. Widths allow more, but nothing on the disc exceeds these
@@ -909,6 +909,126 @@ def is_dummy_record(rec):
     return 0 < rec.get("exp", 0) < 100 and not rec.get("sp") and not rec.get("cp")
 
 # ---------------------------------------------------------------------------
+# ENCOUNTER CLASS — what each record actually is.
+#
+# This used to be guessed from HP: "major" meant 20,000+ HP, on the theory that
+# it was the only boss signal the disc gives us. Audited against the Xeno Series
+# Wiki on 2026-08-25, that heuristic gets 21 of the game's 36 boss records and
+# one outright wrong answer:
+#
+#   * Arvakv (idx 13, 22,000 HP) is not a boss at all. It is a random encounter
+#     in the post-game Desert, spawned when another enemy in a quicksand pit is
+#     destroyed — it just happens to be beefy.
+#   * 15 real boss fights sit under the threshold and were being scaled as
+#     random trash, among them every early story boss (Margulis 1,200 HP,
+#     O-88 Libra 3,360, Scutum/Pilum, Level 4, Albedo), the final boss
+#     (Albedo in the Space-Time Anomaly, 5,300 HP), Orgulla (18,000) and the
+#     Heaven's Ruins boss Zwerg Kape (4,160).
+#
+# The enemy ID band is no better: the 561+ "boss" band really does mix in field
+# Gnosis (Ai Apaec, Deion, Aiakos, Kazfa Jina, Okypete, Azazel, Armaros, Ashmed
+# Bapuz, Arvakv are all listed on the wiki as *enemies*, encountered in the
+# Desert / Factory / Heaven's Ruins), while genuine bosses like Nepos Rigas and
+# Dullea Soul live up in the 700 band. Enemy ids also repeat across records
+# (561, 549 and 713 each appear on more than one), so the tables below are keyed
+# by catalog index, which is unique and is what the editor addresses records by.
+#
+# Sources (cross-checked; every entry appears in at least one of them):
+#   - "Major Boss Battle" and "Minor Boss Battle (XS2)" track pages, which
+#     enumerate exactly which fights use each boss theme
+#     https://www.xenoserieswiki.org/wiki/Major_Boss_Battle
+#     https://www.xenoserieswiki.org/wiki/Minor_Boss_Battle_(XS2)
+#   - the optional post-game dungeon pages (Desert, Factory, Heaven's Ruins,
+#     Space Coliseum) and the per-boss pages they link
+#   - the Global Samaritan Campaign pages for the side-quest bosses
+#
+# "superboss" is the opt-in post-game tier: the three optional dungeons and the
+# Space Coliseum, none of which can be entered before the credits, plus the three
+# English-version-exclusive superbosses that unlock only after the Dark Erde
+# Kaiser sidequest. Story and side-quest bosses you meet during a normal
+# playthrough are "boss"; everything else non-dummy is "random".
+# ---------------------------------------------------------------------------
+ENCOUNTER_CLASSES = ("random", "boss", "superboss")
+
+ENCOUNTER_LABELS = {
+    "random":    "Random encounters",
+    "boss":      "Boss battles",
+    "superboss": "Super bosses",
+}
+
+# {catalog index: (enemy id, catalog name, where it is fought)}. The id+name are
+# carried so the tests can prove the table still lines up with the catalog rather
+# than silently pointing at whatever record moved into that slot.
+BOSS_RECORDS = {
+    14:  (575, "Rod Blondel",     "GS 14 — Old Miltia"),
+    15:  (576, "Wraith Virus",    "GS 13"),
+    16:  (577, "Grips Sister",    "GS 26"),
+    17:  (578, "Grips Sister (2)", "GS 26"),
+    18:  (579, "Wraith Feeler",   "GS-campaign boss add"),
+    94:  (701, "Margulis",        "prologue"),
+    95:  (702, "O-88 Libra",      "Second Miltia"),
+    96:  (703, "Scutum",          "Second Miltia"),
+    97:  (704, "Pilum",           "Second Miltia"),
+    98:  (705, "Level 4",         "Subconscious Domain (Summer)"),
+    99:  (706, "Albedo",          "Subconscious Domain (Winter)"),
+    100: (713, "Margulis (2)",    "scripted Margulis encounter, 0 EXP"),
+    101: (708, "Scutum (2)",      "Ormus Stronghold"),
+    102: (709, "Pilum (2)",       "Ormus Stronghold"),
+    103: (710, "Orgulla",         "Ormus Stronghold"),
+    104: (711, "E.S. Issachar",   "Ormus Stronghold"),
+    105: (712, "Naglfar Cannons", "Old Miltia"),
+    106: (713, "Margulis (3)",    "Labyrinthos"),
+    107: (714, "Inversion",       "Ω System"),
+    108: (715, "Cathedral",       "Ω System"),
+    109: (716, "Proto Ω",         "Ω System — used by the Patriarch in his fight"),
+    110: (717, "Patriarch",       "Ω System — penultimate boss"),
+    111: (718, "Albedo (2)",      "Space-Time Anomaly — final boss"),
+    123: (730, "Orgulla (2)",     "Ormus Stronghold"),
+}
+
+SUPERBOSS_RECORDS = {
+    5:   (566, "Svarozic",         "Heaven's Ruins — post-game"),
+    6:   (567, "Perun",            "Heaven's Ruins — post-game"),
+    7:   (568, "Stribog",          "Heaven's Ruins — post-game"),
+    10:  (571, "Zwerg Kape",       "Heaven's Ruins — post-game"),
+    112: (719, "Scarabeille",      "Desert — post-game, guards Sequencer C"),
+    113: (720, "Dullea Soul",      "Factory — post-game, guards Sequencer A"),
+    114: (721, "Nepos Rigas",      "Heaven's Ruins — post-game, guards Decoder 12"),
+    115: (722, "Mad Skelter",      "GS 28 — post-game, scales to your highest level"),
+    116: (723, "Mikumari",         "Desert — after the Dark Erde Kaiser sidequest"),
+    117: (724, "Baal Zebul",       "Old Miltia — after the Dark Erde Kaiser sidequest"),
+    118: (725, "Phobos Rigas",     "Dämmerung — after the Dark Erde Kaiser sidequest"),
+    124: (731, "Dark Erde Kaiser", "Space Coliseum — post-game, needs Erde Kaiser Fury"),
+}
+
+
+def encounter_class(index, rec=None):
+    """"random" | "boss" | "superboss", or "dummy" for a placeholder record.
+
+    Pass the catalog record as `rec` to have debug/unused rows reported as
+    "dummy" — a rebalance must not touch those, and no dummy is a boss."""
+    if rec is not None and is_dummy_record(rec):
+        return "dummy"
+    if index in SUPERBOSS_RECORDS:
+        return "superboss"
+    if index in BOSS_RECORDS:
+        return "boss"
+    return "random"
+
+
+def encounter_classes(catalog=None):
+    """{index: class} for every catalog record, dummies included as "dummy"."""
+    cat = enemy_catalog() if catalog is None else catalog
+    return {i: encounter_class(i, rec) for i, rec in cat.items()}
+
+
+def encounter_where(index):
+    """Where the fight happens, for the boss/super-boss records. "" otherwise."""
+    entry = SUPERBOSS_RECORDS.get(index) or BOSS_RECORDS.get(index)
+    return entry[2] if entry else ""
+
+
+# ---------------------------------------------------------------------------
 # BATTLE-PACING PROFILES (combo-system tuning over the verified tables).
 #
 # Ep. II's stock -> break -> boost loop is the only efficient way to fight, and
@@ -921,41 +1041,45 @@ def is_dummy_record(rec):
 # whether off-loop attacks do anything, AGL decides how often enemies interrupt
 # a setup, and SP/CP gate how fast the skill system opens up.
 #
-# Each profile scales verified fields by a percentage, per group. Groups are
-# split on the record's own HP (MAJOR_HP_THRESHOLD) because that is the one
-# boss-ness signal we can actually read off the disc — the enemy ID band mixes
-# late-game field Gnosis in with bosses, so it is not usable for this.
+# Each profile scales verified fields by a percentage, per encounter class
+# (ENCOUNTER CLASSES above): random encounters, boss battles and super bosses are
+# three different pacing problems, so they get three separate rows. The optional
+# post-game fights are opt-in challenges nobody is forced through, so the presets
+# deliberately leave their HP alone and only raise what they pay out — set the
+# super-boss row yourself if you want those cut too.
 # ---------------------------------------------------------------------------
-MAJOR_HP_THRESHOLD = 20000        # records at/above this scale as "major"
-
 PROFILES = {
     "faster": {
         "label": "Faster fights",
         "note": "Keeps the combo loop, cuts the tax: fewer stocked chains per "
                 "kill and quicker skill unlocks. The safe default.",
-        "regular": {"HP": 45, "EXP": 150, "SP": 150, "CP": 150},
-        "major":   {"HP": 70, "EXP": 150, "SP": 150, "CP": 150},
+        "random":    {"HP": 45, "EXP": 150, "SP": 150, "CP": 150},
+        "boss":      {"HP": 70, "EXP": 150, "SP": 150, "CP": 150},
+        "superboss": {"EXP": 150, "SP": 150, "CP": 150},
     },
     "freer": {
         "label": "Freer play",
         "note": "Makes off-combo attacks viable — softer defenses so unbroken "
                 "damage lands, on top of a lighter HP cut.",
-        "regular": {"HP": 55, "VIT": 70, "EDEF": 70, "EXP": 150, "SP": 150, "CP": 150},
-        "major":   {"HP": 75, "VIT": 80, "EDEF": 80, "EXP": 150, "SP": 150, "CP": 150},
+        "random":    {"HP": 55, "VIT": 70, "EDEF": 70, "EXP": 150, "SP": 150, "CP": 150},
+        "boss":      {"HP": 75, "VIT": 80, "EDEF": 80, "EXP": 150, "SP": 150, "CP": 150},
+        "superboss": {"VIT": 90, "EDEF": 90, "EXP": 150, "SP": 150, "CP": 150},
     },
     "deeper": {
         "label": "Deeper challenge",
         "note": "For players who like the loop: enemies hit harder and last "
                 "longer, but pay out much more.",
-        "regular": {"HP": 110, "STR": 115, "EATK": 115, "EXP": 200, "SP": 200, "CP": 200},
-        "major":   {"HP": 130, "STR": 115, "EATK": 115, "EXP": 200, "SP": 200, "CP": 200},
+        "random":    {"HP": 110, "STR": 115, "EATK": 115, "EXP": 200, "SP": 200, "CP": 200},
+        "boss":      {"HP": 130, "STR": 115, "EATK": 115, "EXP": 200, "SP": 200, "CP": 200},
+        "superboss": {"HP": 150, "STR": 120, "EATK": 120, "EXP": 200, "SP": 200, "CP": 200},
     },
     "grindcut": {
         "label": "Reward-only",
         "note": "Leaves every fight exactly as designed and only removes the "
                 "grind between them.",
-        "regular": {"EXP": 250, "SP": 250, "CP": 250},
-        "major":   {"EXP": 250, "SP": 250, "CP": 250},
+        "random":    {"EXP": 250, "SP": 250, "CP": 250},
+        "boss":      {"EXP": 250, "SP": 250, "CP": 250},
+        "superboss": {"EXP": 250, "SP": 250, "CP": 250},
     },
 }
 
@@ -1067,6 +1191,18 @@ def web_tables():
         # Battle-pacing profiles, so the web ISO editor runs the same numbers as
         # the CLI instead of a hand-copied duplicate.
         "profiles": PROFILES,
-        "majorHpThreshold": MAJOR_HP_THRESHOLD,
+        # The audited encounter class per record (see the ENCOUNTER CLASS block).
+        # Only the boss and super-boss records are listed: the front-end treats a
+        # record its own dummy check rejects as "dummy" and everything else as
+        # "random", exactly as encounter_class() does.
+        "encounter": {
+            "classes": list(ENCOUNTER_CLASSES),
+            "labels": ENCOUNTER_LABELS,
+            "byIndex": {str(i): c for i, c in sorted(
+                [(i, "boss") for i in BOSS_RECORDS] +
+                [(i, "superboss") for i in SUPERBOSS_RECORDS])},
+            "where": {str(i): encounter_where(i) for i in
+                      sorted(set(BOSS_RECORDS) | set(SUPERBOSS_RECORDS))},
+        },
         "fieldCaps": ENEMY_FIELD_CAPS,
     }

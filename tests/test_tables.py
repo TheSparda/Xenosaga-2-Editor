@@ -116,11 +116,69 @@ class TestCatalogs(unittest.TestCase):
         self.assertEqual(cat[6]["sp"], 1200)
         self.assertEqual(cat[F.ENEMY_COUNT - 1]["hp"], 192000)   # Dark Erde Kaiser
 
-    def test_boss_threshold_actually_splits_the_bestiary(self):
+    def test_boss_id_band_actually_splits_the_bestiary(self):
         ids = [v["id"] for v in F.enemy_catalog().values()]
         bosses = [i for i in ids if i >= F.BOSS_ID_MIN]
         self.assertTrue(0 < len(bosses) < len(ids),
                         "BOSS_ID_MIN classifies every record the same way")
+
+
+class TestEncounterClass(unittest.TestCase):
+    """The audited random / boss / super-boss split (x2fields ENCOUNTER CLASS).
+
+    The tables are hand-curated from the game's boss listings, so what these
+    checks defend is that they still describe the records they were written
+    against — a catalog regeneration that shifted an index would otherwise
+    silently re-point "Patriarch" at whatever moved into slot 110."""
+
+    def test_every_entry_matches_the_catalog_record_it_names(self):
+        cat = F.enemy_catalog()
+        for table, cls in ((F.BOSS_RECORDS, "boss"),
+                           (F.SUPERBOSS_RECORDS, "superboss")):
+            for i, (eid, name, where) in table.items():
+                rec = cat.get(i)
+                self.assertIsNotNone(rec, f"{cls} index {i} is not in the catalog")
+                self.assertEqual(rec["id"], eid, f"{cls} {i} ({name}) enemy id")
+                self.assertEqual(rec["name"], name, f"{cls} {i} name")
+                self.assertTrue(where, f"{cls} {i} ({name}) has no source note")
+                self.assertFalse(F.is_dummy_record(rec),
+                                 f"{cls} {i} ({name}) is a debug record")
+
+    def test_the_three_classes_are_disjoint_and_cover_everything(self):
+        self.assertEqual(set(F.BOSS_RECORDS) & set(F.SUPERBOSS_RECORDS), set())
+        classes = F.encounter_classes()
+        self.assertEqual(sorted(classes), list(range(F.ENEMY_COUNT)))
+        self.assertLessEqual(set(classes.values()),
+                             set(F.ENCOUNTER_CLASSES) | {"dummy"})
+        for cls in F.ENCOUNTER_CLASSES:
+            self.assertIn(cls, F.ENCOUNTER_LABELS)
+            self.assertGreater(list(classes.values()).count(cls), 0,
+                               f"no record is classified {cls}")
+
+    def test_known_records_are_classified_the_way_the_guides_describe_them(self):
+        # the cases the old HP>=20,000 heuristic got wrong, and one it got right
+        cases = {
+            94: "boss",        # Margulis, prologue — 1,200 HP
+            111: "boss",       # Albedo in the Space-Time Anomaly — final boss
+            103: "boss",       # Orgulla, Ormus Stronghold — 18,000 HP
+            110: "boss",       # Patriarch — 21,600 HP
+            13: "random",      # Arvakv — 22,000 HP Desert spawn, not a boss
+            10: "superboss",   # Zwerg Kape, Heaven's Ruins — 4,160 HP
+            124: "superboss",  # Dark Erde Kaiser, Space Coliseum
+            65: "random",      # U-TIC Soldier A
+            119: "dummy",      # BOS026
+        }
+        classes = F.encounter_classes()
+        for i, want in cases.items():
+            self.assertEqual(classes[i], want, f"record {i}")
+
+    def test_profiles_cover_every_class(self):
+        for key, prof in F.PROFILES.items():
+            for cls in F.ENCOUNTER_CLASSES:
+                self.assertIn(cls, prof, f"profile {key} has no {cls} row")
+                for lbl, pct in prof[cls].items():
+                    self.assertIn(lbl, F.ENEMY_FIELD_CAPS, f"{key}.{cls}.{lbl}")
+                    self.assertGreater(pct, 0, f"{key}.{cls}.{lbl}")
 
 
 class TestGeneratedWebTables(unittest.TestCase):

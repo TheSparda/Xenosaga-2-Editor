@@ -11,8 +11,10 @@
   // data-loss bug (or a silently-diverging profile) waiting to happen, and CI
   // fails if the generated file drifts. If the fetch fails we refuse to open a
   // disc rather than fall back to a possibly-stale copy.
-  let STRIDE, COUNT, TAIL, RSTRIDE, SFIELDS, RFIELDS, BOSS_ID_MIN, ID_OFF;
-  let AFIELDS, AFF_NORMAL, AFF_SCALE, AFF_ELEMENTS, CATKEYS, CAPS, PROFILES, MAJOR_HP;
+  let STRIDE, COUNT, TAIL, RSTRIDE, SFIELDS, RFIELDS, ID_OFF;
+  let AFIELDS, AFF_NORMAL, AFF_SCALE, AFF_ELEMENTS, CATKEYS, CAPS, PROFILES;
+  // the audited encounter class per record — random / boss / superboss
+  let ECLASSES, ELABELS, ECLASS_BY_IDX, EWHERE;
   // break/zone data: a hittable-zone mask and BRK_SLOTS one-hot sequence slots
   let ZMASK_OFF, BRK_OFF, BRK_SLOTS, ZBITS, ZSYM, ZFIELDS;
   // verified battle flags: enemy type (+0x50 bits 0-1) and zone targeting off
@@ -60,8 +62,11 @@
     KBLOCKS=(t.skill||{}).blocks||{}; KSPAN=(t.skill||{}).span||0;
     KELEM=(t.skill||{}).elementBits||{};
     KTARGETS=(t.skill||{}).targetNames||{}; KTGT_ALL=(t.skill||{}).targetAll||8;
-    BOSS_ID_MIN=t.bossIdMin; CATKEYS=t.catalogKeys||{};
-    CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{}; MAJOR_HP=t.majorHpThreshold;
+    CATKEYS=t.catalogKeys||{};
+    CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{};
+    const enc=t.encounter||{};
+    ECLASSES=enc.classes||["random","boss","superboss"]; ELABELS=enc.labels||{};
+    ECLASS_BY_IDX=enc.byIndex||{}; EWHERE=enc.where||{};
     ETABLES=t.enemyTables||{"1":{stats:t.enemy.base,rewards:t.reward.base}};
     SERIALMAP=t.serials||{};
     return (TABLES=t);
@@ -75,6 +80,18 @@
   // scaled — mirrors x2fields.is_dummy_record().
   const isDummy=(r)=>!!r&&(/^[A-Z]{3}\d{3}$/.test(String(r.name||"").trim())||
                            (r.exp>0&&r.exp<100&&!r.sp&&!r.cp));
+
+  // What a record actually is, from the audited table in x2fields (shipped in
+  // tables.json). NOT guessed from HP or from the enemy-id band: both get it
+  // wrong — a 22,000 HP Desert random encounter looks like a boss, and the
+  // 1,200 HP prologue Margulis looks like trash. Mirrors x2fields.encounter_class().
+  const eclass=(i)=>isDummy(cat&&cat[i])?"dummy":(ECLASS_BY_IDX[i]||"random");
+  const eclassLabel=(c)=>ELABELS[c]||c;
+  const classCount=(c)=>{let n=0;for(let i=0;i<COUNT;i++)if(eclass(i)===c)n++;return n;};
+  // one input per (class, column) in the pacing table — ids derived from the
+  // class keys so adding a fourth class would need no new markup
+  const SCOLS=["HP","DEF","ATK","RW"];
+  const sid=(c,f)=>"sc_"+c+"_"+f;
 
   let cat=null;
   // ---- multi-disc model -------------------------------------------------
@@ -283,7 +300,10 @@
       ' — '+esc(String(e))+'. Try ↻ Force refresh in the footer.</div>'; root.dataset.init=""; return; }
     await loadCat();
     // ids are written out literally rather than built in a loop, so every #id
-    // the script queries can be grepped straight out of the source
+    // the script queries can be grepped straight out of the source. The one
+    // exception is the battle-pacing table: its rows and the code that reads
+    // them both come from ECLASSES via sid(), so the markup and its readers
+    // cannot drift apart the way two hand-written lists can.
     root.innerHTML='<div class="card"><h2>1 · Open your discs</h2>'+
       '<div class="discrow"><button id="isoPick1" class="btn primary">Choose disc 1…</button> '+
         '<span id="isoStatus1" class="status"></span><div id="isoRecent1"></div></div>'+
@@ -579,20 +599,16 @@
       Object.keys(PROFILES).map(k=>'<button class="btn prof" data-p="'+k+'" title="'+
         esc(PROFILES[k].note)+'">'+esc(PROFILES[k].label)+'</button>').join(" ")+'</div>'+
       '<p class="note" id="profNote">Pick a profile to load its numbers below, then stage it. '+
-      '“Major” means a record whose retail HP is '+MAJOR_HP.toLocaleString()+'+ — the only boss signal '+
-      'the disc actually gives us. Debug/unused records are never touched.</p>'+
+      'The three rows are the audited encounter classes, not an HP guess: which records are '+
+      'random encounters, story/side-quest boss fights and optional post-game super bosses is '+
+      'a per-record table cross-checked against the game’s boss listings. Debug/unused records '+
+      'are never touched.</p>'+
       '<table class="scl"><tbody>'+
       '<tr><td></td><th>HP</th><th>VIT/EDEF</th><th>STR/EATK</th><th>EXP/SP/CP</th></tr>'+
-      '<tr><th>regular</th>'+
-      '<td><input type="number" id="rHP" value="100" min="1" max="1000" style="width:7ch">%</td>'+
-      '<td><input type="number" id="rDEF" value="100" min="1" max="1000" style="width:7ch">%</td>'+
-      '<td><input type="number" id="rATK" value="100" min="1" max="1000" style="width:7ch">%</td>'+
-      '<td><input type="number" id="rRW" value="100" min="1" max="1000" style="width:7ch">%</td></tr>'+
-      '<tr><th>major</th>'+
-      '<td><input type="number" id="mHP" value="100" min="1" max="1000" style="width:7ch">%</td>'+
-      '<td><input type="number" id="mDEF" value="100" min="1" max="1000" style="width:7ch">%</td>'+
-      '<td><input type="number" id="mATK" value="100" min="1" max="1000" style="width:7ch">%</td>'+
-      '<td><input type="number" id="mRW" value="100" min="1" max="1000" style="width:7ch">%</td></tr>'+
+      ECLASSES.map(c=>'<tr><th title="'+esc(classCount(c)+' record(s)')+'">'+
+        esc(eclassLabel(c))+' <span class="muted small">('+classCount(c)+')</span></th>'+
+        SCOLS.map(f=>'<td><input type="number" id="'+sid(c,f)+'" value="100" min="1" '+
+          'max="1000" style="width:7ch">%</td>').join("")+'</tr>').join("")+
       '</tbody></table>'+
       '<div class="toolbar"><span id="sclWarn" class="status"></span><span style="flex:1"></span>'+
       '<button id="sclApply" class="btn primary">Stage rebalance</button></div>'+
@@ -739,16 +755,21 @@
 
   const PCT=(id)=>Math.max(1,+$("#"+id).value||100);
   function readScales(){
-    const g=(hp,def,atk,rw)=>({HP:PCT(hp),VIT:PCT(def),EDEF:PCT(def),STR:PCT(atk),
-                               EATK:PCT(atk),EXP:PCT(rw),SP:PCT(rw),CP:PCT(rw)});
-    return {regular:g("rHP","rDEF","rATK","rRW"), major:g("mHP","mDEF","mATK","mRW")};
+    const out={};
+    for(const c of ECLASSES){
+      const p=(f)=>PCT(sid(c,f));
+      out[c]={HP:p("HP"),VIT:p("DEF"),EDEF:p("DEF"),STR:p("ATK"),
+              EATK:p("ATK"),EXP:p("RW"),SP:p("RW"),CP:p("RW")};
+    }
+    return out;
   }
   function applyProfile(key){
     const p=PROFILES[key]; if(!p) return;
     const set=(id,v)=>{$("#"+id).value=v==null?100:v;};
-    for(const [grp,pre] of [["regular","r"],["major","m"]]){
-      const s=p[grp]||{};
-      set(pre+"HP",s.HP); set(pre+"DEF",s.VIT); set(pre+"ATK",s.STR); set(pre+"RW",s.EXP);
+    for(const c of ECLASSES){
+      const s=p[c]||{};
+      set(sid(c,"HP"),s.HP); set(sid(c,"DEF"),s.VIT);
+      set(sid(c,"ATK"),s.STR); set(sid(c,"RW"),s.EXP);
     }
     document.querySelectorAll("#profRow .prof").forEach(b=>b.classList.toggle("on",b.dataset.p===key));
     $("#profNote").textContent=p.label+" — "+p.note;
@@ -778,7 +799,8 @@
     $("#erow2").innerHTML='<td><div class="fl">rewards</div></td>'+
       RFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("")+
       '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+eid+
-      (eid>=BOSS_ID_MIN?" · boss":"")+'</span></td>';
+      ' · '+esc(eclassLabel(eclass(i)))+(EWHERE[i]?' <span class="muted">('+
+      esc(EWHERE[i])+')</span>':'')+'</span></td>';
     $("#erow5").innerHTML=RFIELDS_RES.map(([l,o,w])=>
       cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
     $("#erow4").innerHTML=DFIELDS.map(([l,o,w])=>
@@ -954,17 +976,14 @@
     paint();
   }
 
-  // Scale every record per its group. Always reads from `orig` (the disc as
+  // Scale every record per its class. Always reads from `orig` (the disc as
   // opened) so re-staging replaces the plan rather than compounding it.
   function stageRebalance(scales){
-    const hpSpec=specOf("HP");
     let n=0, skipped=0;
     for(let i=0;i<COUNT;i++){
       const rec=cat[i];
       if(isDummy(rec)){ skipped++; continue; }
-      // group on retail HP where we have it, else the disc's own value
-      const hp=rec&&rec.hp!=null?rec.hp:getOrig(S,i,hpSpec[1],hpSpec[2]);
-      const s=scales[hp>=MAJOR_HP?"major":"regular"]||{};
+      const s=scales[eclass(i)]||{};
       let touched=false;
       for(const [lbl,pct] of Object.entries(s)){
         const spec=specOf(lbl); if(!spec) continue;

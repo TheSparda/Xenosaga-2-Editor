@@ -691,11 +691,29 @@ HP decides how many stocked chains a kill costs, VIT/EDEF whether off-loop
 attacks matter, STR/EATK enemy pressure, SP/CP how fast the skill system opens.
 
 Two judgement calls worth remembering:
-- **Grouping is on HP, not the enemy ID band.** IDs 501-579 mix late-game field
-  Gnosis (Ai Apaec 8,160 HP) in with bosses (Perun 22,400), so the ID is not a
-  boss signal. Records at/above `MAJOR_HP_THRESHOLD` (20,000 catalog HP) scale
-  as "major". The old web checkbox that treated `id >= 561` as "bosses" was
-  wrong on both ends and is gone.
+- **Grouping is an audited per-record table, not a stat and not the ID band.**
+  Three classes: `random`, `boss`, `superboss` (`x2fields.BOSS_RECORDS` /
+  `SUPERBOSS_RECORDS`, exported to the web tab in `tables.json`). Both earlier
+  attempts were wrong:
+  - `id >= 561` — the 561+ band really does mix optional-dungeon field Gnosis
+    (Ai Apaec, Deion, Aiakos, Kazfa Jina, Okypete, Azazel, Armaros, Ashmed
+    Bapuz, Arvakv are all documented as *enemies*) in with real bosses, while
+    genuine bosses like Nepos Rigas and Dullea Soul sit up in the 700 band.
+  - `HP >= 20,000` ("major") — audited 2026-08-25 against the Xeno Series Wiki
+    boss-theme listings, this caught 21 of the 36 boss records, missed 15
+    (every early story boss, the final boss, Orgulla, Zwerg Kape) and produced
+    one outright false positive: **Arvakv**, a 22,000 HP Desert random
+    encounter that spawns from a quicksand pit.
+
+  The audited split is 76 random / 24 boss / 12 super boss / 13 dummy. "Super
+  boss" is the opt-in post-game tier — the Desert, Factory and Heaven's Ruins
+  optional dungeons, the Space Coliseum's Dark Erde Kaiser, GS 28's
+  level-scaling Mad Skelter, and the three English-version-exclusive
+  superbosses (Mikumari, Baal Zebul, Phobos Rigas) that unlock only after the
+  Dark Erde Kaiser sidequest. Sources: the wiki's `Major Boss Battle` and
+  `Minor Boss Battle (XS2)` track pages, which enumerate exactly which fights
+  use each boss theme, cross-checked against the dungeon and Global Samaritan
+  Campaign pages.
 - **Dummy records are excluded** (`is_dummy_record`) — 13 of the 125: the debug
   names (GNO013, CRE006/018, UMA013, MON001-4, BOS026-29) plus unused rows
   carrying a token EXP with no SP/CP (Testud II: 8,000 HP, 79 EXP). Scripted 0-EXP fights

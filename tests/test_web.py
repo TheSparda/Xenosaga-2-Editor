@@ -171,6 +171,27 @@ class TestDomReferences(unittest.TestCase):
         self.assertIn("breakFloor()", iso,
                       "shortenSeq must consult the shield, not a hardcoded floor")
 
+    def test_both_tabs_classify_encounters_from_the_generated_table(self):
+        # Grouping used to be "HP >= 20,000 is a boss", which mislabelled a
+        # 22,000 HP random encounter as a boss and every early story boss as
+        # trash. Both tabs must read the audited per-record table out of
+        # tables.json rather than re-deriving boss-ness from a stat.
+        for script in ("iso.js", "ref.js"):
+            src = read(script)
+            with self.subTest(script=script):
+                self.assertIn("encounter", src,
+                              f"{script} does not read the encounter table")
+                self.assertNotRegex(src, r"MAJOR_HP",
+                                    f"{script} still groups records by an HP threshold")
+        iso = read("iso.js")
+        m = re.search(r"function stageRebalance\b.*?\n  \}", iso, re.S)
+        self.assertTrue(m, "could not find stageRebalance in iso.js")
+        self.assertIn("eclass(i)", m.group(0),
+                      "stageRebalance must group on the audited encounter class")
+        # one pacing row per class, generated from the same list the profiles use
+        self.assertIn("ECLASSES.map(", iso,
+                      "the pacing table must emit a row per encounter class")
+
     def test_engine_files_the_boot_loop_fetches_all_exist(self):
         m = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
         self.assertTrue(m, "could not find the engine file list in app.js")

@@ -94,6 +94,90 @@
     ],
     "stride": 264
   },
+  "encounter": {
+    "byIndex": {
+      "10": "superboss",
+      "100": "boss",
+      "101": "boss",
+      "102": "boss",
+      "103": "boss",
+      "104": "boss",
+      "105": "boss",
+      "106": "boss",
+      "107": "boss",
+      "108": "boss",
+      "109": "boss",
+      "110": "boss",
+      "111": "boss",
+      "112": "superboss",
+      "113": "superboss",
+      "114": "superboss",
+      "115": "superboss",
+      "116": "superboss",
+      "117": "superboss",
+      "118": "superboss",
+      "123": "boss",
+      "124": "superboss",
+      "14": "boss",
+      "15": "boss",
+      "16": "boss",
+      "17": "boss",
+      "18": "boss",
+      "5": "superboss",
+      "6": "superboss",
+      "7": "superboss",
+      "94": "boss",
+      "95": "boss",
+      "96": "boss",
+      "97": "boss",
+      "98": "boss",
+      "99": "boss"
+    },
+    "classes": ["random", "boss", "superboss"],
+    "labels": {
+      "boss": "Boss battles",
+      "random": "Random encounters",
+      "superboss": "Super bosses"
+    },
+    "where": {
+      "10": "Heaven's Ruins \u2014 post-game",
+      "100": "scripted Margulis encounter, 0 EXP",
+      "101": "Ormus Stronghold",
+      "102": "Ormus Stronghold",
+      "103": "Ormus Stronghold",
+      "104": "Ormus Stronghold",
+      "105": "Old Miltia",
+      "106": "Labyrinthos",
+      "107": "\u03a9 System",
+      "108": "\u03a9 System",
+      "109": "\u03a9 System \u2014 used by the Patriarch in his fight",
+      "110": "\u03a9 System \u2014 penultimate boss",
+      "111": "Space-Time Anomaly \u2014 final boss",
+      "112": "Desert \u2014 post-game, guards Sequencer C",
+      "113": "Factory \u2014 post-game, guards Sequencer A",
+      "114": "Heaven's Ruins \u2014 post-game, guards Decoder 12",
+      "115": "GS 28 \u2014 post-game, scales to your highest level",
+      "116": "Desert \u2014 after the Dark Erde Kaiser sidequest",
+      "117": "Old Miltia \u2014 after the Dark Erde Kaiser sidequest",
+      "118": "D\u00e4mmerung \u2014 after the Dark Erde Kaiser sidequest",
+      "123": "Ormus Stronghold",
+      "124": "Space Coliseum \u2014 post-game, needs Erde Kaiser Fury",
+      "14": "GS 14 \u2014 Old Miltia",
+      "15": "GS 13",
+      "16": "GS 26",
+      "17": "GS 26",
+      "18": "GS-campaign boss add",
+      "5": "Heaven's Ruins \u2014 post-game",
+      "6": "Heaven's Ruins \u2014 post-game",
+      "7": "Heaven's Ruins \u2014 post-game",
+      "94": "prologue",
+      "95": "Second Miltia",
+      "96": "Second Miltia",
+      "97": "Second Miltia",
+      "98": "Subconscious Domain (Summer)",
+      "99": "Subconscious Domain (Winter)"
+    }
+  },
   "enemy": {
     "affinityElements": ["Beam", "Aura", "Thunder", "Fire", "Ice", "Pierce", "Slash", "Hit"],
     "affinityFields": [
@@ -190,11 +274,9 @@
   },
   "game": "Xenosaga Episode II - Jenseits von Gut und Boese",
   "gamedataSize": 20832,
-  "majorHpThreshold": 20000,
   "profiles": {
     "deeper": {
-      "label": "Deeper challenge",
-      "major": {
+      "boss": {
         "CP": 200,
         "EATK": 115,
         "EXP": 200,
@@ -202,35 +284,48 @@
         "SP": 200,
         "STR": 115
       },
+      "label": "Deeper challenge",
       "note": "For players who like the loop: enemies hit harder and last longer, but pay out much more.",
-      "regular": {
+      "random": {
         "CP": 200,
         "EATK": 115,
         "EXP": 200,
         "HP": 110,
         "SP": 200,
         "STR": 115
+      },
+      "superboss": {
+        "CP": 200,
+        "EATK": 120,
+        "EXP": 200,
+        "HP": 150,
+        "SP": 200,
+        "STR": 120
       }
     },
     "faster": {
-      "label": "Faster fights",
-      "major": {
+      "boss": {
         "CP": 150,
         "EXP": 150,
         "HP": 70,
         "SP": 150
       },
+      "label": "Faster fights",
       "note": "Keeps the combo loop, cuts the tax: fewer stocked chains per kill and quicker skill unlocks. The safe default.",
-      "regular": {
+      "random": {
         "CP": 150,
         "EXP": 150,
         "HP": 45,
         "SP": 150
+      },
+      "superboss": {
+        "CP": 150,
+        "EXP": 150,
+        "SP": 150
       }
     },
     "freer": {
-      "label": "Freer play",
-      "major": {
+      "boss": {
         "CP": 150,
         "EDEF": 80,
         "EXP": 150,
@@ -238,25 +333,38 @@
         "SP": 150,
         "VIT": 80
       },
+      "label": "Freer play",
       "note": "Makes off-combo attacks viable \u2014 softer defenses so unbroken damage lands, on top of a lighter HP cut.",
-      "regular": {
+      "random": {
         "CP": 150,
         "EDEF": 70,
         "EXP": 150,
         "HP": 55,
         "SP": 150,
         "VIT": 70
+      },
+      "superboss": {
+        "CP": 150,
+        "EDEF": 90,
+        "EXP": 150,
+        "SP": 150,
+        "VIT": 90
       }
     },
     "grindcut": {
-      "label": "Reward-only",
-      "major": {
+      "boss": {
         "CP": 250,
         "EXP": 250,
         "SP": 250
       },
+      "label": "Reward-only",
       "note": "Leaves every fight exactly as designed and only removes the grind between them.",
-      "regular": {
+      "random": {
+        "CP": 250,
+        "EXP": 250,
+        "SP": 250
+      },
+      "superboss": {
         "CP": 250,
         "EXP": 250,
         "SP": 250
