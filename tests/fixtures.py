@@ -409,6 +409,23 @@ def write_fake_disc(path, enemies=None):
                 raise KeyError(f"unknown enemy field {label!r}")
             place(rewards, i, F.REWARD_STRIDE, spec[1], spec[2], value)
 
+    # the player-unit table: 15 records before the enemy table, same layout.
+    # Deterministic filler + the real name pointers, so unit_name() resolves.
+    units = bytearray(F.UNIT_COUNT * F.ENEMY_STRIDE)
+    uptrs = [0x564, 0x56A, 0x572, 0x578, 0x57C, 0x582, 0x587,
+             0x58B, 0x592, 0x599, 0x5A0, 0x5AA, 0x5B6, 0x5C0, 0x5C7]
+    unames = (b"chaos\0KOS-MOS\0Shion\0Jin\0Ziggy\0MOMO\0Jr.\0"
+              b"sp1\0\0\0\0sp2\0\0\0\0sp3\0\0\0\0"
+              b"E.S.Dinah\0E.S.Zebulun\0E.S.Asher\0sp4\0\0\0\0sp5\0\0\0\0")
+    for i in range(F.UNIT_COUNT):
+        at = i * F.ENEMY_STRIDE
+        struct.pack_into("<H", units, at + F.UNIT_NAME_PTR_OFF, uptrs[i])
+        struct.pack_into("<H", units, at + F.UNIT_ID_OFF,
+                         (i + 1) if i < 7 else (101 + i - 10 if 10 <= i < 13 else 0))
+        for label, off, width, _k in F.UNIT_FIELDS:
+            v = over.get(("unit", i), {}).get(label, (i + 2) * 9 % (1 << (8 * width)))
+            units[at + off:at + off + width] = int(v).to_bytes(width, "little")
+
     with open(path, "wb") as f:
         f.truncate(end)
 
@@ -423,8 +440,15 @@ def write_fake_disc(path, enemies=None):
         f.seek(0x9000)                                   # SYSTEM.CNF payload
         f.write(b"BOOT2 = cdrom0:\\SLUS_208.92;1\r\nVER = 1.00\r\n")
 
+        f.seek(F.UNIT_TABLES[1])
+        f.write(bytes(units))
         f.seek(F.ENEMY_TABLE_OFF)
         f.write(bytes(stats))
+        # the unit name pool AFTER the enemy stats, because it genuinely runs
+        # into enemy record 0's undecoded head — exactly as on the real disc,
+        # where those leading bytes ARE the E.S. name text
+        f.seek(F.UNIT_NAME_BASE[1] + 0x564)
+        f.write(unames)
         f.seek(F.REWARD_TABLE_OFF)
         f.write(bytes(rewards))
     return path

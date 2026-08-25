@@ -22,8 +22,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
     sequences** and **breakable zones** for all 125 records, with search, one-click
     **battle-pacing profiles**, **bulk Break shortening**, and **JSON export/import** for
     spreadsheet-scale edits.
-  - **Skills** — **EP cost, power and element** for all 86 Ether and Double skills, with the
-    name, description and target alongside.
+  - **Skills** — **EP cost, target (single ↔ AoE), power and element** for all 102 Ether,
+    Double and Dual skills, with the name and description alongside.
+  - **Units** — the **new-game starting stats** (HP, EP, STR, VIT, EATK, EDEF, DEX, EVA,
+    AGL) for every character and E.S. unit — verified against the save format, which copies
+    these records verbatim at join time.
 
   Everything writes **in place** into your disc images. Share your work as a readable
   **patch file** or a standard **`.xdelta`** patch, and use **compare-to-retail** to see

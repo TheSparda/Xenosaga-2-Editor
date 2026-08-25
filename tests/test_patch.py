@@ -131,6 +131,53 @@ class TestAffinities(PatchCase):
         self.assertIn(el, self.run_cli("enemies", self.iso, "--csv", "--affinities"))
 
 
+class TestUnits(PatchCase):
+    """The player-unit table: 15 records before the enemy table, same layout."""
+
+    def test_table_sits_directly_before_the_enemy_table(self):
+        # the gap holds the name pool; the records themselves must not overlap
+        end = F.UNIT_TABLES[1] + F.UNIT_COUNT * F.ENEMY_STRIDE
+        self.assertLessEqual(end, F.ENEMY_TABLE_OFF)
+        self.assertEqual(F.UNIT_TABLES[1] - F.UNIT_TABLES[2], 0x800,
+                         "disc 2 carries the table the usual 0x800 lower")
+
+    def test_names_resolve_through_the_pointer(self):
+        with X.Iso(self.iso) as iso:
+            self.assertEqual(X.unit_name(iso, 0), "chaos")
+            self.assertEqual(X.unit_name(iso, 10), "E.S.Dinah")
+
+    def test_round_trip_is_surgical(self):
+        p = self.fresh("unit.iso")
+        with X.Iso(p, write=True) as iso:
+            before_other = X.read_unit(iso, 1)
+            X.write_unit(iso, 0, {"HP": 999, "EP": 77})
+        with X.Iso(p) as iso:
+            u = X.read_unit(iso, 0)
+            self.assertEqual((u["HP"], u["EP"]), (999, 77))
+            self.assertEqual(X.read_unit(iso, 1), before_other,
+                             "the neighbouring record must be untouched")
+            # and the enemy table right after it must be untouched too
+            self.assertEqual(X.diff_vanilla(iso), {})
+
+    def test_cli_lists_and_writes(self):
+        p = self.fresh("unitcli.iso")
+        out = self.run_cli("units", p)
+        self.assertIn("chaos", out)
+        self.assertIn("E.S.Dinah", out)
+        self.run_cli("unit-set", p, "0", "--set", "HP=555")
+        with X.Iso(p) as iso:
+            self.assertEqual(X.read_unit(iso, 0)["HP"], 555)
+
+    def test_explain_diff_names_unit_fields(self):
+        hp_off = next(o for lbl, o, _w, _k in F.UNIT_FIELDS if lbl == "HP")
+        self.assertEqual(X._locate(F.UNIT_TABLES[1] + 2 * F.ENEMY_STRIDE + hp_off, 1),
+                         ("unit stats", "unit 2 HP"))
+
+    def test_unknown_unit_field_is_rejected(self):
+        # SystemExit with a message exits 1 (argparse errors are the 2s)
+        self.run_cli("unit-set", self.iso, "0", "--set", "Luck=7", expect=1)
+
+
 class TestSkillTargeting(unittest.TestCase):
     """The field that turns a single-target skill into an AoE."""
 

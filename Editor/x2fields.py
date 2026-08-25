@@ -395,6 +395,55 @@ def es_equip_catalog():
 # ---------------------------------------------------------------------------
 ENEMY_STRIDE     = 0x5C        # stat record stride, index 0..124
 ENEMY_COUNT      = 125
+# ---------------------------------------------------------------------------
+# PLAYER UNITS (VERIFIED 2026-08-24) — 15 records directly before the enemy
+# table, SAME 0x5C record layout (it is the same battle-actor structure): the
+# seven characters, three spares, the three E.S. units, two more spares.
+#
+# Three independent confirmations, in increasing order of strength:
+#   * both discs carry the table byte-identically (disc 2 the usual -0x800)
+#   * +0x50/+0x51 read coherently under the verified battle flags: humans are
+#     type 0 (Bio), E.S. units type 2 (Mechanism) with zone targeting off
+#   * the save format's per-slot "Character id" is not an id at all — it is the
+#     record's +0x34 NAME POINTER (0x564 chaos, 0x56A KOS-MOS, ...), and save
+#     records for characters at their join point are BYTE-IDENTICAL to these
+#     disc records (KOS-MOS 1066/34/31/32/31/33, Shion, E.S.Dinah, E.S.Zebulun
+#     all matched exactly; leveled characters sit above them). The disc table is
+#     what initializes a save's character block.
+#
+# +0x3A — the halfword that is still the unexplained "99" field on enemy
+# records — is EP here: all seven characters and E.S.Zebulun match the save's
+# EP exactly. The record head (+0x00..+0x33) is 13 ascending u32s, most likely
+# resource offsets; undecoded, unwritten.
+#
+# The name pool sits at UNIT_NAME_BASE + ptr, in the 0x6C-byte gap between the
+# end of this table (0x1FFF584) and the enemy table (0x1FFF5F0) — and then runs
+# on INTO enemy record 0's head, which is the previously-recorded fact that the
+# character/E.S. names occupy that record's leading bytes. One more reason only
+# the verified fields below are ever written.
+UNIT_TABLES = {1: 0x1FFF020, 2: 0x1FFE820}
+UNIT_COUNT = 15
+UNIT_NAME_BASE = {1: 0x1FFF054, 2: 0x1FFE854}   # + record's +0x34 pointer
+UNIT_NAME_PTR_OFF = 0x34
+UNIT_ID_OFF = 0x52                              # 1..7 humans, 101..103 E.S.
+UNIT_FIELDS = [
+    ("HP",   0x36, 4, "num"),
+    ("EP",   0x3A, 2, "num"),
+    ("STR",  0x3C, 2, "num"),
+    ("VIT",  0x3E, 2, "num"),
+    ("EATK", 0x40, 2, "num"),
+    ("EDEF", 0x42, 2, "num"),
+    ("DEX",  0x44, 1, "num"),
+    ("EVA",  0x45, 1, "num"),
+    ("AGL",  0x46, 1, "num"),
+]
+
+def unit_tables(disc):
+    try:
+        return UNIT_TABLES[disc]
+    except KeyError:
+        raise KeyError(f"no unit table known for disc {disc!r}") from None
+
 ENEMY_TABLES = {
     #        stat records  name blob   rewards rows
     1: {"stats": 0x1FFF5F0, "names": 0x2002310, "rewards": 0x201094C},
@@ -1062,6 +1111,15 @@ def web_tables():
             "targetNames": {str(k): v for k, v in sorted(SKILL_TARGET_NAMES.items())},
             "targetSide": {str(k): v for k, v in sorted(SKILL_TARGET_SIDE.items())},
             "targetAll": SKILL_TARGET_ALL,
+        },
+        # Player units: 15 records before the enemy table, same 0x5C layout.
+        # Verified fields only; names come from Editor/x2_units.json.
+        "unit": {
+            "tables": {str(d): b for d, b in sorted(UNIT_TABLES.items())},
+            "stride": ENEMY_STRIDE,
+            "count": UNIT_COUNT,
+            "idOff": UNIT_ID_OFF,
+            "fields": fields(UNIT_FIELDS),
         },
         "catalogKeys": ENEMY_CATALOG_KEY,
         # Battle-pacing profiles, so the web ISO editor runs the same numbers as

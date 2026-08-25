@@ -527,6 +527,41 @@ partition problem of exactly the kind `column_profile()` / `_partition_scores()`
 were written for — 15 known-unbreakable against 36 known-breakable, both sets
 name-matched to the guide, is unusually good ground truth. Not yet run.
 
+### 2026-08-24 — PLAYER UNIT TABLE SOLVED (15 records @ 0x1FFF020)
+
+The name anchor below led somewhere better than expected: the character records
+sit at **`0x1FFF020`** (disc 2: `0x1FFE820`), fifteen `0x5C` records with the
+SAME layout as enemy records — chaos, KOS-MOS, Shion, Jin, Ziggy, MOMO, Jr.,
+three spares, E.S. Dinah/Zebulun/Asher, two spares. It is the same battle-actor
+structure; the first wrong guess was assuming the table would share the enemy
+table's base alignment (it has its own), found by anchoring on the `0x64`-fill
+signature at `+0x04` instead.
+
+Verification, in increasing order of strength:
+
+* both discs byte-identical (the usual `-0x800`)
+* the verified battle flags read coherently: humans type 0 (Bio), E.S. units
+  type 2 (Mechanism) with zone targeting off
+* **the save format's "Character id" field is actually the record's `+0x34`
+  name pointer** (0x564 chaos, 0x56A KOS-MOS...), and save character blocks at
+  join time are **byte-identical** to these disc records — KOS-MOS
+  1066/34/31/32/31/33, Shion 547/20/21/31/31/27, E.S. Dinah, E.S. Zebulun all
+  matched exactly, while leveled characters sit above the base values. This
+  table is what a new game copies into the save.
+
+`+0x3A` — still the unexplained "99" halfword on enemy records — is **EP**
+here (all seven characters + Zebulun's 52 match the save exactly). The record
+head `+0x00..+0x33` is 13 ascending u32s, most likely resource offsets:
+undecoded, unwritten. The name pool lives in the gap after the table and runs
+into enemy record 0's head (the previously-recorded fact). One observation left
+deliberately unnamed: `+0x51` bit 0 is set for exactly chaos/Jin/Ziggy/Jr. and
+clear for KOS-MOS/Shion/MOMO — plausibly a gender flag, but nothing verifies
+it, and naming bits on plausibility is the mistake this file keeps recording.
+
+Editable as the **Units** tab (web), `units` / `unit-set` (CLI), with the
+retail baseline in `Editor/x2_units.json` (gen_unit_catalog.py, disc
+cross-check gated). Disc sync copies the table; explain-diff names its fields.
+
 ### 2026-08-24 — Character + E.S. name table (a name anchor that was said not to exist)
 
 The "Character-growth & shop tables (BLOCKED)" note above states there is *"no
