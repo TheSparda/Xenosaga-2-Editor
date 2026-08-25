@@ -370,6 +370,16 @@
     }
   },
   "unit": {
+    "affinityFields": [
+      ["Beam", 88, 1],
+      ["Aura", 89, 1],
+      ["Thunder", 90, 1],
+      ["Fire", 91, 1],
+      ["Ice", 92, 1],
+      ["Pierce", 93, 1],
+      ["Slash", 94, 1],
+      ["Hit", 95, 1]
+    ],
     "count": 15,
     "fields": [
       ["HP", 54, 4],
@@ -383,6 +393,7 @@
       ["AGL", 70, 1]
     ],
     "idOff": 82,
+    "recordTail": 4,
     "stride": 92,
     "tables": {
       "1": 33550368,

@@ -1305,7 +1305,8 @@ def _regions(disc):
     # overlaps real tables — it swallowed the dual-tech block until this was
     # ordered. A guessed region must never claim a byte a known one can explain.
     return [
-        ("unit stats",    F.unit_tables(disc), F.UNIT_COUNT * F.ENEMY_STRIDE, "unit"),
+        ("unit stats",    F.unit_tables(disc),
+                          F.UNIT_COUNT * F.ENEMY_STRIDE + F.unit_record_tail(), "unit"),
         ("enemy stats",   t["stats"],   F.ENEMY_COUNT * F.ENEMY_STRIDE
                                         + F.enemy_record_tail(), "stat"),
         ("enemy rewards", t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE, "reward"),
@@ -1320,7 +1321,7 @@ def _locate(off, disc):
             continue
         if kind == "unit":
             i, r = divmod(off - base, F.ENEMY_STRIDE)
-            for lbl, fo, w, _k in F.UNIT_FIELDS:
+            for lbl, fo, w, _k in F.UNIT_FIELDS + F.UNIT_AFFINITY_FIELDS:
                 if fo <= r < fo + w:
                     return name, f"unit {i} {lbl}"
             return name, f"unit {i} +0x{r:02X} (undecoded)"
@@ -1656,9 +1657,13 @@ def unit_base(iso, i):
 def read_unit(iso, i):
     base = unit_base(iso, i)
     out = {lbl: int.from_bytes(iso.read(base + o, w), "little")
-           for (lbl, o, w, _k) in F.UNIT_FIELDS}
+           for (lbl, o, w, _k) in F.UNIT_FIELDS + F.UNIT_AFFINITY_FIELDS}
     out["id"] = int.from_bytes(iso.read(base + F.UNIT_ID_OFF, 2), "little")
     return out
+
+def unit_affinity_pcts(rec):
+    """{element: percent} for one unit, same signed-byte x5 scale as enemies."""
+    return {n: F.affinity_pct(rec[n]) for n in F.AFFINITY_ELEMENTS}
 
 def unit_name(iso, i):
     ptr = int.from_bytes(iso.read(unit_base(iso, i) + F.UNIT_NAME_PTR_OFF, 2),
@@ -1669,7 +1674,7 @@ def unit_name(iso, i):
 def write_unit(iso, i, edits):
     base = unit_base(iso, i)
     n = 0
-    for (lbl, o, w, _k) in F.UNIT_FIELDS:
+    for (lbl, o, w, _k) in F.UNIT_FIELDS + F.UNIT_AFFINITY_FIELDS:
         if lbl in edits and edits[lbl] is not None:
             v = max(0, min(int(edits[lbl]), (1 << (8 * w)) - 1))
             iso.write(base + o, v.to_bytes(w, "little"))
@@ -1681,8 +1686,8 @@ def sync_units(src, dst):
     recs = fields = 0
     for i in range(F.UNIT_COUNT):
         want, have = read_unit(src, i), read_unit(dst, i)
-        delta = {k: want[k] for k, _o, _w, _kk in F.UNIT_FIELDS
-                 if want[k] != have[k]}
+        delta = {k: want[k] for k, _o, _w, _kk in
+                 F.UNIT_FIELDS + F.UNIT_AFFINITY_FIELDS if want[k] != have[k]}
         if delta:
             fields += write_unit(dst, i, delta)
             recs += 1
@@ -1737,6 +1742,16 @@ def cmd_units(a):
             nm = unit_name(iso, i)
             print(f"{i:3} {nm:<12} {u['id']:>4}  " +
                   " ".join(f"{u[lbl]:>5}" for lbl, _o, _w, _k in F.UNIT_FIELDS))
+        if a.affinities:
+            print("\n" + " " * 21 + " ".join(f"{n:>7}" for n in F.AFFINITY_ELEMENTS))
+            for i in range(F.UNIT_COUNT):
+                pct = unit_affinity_pcts(read_unit(iso, i))
+                print(f"{i:3} {unit_name(iso, i):<17} " +
+                      " ".join(f"{pct[n]:>6}%" for n in F.AFFINITY_ELEMENTS))
+            print(f"\n({AFFINITY_NOTE})")
+            print("Retail leaves every unit flat at 100% on all eight, so nothing "
+                  "cross-checks\nthat the game reads this block for player characters "
+                  "— see the notes.")
     return 0
 
 def cmd_unit_set(a):
@@ -1744,9 +1759,10 @@ def cmd_unit_set(a):
     edits = {}
     for kv in a.set or []:
         k, _, v = kv.partition("=")
-        if k not in {f[0] for f in F.UNIT_FIELDS}:
+        allowed = [f[0] for f in F.UNIT_FIELDS + F.UNIT_AFFINITY_FIELDS]
+        if k not in allowed:
             raise SystemExit(f"unknown unit field {k!r} — one of "
-                             + ", ".join(f[0] for f in F.UNIT_FIELDS))
+                             + ", ".join(allowed))
         edits[k] = int(v, 0)
     if not edits:
         raise SystemExit("nothing to write — pass --set FIELD=VALUE")
@@ -2039,7 +2055,10 @@ def main():
     sp.set_defaults(fn=cmd_import_json)
 
     sp = sub.add_parser("units", help="list the player-unit table (characters + E.S.)")
-    sp.add_argument("iso"); sp.set_defaults(fn=cmd_units)
+    sp.add_argument("iso")
+    sp.add_argument("--affinities", action="store_true",
+                    help="also show each unit's eight damage affinities")
+    sp.set_defaults(fn=cmd_units)
 
     sp = sub.add_parser("unit-set", help="write fields of one player unit")
     sp.add_argument("iso"); sp.add_argument("index", type=int)

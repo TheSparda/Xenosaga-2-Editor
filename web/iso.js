@@ -24,7 +24,7 @@
   // one span so a single buffer covers both (x2fields.skill_span()).
   let KFIELDS, KSTRIDE, KBLOCKS, KSPAN, KELEM, KTARGETS, KTGT_ALL, SKILLS=null;
   // player units: 15 records before the enemy table, same 0x5C layout
-  let UFIELDS, USTRIDE, UCOUNT, UTABLES, UNITS=null;
+  let UFIELDS, UAFIELDS, USTRIDE, UCOUNT, UTAIL, UTABLES, UNITS=null;
   let TABLES=null;
   // Both retail discs carry the enemy tables, disc 2's copy 0x800 lower, so no
   // base can be fixed at load time — each opened disc carries its own (see DISCS).
@@ -63,6 +63,11 @@
     KELEM=(t.skill||{}).elementBits||{};
     KTARGETS=(t.skill||{}).targetNames||{}; KTGT_ALL=(t.skill||{}).targetAll||8;
     UFIELDS=(t.unit||{}).fields||[]; USTRIDE=(t.unit||{}).stride||92;
+    UAFIELDS=(t.unit||{}).affinityFields||[];
+    // the affinity block overhangs the record, so the LAST unit's Ice/Pierce/
+    // Slash/Hit live past count*stride — read the tail or they come back
+    // undefined and render as blank-and-changed (the Dark Erde Kaiser bug)
+    UTAIL=(t.unit||{}).recordTail||0;
     UCOUNT=(t.unit||{}).count||15; UTABLES=(t.unit||{}).tables||{};
     BOSS_ID_MIN=t.bossIdMin; CATKEYS=t.catalogKeys||{};
     CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{}; MAJOR_HP=t.majorHpThreshold;
@@ -372,7 +377,7 @@
     const rb=new Uint8Array(await f.slice(rBase,rBase+COUNT*RSTRIDE).arrayBuffer());
     const kbuf=new Uint8Array(await f.slice(kb,kb+KSPAN).arrayBuffer());
     const uBase=UTABLES[String(disc)];
-    const ubuf=new Uint8Array(await f.slice(uBase,uBase+UCOUNT*USTRIDE).arrayBuffer());
+    const ubuf=new Uint8Array(await f.slice(uBase,uBase+UCOUNT*USTRIDE+UTAIL).arrayBuffer());
 
     DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,kBase:kb,uBase,
                  size:f.size,backedUp:false};
@@ -677,6 +682,16 @@
       '<span id="ucount" class="muted small"></span></div>'+
       '<div id="udesc" class="note"></div>'+
       '<div id="urow"></div>'+
+      '<div class="affbox"><div class="fl">Damage affinities</div>'+
+        '<div id="urowAff"></div>'+
+        '<p class="note">100% is normal, lower resists, higher takes extra, <b>0% is immune</b> '+
+        'and <b>negative absorbs</b>. Stored as a signed byte ×5, so values move in 5% steps — '+
+        'the same block, at the same offset, as the enemy affinities.</p>'+
+        '<p class="note">Retail leaves every unit flat at 100% on all eight, so nothing '+
+        'cross-checks that the game reads this block for player characters the way it '+
+        'demonstrably does for enemies. The offsets are verified; the behaviour is inferred '+
+        'from the shared record structure. Worth knowing before you rely on it.</p>'+
+      '</div>'+
       '<div id="uretail" class="note"></div>'+
       '<details class="help"><summary>About the unit table</summary>'+
       '<p class="note">These are the values a <b>new game</b> hands each character and E.S. '+
@@ -987,12 +1002,18 @@
     $("#urow").innerHTML='<table class="fieldtable"><tbody><tr>'+UFIELDS.map(([l,o,w])=>
       cellHtml(l,i*USTRIDE+o,w,getAt(U,i*USTRIDE+o,w),getOrigAt(U,i*USTRIDE+o,w)))
       .join("")+'</tr></tbody></table>';
-    document.querySelectorAll("#urow input").forEach(inp=>{
+    // signed-byte percentages, so these need the pct flag like enemy affinities
+    $("#urowAff").innerHTML='<table class="fieldtable"><tbody><tr>'+UAFIELDS.map(([l,o,w])=>
+      cellHtml(l,i*USTRIDE+o,w,affPct(getAt(U,i*USTRIDE+o,w)),
+               affPct(getOrigAt(U,i*USTRIDE+o,w)),true))
+      .join("")+'</tr></tbody></table>';
+    document.querySelectorAll("#urow input, #urowAff input").forEach(inp=>{
       let btn=inp.nextElementSibling;
       if(!btn||!btn.classList.contains("restore")){btn=document.createElement("button");
         btn.type="button";btn.className="restore";btn.textContent="↺";inp.after(btn);}
       const refresh=()=>{
-        putAt(U,+inp.dataset.o,+inp.dataset.w,+inp.value);
+        putAt(U,+inp.dataset.o,+inp.dataset.w,
+              inp.dataset.pct ? affByte(inp.value) : +inp.value);
         const ch=String(inp.value)!==String(inp.getAttribute("data-def"));
         inp.classList.toggle("changed",ch);btn.classList.toggle("show",ch);
         paintUnitRetail(i); epending();};
@@ -1005,10 +1026,12 @@
     const v=unitInfo(i); const el=$("#uretail"); if(!el) return;
     if(!v){ el.textContent=""; return; }
     const off=[];
-    for(const [l,o,w] of UFIELDS){
+    for(const [l,o,w] of UFIELDS.concat(UAFIELDS)){
       const van=v[l]; if(van===undefined) continue;
       const cur=getAt(U,i*USTRIDE+o,w); if(cur===van) continue;
-      off.push(esc(l)+" "+cur.toLocaleString()+" (retail "+van.toLocaleString()+")");
+      const aff=UAFIELDS.some(x=>x[0]===l);
+      off.push(esc(l)+" "+(aff?affPct(cur)+"%":cur.toLocaleString())+
+               " (retail "+(aff?affPct(van)+"%":van.toLocaleString())+")");
     }
     el.innerHTML=off.length
       ? '<span class="verdict off">● '+off.join(" · ")+'</span>'
@@ -1357,9 +1380,12 @@
     }
     for(let i=0;i<UCOUNT;i++){
       let cells="";
-      for(const [l,o,w] of UFIELDS){
+      for(const [l,o,w] of UFIELDS.concat(UAFIELDS)){
         const a=getOrigAt(U,i*USTRIDE+o,w), b=getAt(U,i*USTRIDE+o,w);
-        if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
+        if(a===b) continue;
+        const aff=UAFIELDS.some(x=>x[0]===l);
+        cells+=row(l, aff?affPct(a)+"%":a.toLocaleString(),
+                      aff?affPct(b)+"%":b.toLocaleString());
       }
       if(cells) rows+='<div class="revgrp">unit '+String(i).padStart(2,"0")+' · '+
         esc(unitName(i))+'</div>'+cells;

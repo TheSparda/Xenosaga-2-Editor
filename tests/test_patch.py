@@ -159,6 +159,43 @@ class TestUnits(PatchCase):
             # and the enemy table right after it must be untouched too
             self.assertEqual(X.diff_vanilla(iso), {})
 
+    def test_affinities_read_and_write_including_the_last_record(self):
+        # the block straddles into the next record, so unit 14's slots 4-7 live
+        # PAST the table — the same overhang that once showed Dark Erde Kaiser's
+        # last four affinities as blank
+        p = self.fresh("unitaff.iso")
+        last = F.UNIT_COUNT - 1
+        with X.Iso(p) as iso:
+            neighbour = X.read_unit(iso, 1)
+        with X.Iso(p, write=True) as iso:
+            self.assertEqual(X.unit_affinity_pcts(X.read_unit(iso, last))["Hit"], 100)
+            X.write_unit(iso, last, {"Hit": F.affinity_byte(0)})     # immune
+            X.write_unit(iso, 0, {"Hit": F.affinity_byte(-200)})     # absorbs
+        with X.Iso(p) as iso:
+            self.assertEqual(X.unit_affinity_pcts(X.read_unit(iso, last))["Hit"], 0)
+            self.assertEqual(X.unit_affinity_pcts(X.read_unit(iso, 0))["Hit"], -200)
+            # unit 0's Hit slot physically lives in unit 1's first bytes, so this
+            # is the case where a careless write WOULD corrupt the neighbour
+            after = X.read_unit(iso, 1)
+            self.assertEqual({k: after[k] for k, _o, _w, _kk in F.UNIT_FIELDS},
+                             {k: neighbour[k] for k, _o, _w, _kk in F.UNIT_FIELDS},
+                             "writing unit 0's Hit disturbed unit 1's stats")
+            self.assertEqual(X.diff_vanilla(iso), {}, "the enemy table is untouched")
+
+    def test_record_tail_covers_the_overhang(self):
+        reach = max(o + w for _l, o, w, _k in
+                    F.UNIT_FIELDS + F.UNIT_AFFINITY_FIELDS)
+        self.assertEqual(F.unit_record_tail(), reach - F.ENEMY_STRIDE)
+        self.assertGreater(F.unit_record_tail(), 0,
+                           "the affinity block does overhang — the tail cannot be 0")
+
+    def test_cli_accepts_affinity_fields(self):
+        p = self.fresh("unitaffcli.iso")
+        self.run_cli("unit-set", p, "0", "--set", f"Ice={F.affinity_byte(50)}")
+        with X.Iso(p) as iso:
+            self.assertEqual(X.unit_affinity_pcts(X.read_unit(iso, 0))["Ice"], 50)
+        self.assertIn("Beam", self.run_cli("units", p, "--affinities"))
+
     def test_cli_lists_and_writes(self):
         p = self.fresh("unitcli.iso")
         out = self.run_cli("units", p)
