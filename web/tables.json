@@ -299,12 +299,40 @@
       "1": [
         ["ether", 33586336, 57, 0],
         ["double", 33588224, 29, 59],
-        ["dual tech", 33567456, 16, 200]
+        ["dual tech", 33567456, 16, 200],
+        ["chaos tech", 33564896, 7, 220],
+        ["KOS-MOS tech", 33565120, 7, 227],
+        ["Shion tech", 33565344, 3, 234],
+        ["Jin tech", 33565440, 7, 237],
+        ["Ziggy tech", 33565664, 6, 244],
+        ["MOMO tech", 33565856, 3, 250],
+        ["Jr. tech", 33565952, 7, 253],
+        ["Dinah attack", 33566176, 3, 260],
+        ["Dinah special", 33566272, 7, 263],
+        ["Zebulun attack", 33566496, 3, 270],
+        ["Zebulun special", 33566592, 7, 273],
+        ["Asher attack", 33566816, 3, 280],
+        ["Asher special", 33566912, 7, 283],
+        ["KOS-MOS special", 33567136, 4, 290]
       ],
       "2": [
         ["ether", 33584288, 57, 0],
         ["double", 33586176, 29, 59],
-        ["dual tech", 33565408, 16, 200]
+        ["dual tech", 33565408, 16, 200],
+        ["chaos tech", 33562848, 7, 220],
+        ["KOS-MOS tech", 33563072, 7, 227],
+        ["Shion tech", 33563296, 3, 234],
+        ["Jin tech", 33563392, 7, 237],
+        ["Ziggy tech", 33563616, 6, 244],
+        ["MOMO tech", 33563808, 3, 250],
+        ["Jr. tech", 33563904, 7, 253],
+        ["Dinah attack", 33564128, 3, 260],
+        ["Dinah special", 33564224, 7, 263],
+        ["Zebulun attack", 33564448, 3, 270],
+        ["Zebulun special", 33564544, 7, 273],
+        ["Asher attack", 33564768, 3, 280],
+        ["Asher special", 33564864, 7, 283],
+        ["KOS-MOS special", 33565088, 4, 290]
       ]
     },
     "elementBits": {
@@ -325,7 +353,7 @@
       ["EffPct", 18, 2],
       ["EffMask", 20, 2]
     ],
-    "span": 21700,
+    "span": 24260,
     "stride": 32,
     "targetAll": 8,
     "targetNames": {

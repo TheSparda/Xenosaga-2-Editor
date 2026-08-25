@@ -243,14 +243,42 @@ def keyitem_names():
 # read as sixteen identical 20-power skills under the ether layout". They read as
 # identical 20-power skills because single techs genuinely all have power 20 in
 # vanilla — the layout was right all along.
+# The single-tech, E.S.-attack and special-attack blocks (2026-08-24, second
+# pass) were verified the same way the dual techs were, but stronger: mapping
+# each block to its name-pool group in order, then checking that every record
+# the HardType mod patches takes the readme's published power for the name the
+# mapping assigns — 71 of 71 exact, zero mismatches, zero untouched. The name
+# pool for these lives far from the records, at SINGLE_NAME_POOL (a menu string
+# area: "Spirit Touch", "T-ARTS 1", "MINIGUN"...), with explicit "Shion
+# reserve"-style placeholder entries padding the 3-tech characters to 7.
+_D1 = (
+    ("ether",           0x2007CA0, 57,   0),
+    ("double",          0x2008400, 29,  59),
+    ("dual tech",       0x20032E0, 16, 200),
+    ("chaos tech",      0x20028E0,  7, 220),
+    ("KOS-MOS tech",    0x20029C0,  7, 227),
+    ("Shion tech",      0x2002AA0,  3, 234),
+    ("Jin tech",        0x2002B00,  7, 237),
+    ("Ziggy tech",      0x2002BE0,  6, 244),
+    ("MOMO tech",       0x2002CA0,  3, 250),
+    ("Jr. tech",        0x2002D00,  7, 253),
+    ("Dinah attack",    0x2002DE0,  3, 260),
+    ("Dinah special",   0x2002E40,  7, 263),
+    ("Zebulun attack",  0x2002F20,  3, 270),
+    ("Zebulun special", 0x2002F80,  7, 273),
+    ("Asher attack",    0x2003060,  3, 280),
+    ("Asher special",   0x20030C0,  7, 283),
+    ("KOS-MOS special", 0x20031A0,  4, 290),
+)
 SKILL_BLOCKS = {
-    1: (("ether", 0x2007CA0, 57, 0), ("double", 0x2008400, 29, 59),
-        ("dual tech", 0x20032E0, 16, 200)),
-    2: (("ether", 0x20074A0, 57, 0), ("double", 0x2007C00, 29, 59),
-        ("dual tech", 0x2002AE0, 16, 200)),
+    1: _D1,
+    2: tuple((n, b - 0x800, c, t) for (n, b, c, t) in _D1),
 }
 TECH_NAME_POOL = {1: 0x200FC10, 2: 0x200F410}
 TECH_TEXT0 = 200
+# menu-string pool holding the single/attack/special names, disc 2 -0x800
+SINGLE_NAME_POOL = {1: 0x1D86349, 2: 0x1D85B49}
+TECH_TEXT0_SINGLE = 220
 SKILL_STRIDE = 32
 
 # TARGETING (VERIFIED 2026-08-24) — who a skill can be aimed at, and whether it

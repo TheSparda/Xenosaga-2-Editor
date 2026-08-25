@@ -663,9 +663,11 @@
       'so it pairs with the enemy damage affinities on the Enemies tab. <b>EffPct</b> and '+
       '<b>EffMask</b> drive the status effect a skill applies; they are verified as fields but '+
       'their encoding is only partly decoded, so treat them as advanced.</p>'+
-      '<p class="note">Only the '+skillKeys().length+' Ether and Double skills have verified numeric '+
-      'records. The tech and combo blocks use a different layout and are deliberately not '+
-      'editable here rather than written blind — the Reference tab lists all 174 by name.</p>'+
+      '<p class="note">All '+skillKeys().length+' verified records are editable: Ether and Double '+
+      'skills, Dual techs, every character\'s single techs, E.S. attacks and Special attacks. '+
+      'The tech blocks were unlocked by cross-checking a third-party mod\'s published numbers '+
+      'against its patch bytes — 71 of 71 matched. Techs cost no EP (their EP field is genuinely '+
+      '0); Power, Element and Target work exactly as for ethers.</p>'+
       '</div>'+
       '</div>'+                              // /pane-skill
       '<div id="pane-unit" hidden>'+

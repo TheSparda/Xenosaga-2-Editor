@@ -2947,5 +2947,1337 @@
    "effMask": 0,
    "target": 34
   }
+ },
+ "220": {
+  "desc": "",
+  "ep": null,
+  "name": "Spirit Touch",
+  "placeholder": false,
+  "tags": [
+   "chaos tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 130,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "221": {
+  "desc": "",
+  "ep": null,
+  "name": "Angel Blast",
+  "placeholder": false,
+  "tags": [
+   "chaos tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 130,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "222": {
+  "desc": "",
+  "ep": null,
+  "name": "Divine Seal",
+  "placeholder": false,
+  "tags": [
+   "chaos tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 130,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "223": {
+  "desc": "",
+  "ep": null,
+  "name": "Spirit Cross",
+  "placeholder": false,
+  "tags": [
+   "chaos tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 130,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "224": {
+  "desc": "",
+  "ep": null,
+  "name": "Spirit Strike",
+  "placeholder": false,
+  "tags": [
+   "chaos tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 386,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "225": {
+  "desc": "",
+  "ep": null,
+  "name": "Angel Shot",
+  "placeholder": false,
+  "tags": [
+   "chaos tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 130,
+   "power": 21,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "226": {
+  "desc": "",
+  "ep": null,
+  "name": "Heaven's Wrath",
+  "placeholder": false,
+  "tags": [
+   "chaos tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 130,
+   "power": 22,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "227": {
+  "desc": "",
+  "ep": null,
+  "name": "T-ARTS 1",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "228": {
+  "desc": "",
+  "ep": null,
+  "name": "T-ARTS 2",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "229": {
+  "desc": "",
+  "ep": null,
+  "name": "T-ARTS 3",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "230": {
+  "desc": "",
+  "ep": null,
+  "name": "T-ARTS 4",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "231": {
+  "desc": "",
+  "ep": null,
+  "name": "T-ARTS 5",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 640,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "232": {
+  "desc": "",
+  "ep": null,
+  "name": "T-ARTS 6",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 21,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "233": {
+  "desc": "",
+  "ep": null,
+  "name": "T-ARTS 7",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 22,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "234": {
+  "desc": "",
+  "ep": null,
+  "name": "Electro Shot",
+  "placeholder": false,
+  "tags": [
+   "Shion tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 4,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "235": {
+  "desc": "",
+  "ep": null,
+  "name": "Electro Ray",
+  "placeholder": false,
+  "tags": [
+   "Shion tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 21,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "236": {
+  "desc": "",
+  "ep": null,
+  "name": "Electro Blast",
+  "placeholder": false,
+  "tags": [
+   "Shion tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 4,
+   "power": 22,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "237": {
+  "desc": "",
+  "ep": null,
+  "name": "Tempest Blade",
+  "placeholder": false,
+  "tags": [
+   "Jin tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "238": {
+  "desc": "",
+  "ep": null,
+  "name": "Wind Blade",
+  "placeholder": false,
+  "tags": [
+   "Jin tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "239": {
+  "desc": "",
+  "ep": null,
+  "name": "Spinning Blade",
+  "placeholder": false,
+  "tags": [
+   "Jin tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "240": {
+  "desc": "",
+  "ep": null,
+  "name": "Rising Blade",
+  "placeholder": false,
+  "tags": [
+   "Jin tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "241": {
+  "desc": "",
+  "ep": null,
+  "name": "Tornado Strike",
+  "placeholder": false,
+  "tags": [
+   "Jin tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 640,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "242": {
+  "desc": "",
+  "ep": null,
+  "name": "Soaring Blade",
+  "placeholder": false,
+  "tags": [
+   "Jin tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 21,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "243": {
+  "desc": "",
+  "ep": null,
+  "name": "Raptor",
+  "placeholder": false,
+  "tags": [
+   "Jin tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 22,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "244": {
+  "desc": "",
+  "ep": null,
+  "name": "Combo One",
+  "placeholder": false,
+  "tags": [
+   "Ziggy tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 136,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "245": {
+  "desc": "",
+  "ep": null,
+  "name": "Combo Two",
+  "placeholder": false,
+  "tags": [
+   "Ziggy tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 136,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "246": {
+  "desc": "",
+  "ep": null,
+  "name": "Combo Three",
+  "placeholder": false,
+  "tags": [
+   "Ziggy tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 136,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "247": {
+  "desc": "",
+  "ep": null,
+  "name": "Combo Four",
+  "placeholder": false,
+  "tags": [
+   "Ziggy tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 136,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "248": {
+  "desc": "",
+  "ep": null,
+  "name": "Burst Blow",
+  "placeholder": false,
+  "tags": [
+   "Ziggy tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 392,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "249": {
+  "desc": "",
+  "ep": null,
+  "name": "Burst Blade",
+  "placeholder": false,
+  "tags": [
+   "Ziggy tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 72,
+   "power": 21,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "250": {
+  "desc": "",
+  "ep": null,
+  "name": "Robin",
+  "placeholder": false,
+  "tags": [
+   "MOMO tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "251": {
+  "desc": "",
+  "ep": null,
+  "name": "Lark",
+  "placeholder": false,
+  "tags": [
+   "MOMO tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 21,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "252": {
+  "desc": "",
+  "ep": null,
+  "name": "Sparrow",
+  "placeholder": false,
+  "tags": [
+   "MOMO tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 22,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "253": {
+  "desc": "",
+  "ep": null,
+  "name": "Quick Draw",
+  "placeholder": false,
+  "tags": [
+   "Jr. tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "254": {
+  "desc": "",
+  "ep": null,
+  "name": "Quick Turn",
+  "placeholder": false,
+  "tags": [
+   "Jr. tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "255": {
+  "desc": "",
+  "ep": null,
+  "name": "Quick Drop",
+  "placeholder": false,
+  "tags": [
+   "Jr. tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "256": {
+  "desc": "",
+  "ep": null,
+  "name": "Quick Shot",
+  "placeholder": false,
+  "tags": [
+   "Jr. tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "257": {
+  "desc": "",
+  "ep": null,
+  "name": "Cross Hand",
+  "placeholder": false,
+  "tags": [
+   "Jr. tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "258": {
+  "desc": "",
+  "ep": null,
+  "name": "Crossover",
+  "placeholder": false,
+  "tags": [
+   "Jr. tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 21,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "259": {
+  "desc": "",
+  "ep": null,
+  "name": "Killing Sky",
+  "placeholder": false,
+  "tags": [
+   "Jr. tech"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 22,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "260": {
+  "desc": "",
+  "ep": null,
+  "name": "Hand-to-hand",
+  "placeholder": false,
+  "tags": [
+   "Dinah attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "261": {
+  "desc": "",
+  "ep": null,
+  "name": "Beam Blaster",
+  "placeholder": false,
+  "tags": [
+   "Dinah attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "262": {
+  "desc": "",
+  "ep": null,
+  "name": "Beam Blaster",
+  "placeholder": false,
+  "tags": [
+   "Dinah attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 24,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "263": {
+  "desc": "",
+  "ep": null,
+  "name": "Spiral Fist",
+  "placeholder": false,
+  "tags": [
+   "Dinah special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 32,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "264": {
+  "desc": "",
+  "ep": null,
+  "name": "Tornado Fist",
+  "placeholder": false,
+  "tags": [
+   "Dinah special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 132,
+   "power": 42,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "265": {
+  "desc": "",
+  "ep": null,
+  "name": "Twin Dragons",
+  "placeholder": false,
+  "tags": [
+   "Dinah special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 45,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "266": {
+  "desc": "",
+  "ep": null,
+  "name": "Chained Blast",
+  "placeholder": false,
+  "tags": [
+   "Dinah special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 130,
+   "power": 41,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "267": {
+  "desc": "",
+  "ep": null,
+  "name": "Meteor Storm",
+  "placeholder": false,
+  "tags": [
+   "Dinah special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 8,
+   "power": 42,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "268": {
+  "desc": "",
+  "ep": null,
+  "name": "X-BUSTER",
+  "placeholder": false,
+  "tags": [
+   "Dinah special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 33,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 42
+  }
+ },
+ "269": {
+  "desc": "",
+  "ep": null,
+  "name": "Iron Blade",
+  "placeholder": false,
+  "tags": [
+   "Dinah special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 66,
+   "power": 58,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "270": {
+  "desc": "",
+  "ep": null,
+  "name": "Kick",
+  "placeholder": false,
+  "tags": [
+   "Zebulun attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "271": {
+  "desc": "",
+  "ep": null,
+  "name": "Archery",
+  "placeholder": false,
+  "tags": [
+   "Zebulun attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "272": {
+  "desc": "",
+  "ep": null,
+  "name": "Archery",
+  "placeholder": false,
+  "tags": [
+   "Zebulun attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 24,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "273": {
+  "desc": "",
+  "ep": null,
+  "name": "Rain Arrow",
+  "placeholder": false,
+  "tags": [
+   "Zebulun special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 42
+  }
+ },
+ "274": {
+  "desc": "",
+  "ep": null,
+  "name": "Starlight Arrow",
+  "placeholder": false,
+  "tags": [
+   "Zebulun special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 44,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "275": {
+  "desc": "",
+  "ep": null,
+  "name": "Golden Bow",
+  "placeholder": false,
+  "tags": [
+   "Zebulun special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 34,
+   "power": 42,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "276": {
+  "desc": "",
+  "ep": null,
+  "name": "Ice Rondo",
+  "placeholder": false,
+  "tags": [
+   "Zebulun special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 80,
+   "power": 44,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "277": {
+  "desc": "",
+  "ep": null,
+  "name": "Power Kick",
+  "placeholder": false,
+  "tags": [
+   "Zebulun special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 136,
+   "power": 50,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "278": {
+  "desc": "",
+  "ep": null,
+  "name": "Aird",
+  "placeholder": false,
+  "tags": [
+   "Zebulun special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 35,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 42
+  }
+ },
+ "279": {
+  "desc": "",
+  "ep": null,
+  "name": "Meteor Blast",
+  "placeholder": false,
+  "tags": [
+   "Zebulun special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 8,
+   "power": 60,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "280": {
+  "desc": "",
+  "ep": null,
+  "name": "Shield Lancer",
+  "placeholder": false,
+  "tags": [
+   "Asher attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "281": {
+  "desc": "",
+  "ep": null,
+  "name": "Gatling Gun",
+  "placeholder": false,
+  "tags": [
+   "Asher attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "282": {
+  "desc": "",
+  "ep": null,
+  "name": "Gatling Gun",
+  "placeholder": false,
+  "tags": [
+   "Asher attack"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 24,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "283": {
+  "desc": "",
+  "ep": null,
+  "name": "Shot Buster",
+  "placeholder": false,
+  "tags": [
+   "Asher special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 31,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "284": {
+  "desc": "",
+  "ep": null,
+  "name": "Gatling Blast",
+  "placeholder": false,
+  "tags": [
+   "Asher special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 45,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "285": {
+  "desc": "",
+  "ep": null,
+  "name": "Wings of Light",
+  "placeholder": false,
+  "tags": [
+   "Asher special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 66,
+   "power": 45,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 2
+  }
+ },
+ "286": {
+  "desc": "",
+  "ep": null,
+  "name": "Ice Storm",
+  "placeholder": false,
+  "tags": [
+   "Asher special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 16,
+   "power": 41,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "287": {
+  "desc": "",
+  "ep": null,
+  "name": "Corona Buster",
+  "placeholder": false,
+  "tags": [
+   "Asher special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 8,
+   "power": 41,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "288": {
+  "desc": "",
+  "ep": null,
+  "name": "Odin Buster",
+  "placeholder": false,
+  "tags": [
+   "Asher special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 57,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "289": {
+  "desc": "",
+  "ep": null,
+  "name": "Moonlight Blade",
+  "placeholder": false,
+  "tags": [
+   "Asher special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 2,
+   "power": 34,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 42
+  }
+ },
+ "290": {
+  "desc": "",
+  "ep": null,
+  "name": "MINIGUN",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 34,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "291": {
+  "desc": "",
+  "ep": null,
+  "name": "MICRO MISSILE",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 20,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 42
+  }
+ },
+ "292": {
+  "desc": "",
+  "ep": null,
+  "name": "DRAGON BLADE",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 37,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 34
+  }
+ },
+ "293": {
+  "desc": "",
+  "ep": null,
+  "name": "X-BUSTER",
+  "placeholder": false,
+  "tags": [
+   "KOS-MOS special"
+  ],
+  "target": "",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 40,
+   "effPct": 0,
+   "effMask": 0,
+   "target": 42
+  }
  }
 }
