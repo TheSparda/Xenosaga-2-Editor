@@ -560,6 +560,56 @@ step is the same one that worked for the enemy table: find a record table whose
 entry count and ordering line up with these 15, then confirm it against ground
 truth (a level-1 character's stats) rather than on shape alone. Not yet run.
 
+### 2026-08-24 — HardType as a labelled map (XS2HT v3.9, Landon Ray)
+
+A third-party difficulty mod, distributed as four PPF patches (one per disc,
+Normal and Hard). A PPF is a list of (offset, bytes), so the patch **is** a diff
+— and its readme publishes an exact value for most of what it changes. That
+makes it labelled ground truth: the readme says what, the patch says where.
+
+661 records per disc. Two tricks made it readable:
+
+* **Diff the two difficulty versions against each other.** 366 records differ
+  between Hard and Normal — those are the enemy buffs. The 294 identical ones
+  are the shared rebalance (skills, techs, gear, text), which is the interesting
+  half and is otherwise buried.
+* **Match published numbers to patched bytes.** Every Dual Tech power in the
+  readme lands at 32-byte stride from `0x20032E0` at `+0x0A`, in the readme's
+  own order — see the dual-tech block above, which this is how we found.
+
+Where the 661 records land:
+
+| region | records | status |
+|---|---|---|
+| enemy stats | 375 | editable |
+| **single techs + specials** | 71 | **located, not yet exposed** |
+| skill blocks (ether/double/dual) | 57 | editable |
+| enemy rewards + drops | 25 | editable |
+| skill/tech description text | 119 | text editing, not built |
+| **item/shop-like table @0x35EA60** | 4 | **new lead** |
+| duplicate text copies | 9 | same strings, 9 places on disc |
+
+**Single techs + specials** are all at `+0x0A` of a 32-byte record, spanning
+`0x20028EA..0x200320A` — the same Power field as every other skill block. What
+is missing is not the layout but the **name pools** needed to label them; the
+dual-tech pool at `0x200FC10` covers only dual techs, and "Minigun", "Quick
+Draw" and friends are not in it.
+
+**`0x35EA60`** is a table this project has never mapped. Entries look like
+6 bytes — `02 32 90 01 00 00`, `01 38 90 01 00 00` — reading as
+(category, id, u16, flags), where the u16 values (200, 400, 500, 600, 800, 1000,
+1200, 1500) look like **prices**. The mod's four edits there swap the *second*
+byte between entries (`0x13`↔`0x05`, `0x23`↔`0x26`), i.e. it changes which item
+an entry points at. This is the neighbourhood the notes list as BLOCKED for
+"shop stock/price tables". It is a lead, not a finding: nothing here is verified
+against ground truth yet.
+
+**Equip Abilities and E.S. Accessories** are named in the readme with exact
+values (+4 Str, Masamune +10, Gorgon Frame +60 Arm/Edef...) but no cluster of
+patched bytes carries those numbers. Either the mod achieves them by
+re-pointing ids (the `0x35EA60` edits) rather than editing effect values, or the
+values live somewhere the patch reaches through a route not yet traced.
+
 ### Retail baseline (`x2_enemies.json`)
 
 The catalog began as the eleven stat and reward numbers that could be checked
