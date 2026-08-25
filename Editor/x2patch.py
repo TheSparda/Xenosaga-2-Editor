@@ -960,6 +960,67 @@ def apply_xdelta(pristine, patch, out):
     _xdelta(["-d", "-f", "-s", pristine, patch, out], "decode")
     return os.path.getsize(out)
 
+# ---------------------------------------------------------------------------
+# PPF3.0 import — the format difficulty mods for this game actually ship in.
+# Same policy as everywhere else: only bytes that land in a mapped table are
+# written; everything else is reported, not silently applied. For a complete,
+# unreviewed application use a PPF tool or xdelta on a pristine image.
+# ---------------------------------------------------------------------------
+def parse_ppf(path):
+    """[(offset, bytes), ...] from a PPF3.0 file, honouring blockcheck/undo."""
+    b = open(path, "rb").read()
+    if b[:5] != b"PPF30":
+        raise SystemExit("not a PPF3.0 patch")
+    blockcheck, undo = b[57], b[58]
+    p = 60 + (1024 if blockcheck else 0)
+    recs = []
+    while p + 9 <= len(b):
+        off = int.from_bytes(b[p:p + 8], "little"); p += 8
+        n = b[p]; p += 1
+        recs.append((off, b[p:p + n])); p += n
+        if undo:
+            p += n
+    return recs
+
+def _mapped_spans(disc):
+    """[(base, length), ...] of every table this editor understands."""
+    t = F.enemy_tables(disc)
+    return [
+        (F.unit_tables(disc), F.UNIT_COUNT * F.ENEMY_STRIDE),
+        (t["stats"], F.ENEMY_COUNT * F.ENEMY_STRIDE + F.enemy_record_tail()),
+        (t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE),
+        (F.skill_base(disc), F.skill_span(disc)),
+    ]
+
+def cmd_apply_ppf(a):
+    """Apply a PPF's mapped records to a disc; report the unreachable rest."""
+    recs = parse_ppf(a.patch)
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        disc = iso.disc
+    spans = _mapped_spans(disc)
+    inside = lambda off, n: any(b <= off and off + n <= b + ln for b, ln in spans)
+    doable = [(o, d) for o, d in recs if inside(o, len(d))]
+    rest = len(recs) - len(doable)
+    print(f"{len(recs)} record(s) in the patch; {len(doable)} land in mapped "
+          f"tables ({sum(len(d) for _o, d in doable)} bytes)"
+          + (f"; {rest} do NOT (text/unmapped regions — use a PPF tool for those)"
+             if rest else ""))
+    if a.dry_run:
+        print("(dry run — nothing written)")
+        return 0
+    if not doable:
+        raise SystemExit("nothing this editor can apply")
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        for off, data in doable:
+            iso.write(off, data)
+    print(f"✓ wrote {len(doable)} record(s)")
+    if a.also:
+        _sync_to(a.iso, a.also)
+    return 0
+
 def cmd_xdelta_make(a):
     n = make_xdelta(a.pristine, a.iso, a.out)
     print(f"wrote {a.out}  ({n:,} bytes)")
@@ -1925,6 +1986,14 @@ def main():
     sp.add_argument("--show", type=int, default=20)
     sp.add_argument("--verbose", action="store_true", help="name every field touched")
     sp.set_defaults(fn=cmd_explain_diff)
+
+    sp = sub.add_parser("apply-ppf",
+                        help="apply a PPF3.0 patch's mapped records (mod import)")
+    sp.add_argument("iso"); sp.add_argument("patch")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--backup", action="store_true")
+    sp.add_argument("--also", metavar="OTHER_ISO")
+    sp.set_defaults(fn=cmd_apply_ppf)
 
     sp = sub.add_parser("xdelta-make",
                         help="create an xdelta patch (pristine ISO -> edited ISO)")

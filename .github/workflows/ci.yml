@@ -58,6 +58,9 @@ jobs:
       - name: VCDIFF encoder round-trips
         run: node web/tests/vcdiff.mjs
 
+      - name: PPF parser handles the format's flags
+        run: node web/tests/ppf.mjs
+
       - name: JSON is well formed
         run: |
           for f in web/*.json web/*.webmanifest Editor/*.json; do

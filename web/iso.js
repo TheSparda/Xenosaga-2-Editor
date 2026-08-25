@@ -697,6 +697,8 @@
       '<button id="erev" class="btn" disabled>↺ Revert all</button>'+
       '<span class="sep"></span>'+
       '<button id="pXdelta" class="btn">⬇ Export .xdelta…</button>'+
+      '<button id="pPpf" class="btn">⬆ Import .ppf…</button>'+
+      '<input type="file" id="ppfFile" accept=".ppf" hidden>'+
       '<span id="enemyActions" class="barGroup">'+
       '<button id="pExport" class="btn">⬇ Export patch…</button>'+
       '<button id="pImport" class="btn">⬆ Import patch…</button>'+
@@ -747,6 +749,8 @@
     $("#tFile").onchange=importTable;
     $("#pExport").onclick=exportPatch;
     $("#pXdelta").onclick=exportXdelta;
+    $("#pPpf").onclick=()=>$("#ppfFile").click();
+    $("#ppfFile").onchange=e=>{const f=e.target.files[0]; e.target.value=""; if(f)importPPF(f);};
     $("#pImport").onclick=()=>$("#pFile").click();
     $("#pFile").onchange=e=>{const f=e.target.files[0]; e.target.value=""; if(f)importPatch(f);};
     $("#pDiff").onclick=showRetailDiff;
@@ -1440,6 +1444,77 @@
       'interchangeable. If you want a source-verified, human-readable alternative, export a '+
       '<b>patch file</b> instead — that one names fields rather than byte offsets, and the '+
       'editor validates it on import.</div>');
+  }
+
+  // ---- PPF import -----------------------------------------------------------
+  // PPF3.0: "PPF30" magic, 50-byte description, then flags at +56..58
+  // (imagetype, blockcheck, undo), records of u64le offset + u8 len + bytes
+  // (+ undo bytes when that flag is set). This is the format the HardType mod
+  // ships in, and parsing it turns "balance my game like that mod" into: stage
+  // every byte the patch writes that lands in a table this editor maps, and
+  // say plainly what does not.
+  function parsePPF(bytes){
+    const b=new Uint8Array(bytes);
+    if(String.fromCharCode(...b.slice(0,5))!=="PPF30") throw new Error("not a PPF3.0 patch");
+    const blockcheck=b[57], undo=b[58];
+    let p=60+(blockcheck?1024:0);
+    const dv=new DataView(b.buffer), recs=[];
+    while(p+9<=b.length){
+      const off=Number(dv.getBigUint64(p,true)); p+=8;
+      const n=b[p]; p+=1;
+      recs.push({off,data:b.slice(p,p+n)}); p+=n;
+      if(undo) p+=n;
+    }
+    return recs;
+  }
+  // the edit buffers with their on-disc extents under disc `d`'s layout
+  function bufferMap(d){
+    const t=ETABLES[String(d)];
+    return [[S,t.stats],[R,t.rewards],[K,kBase(d)],[U,UTABLES[String(d)]]];
+  }
+  function ppfCoverage(recs,d){
+    let ok=0;
+    for(const {off,data} of recs)
+      for(const [T,base] of bufferMap(d))
+        if(off>=base && off+data.length<=base+T.buf.length){ ok+=data.length; break; }
+    return ok;
+  }
+  async function importPPF(file){
+    let recs;
+    try{ recs=parsePPF(await file.arrayBuffer()); }
+    catch(e){ toastFn("✗ "+e.message,true); return; }
+    if(!recs.length){ toastFn("✗ patch contains no records",true); return; }
+    // A disc-1 and a disc-2 PPF differ only by the 0x800 table shift, and the
+    // edit buffers are disc-agnostic — so interpret the offsets under whichever
+    // disc's layout explains more of the patch, and say which one that was.
+    const discs=Object.keys(ETABLES).map(Number);
+    const best=discs.map(d=>[ppfCoverage(recs,d),d]).sort((a,b)=>b[0]-a[0])[0];
+    const [covered,layout]=best;
+    if(!covered){ toastFn("✗ nothing in this patch lands in a table this editor maps",true); return; }
+    let staged=0, stagedBytes=0, skipped=0, skippedBytes=0;
+    for(const {off,data} of recs){
+      let hit=false;
+      for(const [T,base] of bufferMap(layout)){
+        if(off>=base && off+data.length<=base+T.buf.length){
+          T.buf.set(data, off-base); hit=true; break;
+        }
+      }
+      if(hit){ staged++; stagedBytes+=data.length; }
+      else { skipped++; skippedBytes+=data.length; }
+    }
+    loadEnemy(); loadSkill(); loadUnit(); checkBrkPlan(); paintBrkOpts(); epending();
+    const msg="✓ Staged "+staged+" of "+recs.length+" patch records ("+stagedBytes+" bytes) — review & Save";
+    $("#estat").textContent=msg; $("#estat").className="status ok";
+    toastFn(msg);
+    if(window.openInfo) await window.openInfo("PPF import",
+      '<div class="note">Read as a disc-'+layout+' patch. <b>'+staged+' record(s) staged</b> into '+
+      'the enemy, unit and skill tables — nothing is written until you review and Save.</div>'+
+      (skipped?'<div class="note">⚠ <b>'+skipped+' record(s) ('+skippedBytes+' bytes) were NOT '+
+        'staged</b>: they change parts of the disc this editor does not map — typically skill '+
+        'description text and menu strings. The gameplay numbers are what was staged; to apply '+
+        'the patch completely, use a PPF tool (or xdelta) on a pristine image instead.</div>':'')+
+      '<div class="note">Staging replaces those bytes\' current staged values, exactly as if '+
+      'you had typed them — Revert all undoes everything.</div>');
   }
 
   function patchStats(doc){
