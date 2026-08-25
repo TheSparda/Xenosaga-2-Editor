@@ -155,6 +155,13 @@ details.help .note:first-of-type{margin-top:6px}
 .rechead{margin:12px 0 2px;font-size:15px}
 .rechead .sub{color:var(--mut);font-size:13px}
 
+/* drop category / item pickers sit in a field row, so they need to match the
+   number inputs beside them rather than inherit the browser default */
+.fieldtable select{font:inherit;font-size:14px;padding:6px 8px;border-radius:8px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--ink);max-width:22ch}
+.fieldtable select:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.fieldtable select.changed{border-color:var(--warn);color:var(--warn);font-weight:600}
+
 /* the rename field */
 .kctl input[type=text]{font:inherit;font-size:14px;padding:7px 10px;border-radius:8px;
   border:1px solid var(--line);background:var(--panel2);color:var(--ink);

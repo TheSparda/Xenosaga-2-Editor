@@ -257,6 +257,36 @@ class TestSkillTargeting(unittest.TestCase):
                                      f"skill {i} has no retail Target to compare against")
 
 
+class TestDropItemNames(unittest.TestCase):
+    """Drop ids are picked by name, so every id an enemy uses must resolve."""
+
+    def test_every_retail_drop_id_names_an_item(self):
+        # a bare id is meaningless without its category's base — the editor
+        # knows the base, so the user should never have to
+        cat = F.enemy_catalog()
+        unresolved = []
+        for i, r in cat.items():
+            for c_key, i_key in (("dropcat", "dropitem"), ("rarecat", "rareitem")):
+                c, item = r[c_key], r[i_key]
+                if not c or not item:
+                    continue
+                if F.drop_item_name(c, item) is None:
+                    unresolved.append((i, r["name"], c, item))
+        self.assertEqual(unresolved, [],
+                         "these drops would show as bare numbers in the picker")
+
+    def test_the_categories_partition_one_table(self):
+        # E.S. gear from base 0, consumables from base 40 — each category runs
+        # until the next base starts, which is what bounds the dropdown
+        self.assertEqual(F.DROP_CAT_BASE[F.DROP_CAT_ES], 0)
+        self.assertEqual(F.DROP_CAT_BASE[F.DROP_CAT_CONSUMABLE], 40)
+        self.assertEqual(F.drop_item_name(F.DROP_CAT_CONSUMABLE, 1), "Med Kit S")
+        self.assertEqual(F.drop_item_name(F.DROP_CAT_ES, 1), "Auxiliary Armor A")
+        # the same raw id means different items in the two categories, which is
+        # exactly why the field cannot be shown as a plain number
+        self.assertNotEqual(F.drop_item_name(1, 14), F.drop_item_name(2, 14))
+
+
 class TestSkillNames(unittest.TestCase):
     """Renaming a skill in a packed string pool."""
 

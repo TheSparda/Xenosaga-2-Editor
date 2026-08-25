@@ -276,6 +276,25 @@
     return names.length?names.join("+"):"—";
   }
 
+  // Every id in a drop category, as [id, name]. The categories partition one
+  // unified item table by their bases (x2fields.DROP_CAT_BASE): E.S. gear from
+  // 0, consumables from 40, so each runs until the next base begins.
+  function dropItems(catByte){
+    const base=DROPBASE[String(catByte)];
+    if(base===undefined||!ITEMS) return [];
+    const bases=Object.values(DROPBASE).map(Number).sort((a,b)=>a-b);
+    const next=bases.find(b=>b>base);
+    const ids=Object.keys(ITEMS).map(Number).sort((a,b)=>a-b);
+    const end=next!==undefined?next:(ids[ids.length-1]+1);
+    const out=[];
+    for(let k=base;k<end;k++){
+      const e=ITEMS[String(k)];
+      if(!e) continue;
+      out.push([k-base+1, e.placeholder?("(unused #"+(k-base+1)+")"):e.name]);
+    }
+    return out;
+  }
+
   // mirrors x2fields.drop_label()
   function dropLabel(catByte,id,rate){
     if(!catByte||!id) return "nothing";
@@ -573,10 +592,13 @@
         '<table class="fieldtable"><tbody><tr id="erow4"></tr></tbody></table>'+
         '<div id="edrops" class="muted small"></div>'+
         '<p class="note">Two slots per enemy: a common drop and a rare one, each a '+
-        'percentage plus a category (0 nothing, 1 consumable, 2 E.S. gear) and a '+
-        '<b>1-based</b> item id within that category. Consumable ids are verified against '+
-        'the item catalog; E.S. gear ids are shown as bare numbers because that id space '+
-        'has not been pinned down yet.</p></div>'+
+        'percentage plus the item itself. Both are picked by <b>name</b> — the disc stores '+
+        'a category and a 1-based id within it, and the two categories are windows onto one '+
+        'unified item table (E.S. gear from id 1, consumables from id 1 of their own base), '+
+        'so a bare number is meaningless without knowing which window you are in.</p>'+
+        '<p class="note">Changing the category re-bases the id, so the item list reloads '+
+        'with it. Drop rates are verified against a strategy guide on 138 of 144 '+
+        'comparisons.</p></div>'+
       '<div class="affbox"><div class="fl">Status resistance (%)</div>'+
         '<table class="fieldtable"><tbody><tr id="erow5"></tr></tbody></table>'+
         '<p class="note">Higher resists the status more. Eight of the ten statuses a '+
@@ -856,8 +878,39 @@
       (eid>=BOSS_ID_MIN?" · boss":"")+'</span></td>';
     $("#erow5").innerHTML=RFIELDS_RES.map(([l,o,w])=>
       cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
-    $("#erow4").innerHTML=DFIELDS.map(([l,o,w])=>
-      cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("");
+    // Rates stay numeric; category and item id become named dropdowns. A bare
+    // "2" in an ITEM ID box is a number you have to go and look up, and looking
+    // it up needs the base-40 offset — the exact thing the editor already knows.
+    const dsel=(l,o,w,opts)=>{
+      const cur=get(R,i,o,w), def=getOrig(R,i,o,w);
+      const known=opts.some(([v])=>v===cur);
+      return '<td><div class="fl">'+l+'</div><span><select data-f="'+l+'" data-o="'+o+
+        '" data-w="'+w+'" data-def="'+def+'"'+(cur!==def?' class="changed"':'')+'>'+
+        opts.map(([v,t])=>'<option value="'+v+'"'+(v===cur?' selected':'')+'>'+
+          esc(t)+'</option>').join("")+
+        (known?'':'<option value="'+cur+'" selected>#'+cur+' (unknown)</option>')+
+        '</select></span></td>';
+    };
+    const catOpts=Object.keys(DROPCATS).map(Number).sort((a,b)=>a-b)
+      .map(v=>[v,DROPCATS[String(v)]]);
+    $("#erow4").innerHTML=DFIELDS.map(([l,o,w])=>{
+      if(l==="DropCat"||l==="RareCat") return dsel(l,o,w,catOpts);
+      if(l==="DropItem"||l==="RareItem"){
+        const cf=DFIELDS.find(x=>x[0]===(l==="DropItem"?"DropCat":"RareCat"));
+        const cv=cf?get(R,i,cf[1],cf[2]):0;
+        const opts=dropItems(cv);
+        return opts.length ? dsel(l,o,w,[[0,"— none —"]].concat(opts))
+                           : cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w));
+      }
+      return cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w));
+    }).join("");
+    document.querySelectorAll("#erow4 select").forEach(sel=>{
+      sel.onchange=()=>{
+        put(R,i,+sel.dataset.o,+sel.dataset.w,+sel.value);
+        // a category change re-bases the item list, so re-render the row
+        loadEnemy(); epending();
+      };
+    });
     $("#erow3").innerHTML=AFIELDS.map(([l,o,w])=>
       cellHtml(l,o,w,affPct(get(S,i,o,w)),affPct(getOrig(S,i,o,w)),true)).join("");
     // type, and whether the game will honour a break sequence at all

@@ -193,6 +193,17 @@ class TestDomReferences(unittest.TestCase):
         self.assertGreaterEqual(iso.count('class="fieldtable"'), 5,
                                 "not every stat table opts into the wrapping grid")
 
+    def test_drop_ids_are_pickers_not_number_boxes(self):
+        # "DROPITEM 2" tells you nothing; "Med Kit M" does
+        iso = read("iso.js")
+        self.assertIn("function dropItems", iso,
+                      "the drop item list builder is gone")
+        for f in ("DropCat", "RareCat", "DropItem", "RareItem"):
+            with self.subTest(f):
+                self.assertIn('l==="' + f + '"', iso,
+                              f"{f} is no longer routed to a named dropdown")
+        self.assertIn("#erow4 select", iso, "the drop selects are not wired")
+
     def test_engine_files_the_boot_loop_fetches_all_exist(self):
         m = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
         self.assertTrue(m, "could not find the engine file list in app.js")
