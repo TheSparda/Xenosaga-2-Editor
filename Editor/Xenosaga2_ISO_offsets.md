@@ -336,12 +336,10 @@ Open, in the order they are worth attempting:
   import cannot stage. Two constraints, both known: strings are packed and NUL-terminated,
   so a replacement must fit the existing budget; and several strings exist in ~9 duplicate
   copies across the disc that must be kept in step.
-- [ ] **Skill / class learning costs.** Not in the skill record (scanned: 0 of 24
-  name-matched skills had their published cost in any field of the 32-byte record), so it
-  is a separate table. Ground truth is unusually good — the skills guide publishes **110
-  Skill Point costs and 27 Class Point costs**, and the menu strings `Required C.Pt:` /
-  `Required S.Pt:` / `CLASS A..H` sit at `0x1D862AA`, just before the tech name pool.
-  Anchored-signature scan, same method as the EP column.
+- [~] **Skill / class learning costs.** Attempted and ruled out of the flat data region —
+  four hypotheses, zero matches, written up above. Blocked behind `XENOSAGA.01` with
+  character growth and shops. The 110 published costs are still the right ground truth
+  whenever that archive is opened.
 - [ ] **Equip abilities / E.S. accessory effects.** Still unlocated, and HardType gives no
   anchor: its readme names exact values (+4 Str, Masamune +10, Gorgon Frame +60) but no
   patched bytes carry them, so it re-points ids rather than editing effect values. Needs
@@ -605,6 +603,39 @@ consistent with the accuracy reading. Element sanity note: chaos's techs carry
 
 With these, **176 skill records are editable** — everything the HardType mod
 touches in the skill space is now reachable by this editor.
+
+### 2026-08-24 — Skill/class learning costs: NOT in the flat data region (NEGATIVE RESULT)
+
+Ground truth was excellent — `Guides/skills.rtf` publishes **110 Skill Point
+costs and 27 Class Point costs**, in class order, and the menu strings
+`Required C.Pt:` / `Required S.Pt:` / `CLASS A..H` sit at `0x1D862AA` just
+before the tech name pool. Distinct SP costs are
+100/150/200/300/400/500/600/800/1000/1200/1500/1800/2400/2800/3200/3600/4000/
+4800/7200/8000/9600; CP costs are 300/600/1200/2400/4800.
+
+Four hypotheses tested against `0x1D00000..0x2200000`, all **zero matches**:
+
+1. **A field of the 32-byte skill record.** 0 of 24 name-matched skills had
+   their published cost at any offset/width in the record. Learning cost is not
+   battle data — reasonable in hindsight.
+2. **Literal u16 costs in the guide's class order**, any stride 2..64: the
+   12-value anchor 200,150,100,100,200,200,100,100,150,100,150,150 never occurs.
+3. **A column indexed by skill text index**, strides 2..64: with 49 name-matched
+   (index, cost) anchors, no base/stride reproduced even 70% of them.
+4. **Byte-encoded costs** — every cost divides by 50, so `cost/50` fits a u8;
+   also tried `cost/100` and a rank into the 21 distinct values. None occurs at
+   any stride 1..48.
+
+The likely explanation is the one the notes already record for character growth
+and shops: the class/skill-learning tables are **dynamically loaded from
+`XENOSAGA.01`** rather than living at a static address in the flat region this
+project maps. Same blocker, same fix — a PCSX2 session, or unpacking that
+archive.
+
+Worth noting the earlier `0x35EA60` lead is *not* revived by this: its u16s
+(200/400/500/600/800/1000/1200/1500) all happen to be valid SP costs, which is
+why it looked promising, but scan 2 above covers that region and found nothing.
+Coincidence of value range is not identity — the same trap as `+0x04`.
 
 ### 2026-08-24 — Encounter rate: there is nothing to edit (NEGATIVE RESULT)
 
