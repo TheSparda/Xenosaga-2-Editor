@@ -252,7 +252,45 @@ SKILL_BLOCKS = {
 TECH_NAME_POOL = {1: 0x200FC10, 2: 0x200F410}
 TECH_TEXT0 = 200
 SKILL_STRIDE = 32
+
+# TARGETING (VERIFIED 2026-08-24) — who a skill can be aimed at, and whether it
+# hits one of them or all of them. This is the field that turns a single-target
+# skill into an AoE.
+#
+#   0x01 ally    0x02 enemy    0x04 self    |    0x08 = ALL rather than one
+#
+# so 0x21 one ally, 0x22 one enemy, 0x24 self, 0x29 all allies, 0x2A all enemies.
+#
+# It sits FOUR BYTES BEFORE the record base — i.e. at +0x1C of the preceding
+# record. That is not a guess to be tidied away: the first scan matched only 66%
+# at +0x1C of the record itself, and an alignment sweep found 98% one record
+# earlier. Reading at base-0x04 directly scores 100 of 101 against the target
+# written in each skill's own in-game description, and all three block-edge cases
+# (the first skill of ether, double and dual-tech) come out right, which is what
+# rules out an off-by-one in the block bases instead.
+#
+# The single failure is Revert (0x31). Every other value carries high nibble
+# 0x20; 0x31 does not, so something else is set there and it is left alone.
+SKILL_TARGET_OFF = -0x04
+SKILL_TARGET_SIDE = {0x01: "ally", 0x02: "enemy", 0x04: "self"}
+SKILL_TARGET_ALL = 0x08
+SKILL_TARGET_BASE = 0x20            # present on every verified value
+SKILL_TARGET_NAMES = {
+    0x21: "One ally", 0x22: "One enemy", 0x24: "Self",
+    0x29: "All allies", 0x2A: "All enemies",
+}
+
+def skill_target_text(v):
+    """0x2A -> 'All enemies'. Unrecognized values are shown raw, never guessed."""
+    if v in SKILL_TARGET_NAMES:
+        return SKILL_TARGET_NAMES[v]
+    side = SKILL_TARGET_SIDE.get(v & 0x07)
+    if side:
+        return ("all " if v & SKILL_TARGET_ALL else "one ") + side + f" (0x{v:02X})"
+    return f"0x{v:02X}"
+
 SKILL_NUM_FIELDS = [               # exposed, editable
+    ("Target",  SKILL_TARGET_OFF, 1, "num"),
     ("EP",      0x06, 1, "num"),
     ("Element", 0x08, 2, "num"),
     ("Power",   0x0A, 2, "num"),
@@ -298,9 +336,13 @@ def skill_record_off(disc, text_index):
     return None
 
 def skill_base(disc):
-    """Lowest address of the disc's skill blocks — the start of the one span a
-    front-end needs to read to cover both."""
-    return min(b for (_n, b, _c, _t) in skill_blocks(disc))
+    """Lowest address a front-end must read to cover every skill block.
+
+    Four bytes below the first block, because the Target field lives at
+    base-0x04 — without that the first record of the first block would address
+    outside the buffer.
+    """
+    return min(b for (_n, b, _c, _t) in skill_blocks(disc)) + SKILL_TARGET_OFF
 
 def skill_span(disc=1):
     """Bytes from the first skill block's base through the end of the last.
@@ -1016,6 +1058,10 @@ def web_tables():
             "stride": SKILL_STRIDE,
             "fields": fields(SKILL_NUM_FIELDS),
             "elementBits": SKILL_ELEMENT_BITS,
+            # so the front-end can show a named target instead of a byte
+            "targetNames": {str(k): v for k, v in sorted(SKILL_TARGET_NAMES.items())},
+            "targetSide": {str(k): v for k, v in sorted(SKILL_TARGET_SIDE.items())},
+            "targetAll": SKILL_TARGET_ALL,
         },
         "catalogKeys": ENEMY_CATALOG_KEY,
         # Battle-pacing profiles, so the web ISO editor runs the same numbers as

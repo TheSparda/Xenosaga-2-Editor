@@ -1577,16 +1577,18 @@ def _skill_off(iso, i):
     return off
 
 def read_skill_at(iso, off):
-    """Named numeric fields of the 32-byte skill record at an absolute offset."""
-    rec = iso.read(off, F.SKILL_STRIDE)
-    return {lbl: int.from_bytes(rec[o:o + w], "little")
+    """Named numeric fields of the skill record based at an absolute offset.
+
+    Reads each field at base+offset rather than slicing a single 32-byte buffer:
+    Target is at -0x04, and a negative index into a bytes object silently reads
+    from the far end instead of failing.
+    """
+    return {lbl: int.from_bytes(iso.read(off + o, w), "little")
             for (lbl, o, w, _k) in F.SKILL_NUM_FIELDS}
 
 def read_skill(iso, i):
     """Named numeric fields of the skill at TEXT INDEX `i`."""
-    rec = iso.read(_skill_off(iso, i), F.SKILL_STRIDE)
-    return {lbl: int.from_bytes(rec[off:off + w], "little")
-            for (lbl, off, w, _k) in F.SKILL_NUM_FIELDS}
+    return read_skill_at(iso, _skill_off(iso, i))
 
 def write_skill(iso, i, edits):
     """Write named numeric fields of the skill at TEXT INDEX `i`."""

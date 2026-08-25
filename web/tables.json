@@ -318,14 +318,28 @@
       "Thunder": 4
     },
     "fields": [
+      ["Target", -4, 1],
       ["EP", 6, 1],
       ["Element", 8, 2],
       ["Power", 10, 2],
       ["EffPct", 18, 2],
       ["EffMask", 20, 2]
     ],
-    "span": 21696,
-    "stride": 32
+    "span": 21700,
+    "stride": 32,
+    "targetAll": 8,
+    "targetNames": {
+      "33": "One ally",
+      "34": "One enemy",
+      "36": "Self",
+      "41": "All allies",
+      "42": "All enemies"
+    },
+    "targetSide": {
+      "1": "ally",
+      "2": "enemy",
+      "4": "self"
+    }
   },
   "volumeId": "XENOSAGA_II"
 }

@@ -66,7 +66,7 @@ def main(argv):
             # the retail baseline the editor compares against
             "numeric": {"ep": rec["EP"], "element": rec["Element"],
                         "power": rec["Power"], "effPct": rec["EffPct"],
-                        "effMask": rec["EffMask"]},
+                        "effMask": rec["EffMask"], "target": rec["Target"]},
         }
     text = json.dumps({k: cat[k] for k in sorted(cat, key=int)},
                       indent=1, ensure_ascii=False) + "\n"

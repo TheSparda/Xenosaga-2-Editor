@@ -13,7 +13,8 @@
    "element": 0,
    "ep": 2,
    "poolId": 1,
-   "power": 5
+   "power": 5,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -33,7 +34,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 2,
-   "power": 10
+   "power": 10,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -53,7 +55,8 @@
    "element": 0,
    "ep": 10,
    "poolId": 3,
-   "power": 5
+   "power": 5,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -73,7 +76,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 4,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -93,7 +97,8 @@
    "element": 0,
    "ep": 6,
    "poolId": 5,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -113,7 +118,8 @@
    "element": 0,
    "ep": 8,
    "poolId": 6,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -133,7 +139,8 @@
    "element": 0,
    "ep": 20,
    "poolId": 7,
-   "power": 5
+   "power": 5,
+   "target": 49
   },
   "placeholder": false,
   "tags": [],
@@ -153,7 +160,8 @@
    "element": 0,
    "ep": 6,
    "poolId": 8,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -173,7 +181,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 9,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -193,7 +202,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 10,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -213,7 +223,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 11,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -233,7 +244,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 12,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -253,7 +265,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 13,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -273,7 +286,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 14,
-   "power": 276
+   "power": 276,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -293,7 +307,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 15,
-   "power": 276
+   "power": 276,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -313,7 +328,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 16,
-   "power": 276
+   "power": 276,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -333,7 +349,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 17,
-   "power": 276
+   "power": 276,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -353,7 +370,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 18,
-   "power": 276
+   "power": 276,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -373,7 +391,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 19,
-   "power": 276
+   "power": 276,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -393,7 +412,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 20,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -413,7 +433,8 @@
    "element": 0,
    "ep": 6,
    "poolId": 21,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -433,7 +454,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 22,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -453,7 +475,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 23,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -473,7 +496,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 24,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -493,7 +517,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 25,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -513,7 +538,8 @@
    "element": 0,
    "ep": 2,
    "poolId": 26,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -533,7 +559,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 27,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -553,7 +580,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 28,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -573,7 +601,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 29,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -593,7 +622,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 30,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -613,7 +643,8 @@
    "element": 8,
    "ep": 6,
    "poolId": 31,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -636,7 +667,8 @@
    "element": 16,
    "ep": 6,
    "poolId": 32,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -659,7 +691,8 @@
    "element": 4,
    "ep": 6,
    "poolId": 33,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -682,7 +715,8 @@
    "element": 2,
    "ep": 6,
    "poolId": 34,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -705,7 +739,8 @@
    "element": 0,
    "ep": 8,
    "poolId": 35,
-   "power": 24
+   "power": 24,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -727,7 +762,8 @@
    "element": 2,
    "ep": 18,
    "poolId": 36,
-   "power": 26
+   "power": 26,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -750,7 +786,8 @@
    "element": 0,
    "ep": 18,
    "poolId": 37,
-   "power": 40
+   "power": 40,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -772,7 +809,8 @@
    "element": 0,
    "ep": 16,
    "poolId": 38,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -792,7 +830,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 39,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -812,7 +851,8 @@
    "element": 0,
    "ep": 8,
    "poolId": 40,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -832,7 +872,8 @@
    "element": 0,
    "ep": 10,
    "poolId": 41,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -852,7 +893,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 42,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -872,7 +914,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 43,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -892,7 +935,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 44,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -912,7 +956,8 @@
    "element": 0,
    "ep": 18,
    "poolId": 45,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -932,7 +977,8 @@
    "element": 0,
    "ep": 20,
    "poolId": 46,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -952,7 +998,8 @@
    "element": 0,
    "ep": 60,
    "poolId": 47,
-   "power": 20
+   "power": 20,
+   "target": 33
   },
   "placeholder": false,
   "tags": [],
@@ -972,7 +1019,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 48,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -992,7 +1040,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 49,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -1012,7 +1061,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 50,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -1032,7 +1082,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 51,
-   "power": 20
+   "power": 20,
+   "target": 36
   },
   "placeholder": false,
   "tags": [],
@@ -1052,7 +1103,8 @@
    "element": 0,
    "ep": 8,
    "poolId": 52,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1074,7 +1126,8 @@
    "element": 0,
    "ep": 8,
    "poolId": 53,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1097,7 +1150,8 @@
    "element": 0,
    "ep": 8,
    "poolId": 54,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1119,7 +1173,8 @@
    "element": 0,
    "ep": 50,
    "poolId": 55,
-   "power": 250
+   "power": 250,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1142,7 +1197,8 @@
    "element": 0,
    "ep": 50,
    "poolId": 56,
-   "power": 250
+   "power": 250,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1165,7 +1221,8 @@
    "element": 0,
    "ep": 50,
    "poolId": 57,
-   "power": 250
+   "power": 250,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1206,7 +1263,8 @@
    "element": 0,
    "ep": 2,
    "poolId": 80,
-   "power": 5
+   "power": 5,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1226,7 +1284,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 81,
-   "power": 10
+   "power": 10,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1246,7 +1305,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 82,
-   "power": 20
+   "power": 20,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1266,7 +1326,8 @@
    "element": 0,
    "ep": 6,
    "poolId": 83,
-   "power": 20
+   "power": 20,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1286,7 +1347,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 84,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1306,7 +1368,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 85,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1326,7 +1389,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 86,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1346,7 +1410,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 87,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1366,7 +1431,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 88,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1386,7 +1452,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 89,
-   "power": 276
+   "power": 276,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1406,7 +1473,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 90,
-   "power": 276
+   "power": 276,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1426,7 +1494,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 91,
-   "power": 276
+   "power": 276,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1446,7 +1515,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 92,
-   "power": 276
+   "power": 276,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1466,7 +1536,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 93,
-   "power": 276
+   "power": 276,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1486,7 +1557,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 94,
-   "power": 276
+   "power": 276,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1506,7 +1578,8 @@
    "element": 0,
    "ep": 6,
    "poolId": 95,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [],
@@ -1526,7 +1599,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 96,
-   "power": 20
+   "power": 20,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1546,7 +1620,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 97,
-   "power": 20
+   "power": 20,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1566,7 +1641,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 98,
-   "power": 20
+   "power": 20,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1586,7 +1662,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 99,
-   "power": 20
+   "power": 20,
+   "target": 41
   },
   "placeholder": false,
   "tags": [],
@@ -1606,7 +1683,8 @@
    "element": 8,
    "ep": 6,
    "poolId": 100,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1629,7 +1707,8 @@
    "element": 4,
    "ep": 6,
    "poolId": 101,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1652,7 +1731,8 @@
    "element": 16,
    "ep": 6,
    "poolId": 102,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1675,7 +1755,8 @@
    "element": 2,
    "ep": 6,
    "poolId": 103,
-   "power": 20
+   "power": 20,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1698,7 +1779,8 @@
    "element": 0,
    "ep": 8,
    "poolId": 104,
-   "power": 24
+   "power": 24,
+   "target": 42
   },
   "placeholder": false,
   "tags": [
@@ -1721,7 +1803,8 @@
    "element": 8,
    "ep": 6,
    "poolId": 105,
-   "power": 35
+   "power": 35,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -1744,7 +1827,8 @@
    "element": 4,
    "ep": 6,
    "poolId": 106,
-   "power": 35
+   "power": 35,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -1767,7 +1851,8 @@
    "element": 16,
    "ep": 6,
    "poolId": 107,
-   "power": 35
+   "power": 35,
+   "target": 34
   },
   "placeholder": false,
   "tags": [
@@ -1790,7 +1875,8 @@
    "element": 0,
    "ep": 4,
    "poolId": 108,
-   "power": 20
+   "power": 20,
+   "target": 34
   },
   "placeholder": false,
   "tags": [],
@@ -2588,7 +2674,8 @@
    "element": 80,
    "power": 110,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "201": {
@@ -2605,7 +2692,8 @@
    "element": 0,
    "power": 120,
    "effPct": 1124,
-   "effMask": 256
+   "effMask": 256,
+   "target": 41
   }
  },
  "202": {
@@ -2622,7 +2710,8 @@
    "element": 2,
    "power": 50,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 42
   }
  },
  "203": {
@@ -2639,7 +2728,8 @@
    "element": 32,
    "power": 84,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 42
   }
  },
  "204": {
@@ -2656,7 +2746,8 @@
    "element": 1,
    "power": 95,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "205": {
@@ -2673,7 +2764,8 @@
    "element": 128,
    "power": 110,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "206": {
@@ -2690,7 +2782,8 @@
    "element": 128,
    "power": 130,
    "effPct": 336,
-   "effMask": 1
+   "effMask": 1,
+   "target": 34
   }
  },
  "207": {
@@ -2707,7 +2800,8 @@
    "element": 0,
    "power": 90,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "208": {
@@ -2724,7 +2818,8 @@
    "element": 136,
    "power": 250,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "209": {
@@ -2741,7 +2836,8 @@
    "element": 64,
    "power": 150,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "210": {
@@ -2758,7 +2854,8 @@
    "element": 0,
    "power": 120,
    "effPct": 612,
-   "effMask": 1024
+   "effMask": 1024,
+   "target": 42
   }
  },
  "211": {
@@ -2775,7 +2872,8 @@
    "element": 0,
    "power": 120,
    "effPct": 868,
-   "effMask": 2048
+   "effMask": 2048,
+   "target": 41
   }
  },
  "212": {
@@ -2792,7 +2890,8 @@
    "element": 1,
    "power": 140,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "213": {
@@ -2809,7 +2908,8 @@
    "element": 128,
    "power": 170,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  },
  "214": {
@@ -2826,7 +2926,8 @@
    "element": 136,
    "power": 65,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 42
   }
  },
  "215": {
@@ -2843,7 +2944,8 @@
    "element": 2,
    "power": 150,
    "effPct": 0,
-   "effMask": 0
+   "effMask": 0,
+   "target": 34
   }
  }
 }
