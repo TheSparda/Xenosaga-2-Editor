@@ -165,6 +165,11 @@ table.brkopts .cut{color:var(--ok);font-weight:600}
 /* battle-pacing profiles (ISO tab) */
 .btn.prof{font-size:13px;padding:6px 11px}
 .btn.prof.on{border-color:var(--acc);color:var(--acc2)}
+/* the "?" that opens an explainer — sits beside a control, not in the flow */
+.helpq{width:20px;height:20px;padding:0;border-radius:50%;border:1px solid var(--line);
+  background:var(--panel2);color:var(--mut);font:600 12px inherit;line-height:1;cursor:help;
+  flex:0 0 auto}
+.helpq:hover{border-color:var(--acc);color:var(--acc2)}
 table.scl{width:auto;margin:4px 0 12px}
 table.scl th{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em;
   font-weight:600;padding:3px 8px;text-align:center}
@@ -230,3 +235,14 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
 .pickrow:hover,.pickrow.sel{background:var(--panel2)}
 .pickrow .pid{color:var(--mut);font:12px ui-monospace,monospace;min-width:2.5ch;text-align:right}
 .pickrow .pn{font-weight:600}.pickrow .pd{color:var(--mut);font-size:12px;margin-left:auto;max-width:50%;text-align:right}
+/* encounter-class explainer: one folding section per class, then rows shaped
+   like a picker row but read-only (no pointer, no hover) — these are a listing
+   rather than a choice */
+.clsgrp{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-top:10px}
+.clsgrp summary{cursor:pointer;color:var(--acc2);font-size:13px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em}
+.clsgrp>.note{margin:8px 0}
+.clsrow{display:flex;gap:9px;padding:4px 6px;border-bottom:1px solid var(--line);align-items:baseline}
+.clsrow .cid{color:var(--mut);font:12px ui-monospace,monospace;min-width:3.5ch;text-align:right}
+.clsrow .cn{font-weight:600;font-size:14px}
+.clsrow .cw{color:var(--mut);font-size:12px;margin-left:auto;max-width:60%;text-align:right}

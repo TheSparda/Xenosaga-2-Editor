@@ -794,6 +794,8 @@ def t_web_parity(_iso, _tmp):
     enc = web.get("encounter", {})
     eq(enc.get("classes"), list(F.ENCOUNTER_CLASSES), "encounter classes")
     eq(enc.get("labels"), F.ENCOUNTER_LABELS, "encounter labels")
+    # the "?" explainer on both tabs renders this, so it has to be the same text
+    eq(enc.get("notes"), json.loads(json.dumps(F.ENCOUNTER_NOTES)), "encounter notes")
     eq({int(k): v for k, v in enc.get("byIndex", {}).items()},
        {i: c for i, c in F.encounter_classes().items() if c in ("boss", "superboss")},
        "encounter class per record")

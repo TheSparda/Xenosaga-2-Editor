@@ -196,6 +196,10 @@ Coliseum's Dark Erde Kaiser, and the English-exclusive Mikumari / Baal Zebul / P
 so the presets raise what those pay out but leave their HP exactly as designed. Debug/unused
 records are never touched.
 
+A curated table is only worth trusting if you can read it, so the **?** beside the rows (and
+beside the Reference tab's filter) opens the reasoning, the sources, and every record in each
+class with the fight it belongs to.
+
 **Break sequences are editable too** — the combo loop's actual gate, rather than a stat
 multiplier. Every enemy stores the zones you must hit *in order* to Break it (zones are
 attack heights: **A** above 3 m, **B** 1–3 m, **C** below 1 m), and the editor exposes it as

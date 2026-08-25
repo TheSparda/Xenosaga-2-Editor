@@ -31,7 +31,7 @@
   ];
   // {index: "boss"|"superboss"} plus labels, from the generated tables. Anything
   // not listed is a random encounter (or a debug row) — mirrors x2fields.
-  let ECLASS={}, ELABELS={}, EWHERE={};
+  let ENC={}, ECLASS={}, ELABELS={}, EWHERE={};
   const isDummy=(r)=>!!r&&(/^[A-Z]{3}\d{3}$/.test(String(r.name||"").trim())||
                            (r.exp>0&&r.exp<100&&!r.sp&&!r.cp));
   const eclass=(id,v)=>isDummy(v)?"dummy":(ECLASS[id]||"random");
@@ -49,8 +49,8 @@
   async function loadClasses(){
     try{
       const t=await (await fetch("tables.json",{cache:"no-cache"})).json();
-      const enc=t.encounter||{};
-      ECLASS=enc.byIndex||{}; ELABELS=enc.labels||{}; EWHERE=enc.where||{};
+      ENC=t.encounter||{};
+      ECLASS=ENC.byIndex||{}; ELABELS=ENC.labels||{}; EWHERE=ENC.where||{};
     }catch(e){ /* filters fall back to "everything is a random encounter" */ }
   }
 
@@ -65,6 +65,9 @@
         '<label>Show</label> <select id="refGroup">'+GROUPS.map(g=>
           '<option value="'+g.key+'">'+esc((g.cls&&ELABELS[g.cls])||g.label)+
           '</option>').join("")+'</select>'+
+        '<button type="button" class="helpq" id="refClsHelp" title="How the three '+
+          'encounter classes were decided, and which enemies are in each" '+
+          'aria-label="About the encounter classes">?</button>'+
         '<label style="margin-left:8px">Sort</label> <select id="refSort">'+SORTS.map(s=>
           '<option value="'+s[0]+'">'+s[1]+'</option>').join("")+'</select>'+
         '<button id="refDir" class="btn" title="Reverse order">↑</button>'+
@@ -79,6 +82,11 @@
     });
     $("#refSearch").addEventListener("input",e=>{query=e.target.value.toLowerCase();render();});
     $("#refGroup").onchange=e=>{group=e.target.value;render();};
+    $("#refClsHelp").onclick=async()=>{
+      const cat=await load(SECTIONS.find(s=>s.kind==="enemy"));
+      if(window.openInfo) window.openInfo("What counts as a boss",
+        window.encounterHelpHtml(ENC, cat, (i)=>eclass(i,cat[i])));
+    };
     $("#refSort").onchange=e=>{sort=e.target.value;render();};
     $("#refDir").onclick=()=>{desc=!desc;$("#refDir").textContent=desc?"↓":"↑";render();};
     $("#refCsv").onclick=exportCsv;

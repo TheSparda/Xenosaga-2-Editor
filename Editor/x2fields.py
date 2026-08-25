@@ -956,6 +956,56 @@ ENCOUNTER_LABELS = {
     "superboss": "Super bosses",
 }
 
+# The same reasoning as the block above, written for a player rather than for
+# whoever maintains this file. Both front-ends show it behind the "?" next to
+# their class controls, so it lives here (and ships in tables.json) rather than
+# being retyped in JS where it could drift from the table it describes.
+ENCOUNTER_NOTES = {
+    "classes": {
+        "random": "Anything you meet in a normal field encounter — including the enemies "
+                  "roaming the optional post-game dungeons, which are ordinary encounters "
+                  "however much HP they carry.",
+        "boss": "Scripted fights on the way through the game: the story bosses, plus the "
+                "Global Samaritan side-quest bosses.",
+        "superboss": "The opt-in post-game tier — none of it can be reached before the "
+                     "credits. The Desert, Factory and Heaven's Ruins optional dungeons, the "
+                     "Space Coliseum's Dark Erde Kaiser, GS 28's level-scaling Mad Skelter, "
+                     "and the three English-version-exclusive superbosses (Mikumari, Baal "
+                     "Zebul, Phobos Rigas) that unlock only after the Dark Erde Kaiser quest.",
+    },
+    "why": [
+        "The disc never records what kind of fight a record is, so this is a curated table "
+        "cross-checked against published boss listings rather than a rule the game gives us. "
+        "It is keyed by record index because enemy ids repeat — 561, 549 and 713 each sit on "
+        "more than one record.",
+        "It is not HP. This editor used to call every record with 20,000+ retail HP a "
+        "\"major\" fight. That caught 21 of the 36 boss records, missed 15 of them — every "
+        "early story boss, the final boss, Orgulla, Zwerg Kape — and promoted one non-boss: "
+        "Arvakv, a 22,000 HP random encounter that spawns out of a Desert quicksand pit.",
+        "It is not the enemy id band either. The 561+ \"boss\" band mixes optional-dungeon "
+        "field Gnosis (Ai Apaec, Deion, Aiakos, Kazfa Jina, Okypete, Azazel, Armaros, Ashmed "
+        "Bapuz, Arvakv) in with real bosses, while genuine bosses like Nepos Rigas and Dullea "
+        "Soul sit up in the 700 band.",
+    ],
+    "presets": "The presets leave super-boss HP exactly as designed and only raise what those "
+               "fights pay out, since nobody is forced through them. Every row is yours to "
+               "edit if you want them cut too.",
+    "dummies": "Debug and unused records are never scaled, whatever the rows say.",
+    "sources": [
+        ["Major Boss Battle — lists every fight that uses the major boss theme",
+         "https://www.xenoserieswiki.org/wiki/Major_Boss_Battle"],
+        ["Minor Boss Battle (XS2) — the same, for the minor boss theme",
+         "https://www.xenoserieswiki.org/wiki/Minor_Boss_Battle_(XS2)"],
+        ["Heaven's Ruins — one of the three post-game optional dungeons (Desert and "
+         "Factory are linked from it)",
+         "https://www.xenoserieswiki.org/wiki/Heaven%27s_Ruins"],
+        ["Space Coliseum — where the Dark Erde Kaiser sidequest ends",
+         "https://www.xenoserieswiki.org/wiki/Space_Coliseum"],
+        ["Global Samaritan Campaign — the side quests that carry a boss",
+         "https://www.xenoserieswiki.org/wiki/Global_Samaritan_Campaign"],
+    ],
+}
+
 # {catalog index: (enemy id, catalog name, where it is fought)}. The id+name are
 # carried so the tests can prove the table still lines up with the catalog rather
 # than silently pointing at whatever record moved into that slot.
@@ -1198,6 +1248,8 @@ def web_tables():
         "encounter": {
             "classes": list(ENCOUNTER_CLASSES),
             "labels": ENCOUNTER_LABELS,
+            # the reasoning both tabs show behind their "?" control
+            "notes": ENCOUNTER_NOTES,
             "byIndex": {str(i): c for i, c in sorted(
                 [(i, "boss") for i in BOSS_RECORDS] +
                 [(i, "superboss") for i in SUPERBOSS_RECORDS])},
