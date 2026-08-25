@@ -22,7 +22,7 @@
   let DFIELDS, DROPCATS, DROP_CONSUMABLE, DROPBASE, RFIELDS_RES, ITEMS=null;
   // Ether + Double skill numeric records: two disjoint blocks per disc, read as
   // one span so a single buffer covers both (x2fields.skill_span()).
-  let KFIELDS, KSTRIDE, KBLOCKS, KSPAN, KELEM, SKILLS=null;
+  let KFIELDS, KSTRIDE, KBLOCKS, KSPAN, KELEM, KTARGETS, KTGT_ALL, SKILLS=null;
   let TABLES=null;
   // Both retail discs carry the enemy tables, disc 2's copy 0x800 lower, so no
   // base can be fixed at load time — each opened disc carries its own (see DISCS).
@@ -59,6 +59,7 @@
     KFIELDS=(t.skill||{}).fields||[]; KSTRIDE=(t.skill||{}).stride||32;
     KBLOCKS=(t.skill||{}).blocks||{}; KSPAN=(t.skill||{}).span||0;
     KELEM=(t.skill||{}).elementBits||{};
+    KTARGETS=(t.skill||{}).targetNames||{}; KTGT_ALL=(t.skill||{}).targetAll||8;
     BOSS_ID_MIN=t.bossIdMin; CATKEYS=t.catalogKeys||{};
     CAPS=t.fieldCaps||{}; PROFILES=t.profiles||{}; MAJOR_HP=t.majorHpThreshold;
     ETABLES=t.enemyTables||{"1":{stats:t.enemy.base,rewards:t.reward.base}};
@@ -241,6 +242,16 @@
     const v=skillInfo(i), k=KCATKEY[label];
     return (v&&v.numeric&&k&&v.numeric[k]!==undefined)?v.numeric[k]:undefined;
   }
+  // mirrors x2fields.skill_target_text() — never invents a name for a value
+  // the disc uses but we haven't verified
+  const SIDE={1:"ally",2:"enemy",4:"self"};
+  function targetText(v){
+    if(KTARGETS[String(v)]) return KTARGETS[String(v)];
+    const side=SIDE[v&7];
+    return side ? ((v&KTGT_ALL?"all ":"one ")+side+" (0x"+v.toString(16).toUpperCase()+")")
+                : "0x"+v.toString(16).toUpperCase();
+  }
+
   // mirrors x2fields.skill_element_text()
   function elementText(mask){
     const names=[]; let rest=mask;
@@ -625,6 +636,8 @@
         'class="chip mini" title="Clear search" aria-label="Clear search">✕</button></span>'+
       '<span id="kcount" class="muted small"></span></div>'+
       '<div id="kdesc" class="note"></div>'+
+      '<div id="ktarget" class="kctl"></div>'+
+      '<div id="kelemBox" class="kctl"></div>'+
       '<div id="krow"></div>'+
       '<div id="kelem" class="note"></div>'+
       '<div id="kretail" class="note"></div>'+
@@ -845,7 +858,35 @@
       (v.target?' <span class="muted">· '+esc(v.target)+'</span>':'')+
       ' <span class="muted">· '+esc(skillBlockName(i))+' block</span>'+
       (v.desc?'<br>'+esc(v.desc):'');
-    $("#krow").innerHTML='<table><tbody><tr>'+KFIELDS.map(([l,o,w])=>
+    // Ids are shown as what they mean, not as numbers: Target is a named
+    // dropdown and Element is one checkbox per element. A raw byte here is a
+    // number you have to go and look up, which is how you end up writing 0x2A
+    // when you meant "all allies".
+    const KTGT=KFIELDS.find(f=>f[0]==="Target"), KELE=KFIELDS.find(f=>f[0]==="Element");
+    const tv=getAt(K,base+KTGT[1],1), tdef=getOrigAt(K,base+KTGT[1],1);
+    const known=Object.keys(KTARGETS).map(Number);
+    if(known.indexOf(tv)<0) known.push(tv);          // keep an unverified value selectable
+    $("#ktarget").innerHTML='<div class="fl">Target</div><select id="ktsel">'+
+      known.sort((a,b)=>a-b).map(v=>'<option value="'+v+'"'+(v===tv?' selected':'')+'>'+
+        esc(targetText(v))+'</option>').join("")+'</select>'+
+      (tv!==tdef?' <span class="pill dirty">changed</span>':'');
+    $("#ktsel").onchange=()=>{ putAt(K,base+KTGT[1],1,+$("#ktsel").value);
+                               loadSkill(); epending(); };
+
+    const ev=getAt(K,base+KELE[1],KELE[2]);
+    $("#kelemBox").innerHTML='<div class="fl">Element</div>'+
+      Object.keys(KELEM).sort((a,b)=>KELEM[a]-KELEM[b]).map(n=>
+        '<label class="ebit"><input type="checkbox" data-bit="'+KELEM[n]+'"'+
+        ((ev&KELEM[n])?' checked':'')+'> '+esc(n)+'</label>').join("")+
+      '<span class="muted small"> = 0x'+ev.toString(16).toUpperCase()+'</span>';
+    document.querySelectorAll("#kelemBox input").forEach(cb=>cb.onchange=()=>{
+      let m=getAt(K,base+KELE[1],KELE[2]);
+      m = cb.checked ? (m | +cb.dataset.bit) : (m & ~(+cb.dataset.bit));
+      putAt(K,base+KELE[1],KELE[2], m>>>0); loadSkill(); epending();
+    });
+
+    const plain=KFIELDS.filter(f=>f[0]!=="Target" && f[0]!=="Element");
+    $("#krow").innerHTML='<table><tbody><tr>'+plain.map(([l,o,w])=>
       cellHtml(l,base+o,w,getAt(K,base+o,w),getOrigAt(K,base+o,w))).join("")+'</tr></tbody></table>';
     document.querySelectorAll("#krow input").forEach(inp=>{
       let btn=inp.nextElementSibling;
@@ -864,13 +905,16 @@
   // element mask in words, and how the record compares with an unmodified disc
   function paintSkillDerived(i){
     const base=skillOff(i); if(base<0) return;
-    const em=KFIELDS.find(x=>x[0]==="Element");
-    if(em) $("#kelem").textContent="Element: "+elementText(getAt(K,base+em[1],em[2]));
+    const em=KFIELDS.find(x=>x[0]==="Element"), tg=KFIELDS.find(x=>x[0]==="Target");
+    if(em&&tg) $("#kelem").textContent=
+      targetText(getAt(K,base+tg[1],1))+" · "+elementText(getAt(K,base+em[1],em[2]));
     const off=[];
     for(const [l,o,w] of KFIELDS){
       const van=skillRetail(i,l); if(van===undefined) continue;
       const cur=getAt(K,base+o,w); if(cur===van) continue;
-      off.push(esc(l)+" "+cur.toLocaleString()+" (retail "+van.toLocaleString()+")");
+      const fmt = l==="Target" ? targetText : l==="Element" ? elementText
+                                              : (v)=>v.toLocaleString();
+      off.push(esc(l)+" "+esc(String(fmt(cur)))+" (retail "+esc(String(fmt(van)))+")");
     }
     $("#kretail").innerHTML = off.length ? "Differs from retail: "+off.join(", ")
                                          : "Matches the retail values for this skill.";

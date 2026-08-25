@@ -131,6 +131,48 @@ class TestAffinities(PatchCase):
         self.assertIn(el, self.run_cli("enemies", self.iso, "--csv", "--affinities"))
 
 
+class TestSkillTargeting(unittest.TestCase):
+    """The field that turns a single-target skill into an AoE."""
+
+    def test_named_values(self):
+        for v, want in ((0x21, "One ally"), (0x22, "One enemy"), (0x24, "Self"),
+                        (0x29, "All allies"), (0x2A, "All enemies")):
+            self.assertEqual(F.skill_target_text(v), want)
+
+    def test_unverified_values_are_never_given_a_clean_name(self):
+        # Revert holds 0x31, whose high nibble differs from every verified value.
+        # It must read as something obviously raw rather than be tidied into
+        # "One ally", which is how a guess becomes a fact.
+        self.assertIn("0x31", F.skill_target_text(0x31))
+        self.assertEqual(F.skill_target_text(0xFF), "0xFF")
+
+    def test_the_all_bit_is_what_widens_a_skill(self):
+        for one, allv in ((0x21, 0x29), (0x22, 0x2A)):
+            self.assertEqual(one | F.SKILL_TARGET_ALL, allv)
+            self.assertTrue(F.skill_target_text(allv).startswith("All"))
+
+    def test_the_field_sits_before_the_record(self):
+        # a slice of a 32-byte read would index from the far END of the buffer
+        # for a negative offset, silently returning the wrong byte
+        self.assertEqual(F.SKILL_TARGET_OFF, -4)
+        spec = next(f for f in F.SKILL_NUM_FIELDS if f[0] == "Target")
+        self.assertEqual(spec[1], -4)
+
+    def test_the_read_buffer_starts_before_the_first_block(self):
+        # otherwise the first record of the first block addresses outside it
+        for disc in F.SKILL_BLOCKS:
+            first = min(b for _n, b, _c, _t in F.skill_blocks(disc))
+            self.assertEqual(F.skill_base(disc), first - 4)
+            self.assertLessEqual(first + F.SKILL_TARGET_OFF, F.skill_base(disc))
+
+    def test_every_editable_skill_has_a_retail_target(self):
+        cat = F.skill_catalog()
+        for i in F.skill_editable_indices(1):
+            with self.subTest(i):
+                self.assertIsNotNone((cat[i].get("numeric") or {}).get("target"),
+                                     f"skill {i} has no retail Target to compare against")
+
+
 class TestExplainDiff(unittest.TestCase):
     """Reading a third-party mod's bytes rather than trusting its description."""
 
