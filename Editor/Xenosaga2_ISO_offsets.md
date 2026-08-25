@@ -527,6 +527,51 @@ partition problem of exactly the kind `column_profile()` / `_partition_scores()`
 were written for — 15 known-unbreakable against 36 known-breakable, both sets
 name-matched to the guide, is unusually good ground truth. Not yet run.
 
+### 2026-08-24 — SINGLE TECHS / E.S. ATTACKS / SPECIALS SOLVED (all 74)
+
+The "located, not yet exposed" lead from the HardType map is closed. The missing
+piece was the name pool, which turned out to live nowhere near the records: it
+is a **menu-string area at `0x1D86349`** (disc 2 the usual `-0x800`), found by
+streaming the whole image for "Spirit Touch" after the data region came up
+empty. It lists every tech in block order — chaos(7), KOS-MOS T-ARTS(7),
+Shion(3 + four literal "Shion reserve" placeholders), Jin(7), Ziggy(6+1),
+MOMO(3+4), Jr.(7), then per-E.S. attack triplets interleaved with their
+7-special blocks, the dual techs again, and KOS-MOS's four specials.
+
+The mapping (block → pool group, record position → name) was verified the
+strong way: for every record the HardType mod patches in these blocks, the
+patched power must equal the readme's published number for the name the mapping
+assigns. **71 of 71 exact, zero mismatches, zero untouched.** Two shifts were
+caught and fixed on the way — the pool interleaves E.S. attacks with their
+specials rather than grouping all attacks first, and record order within a
+block follows the pool, not the `+0x16` string-id (Shion's three techs carry
+ids 5-7).
+
+Block bases (disc 1; all byte-identical on disc 2 at `-0x800`):
+
+| block | base | n | catalog idx |
+|---|---|---|---|
+| chaos tech | 0x20028E0 | 7 | 220 |
+| KOS-MOS tech | 0x20029C0 | 7 | 227 |
+| Shion tech | 0x2002AA0 | 3 | 234 |
+| Jin tech | 0x2002B00 | 7 | 237 |
+| Ziggy tech | 0x2002BE0 | 6 | 244 |
+| MOMO tech | 0x2002CA0 | 3 | 250 |
+| Jr. tech | 0x2002D00 | 7 | 253 |
+| Dinah attack / special | 0x2002DE0 / 0x2002E40 | 3 / 7 | 260 / 263 |
+| Zebulun attack / special | 0x2002F20 / 0x2002F80 | 3 / 7 | 270 / 273 |
+| Asher attack / special | 0x3060 / 0x30C0 (+0x2000000) | 3 / 7 | 280 / 283 |
+| KOS-MOS special | 0x20031A0 | 4 | 290 |
+
+Same 32-byte record, same fields — Power/Element/Target behave exactly as for
+ethers (Jin's techs read Slash, Jr.'s read Pierce, Rain Arrow's target reads
+"all enemies"). EP is genuinely 0 on every tech. `+0x00` holds 90/95/100 values
+consistent with the accuracy reading. Element sanity note: chaos's techs carry
+0x82 = Aura+Hit, which is also what his in-game flavour says.
+
+With these, **176 skill records are editable** — everything the HardType mod
+touches in the skill space is now reachable by this editor.
+
 ### 2026-08-24 — PLAYER UNIT TABLE SOLVED (15 records @ 0x1FFF020)
 
 The name anchor below led somewhere better than expected: the character records

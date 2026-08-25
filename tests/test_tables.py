@@ -202,6 +202,29 @@ class TestSkillSpan(unittest.TestCase):
         # one buffer size serves either disc only while this holds
         self.assertEqual(F.skill_span(1), F.skill_span(2))
 
+    def test_tech_blocks_map_to_their_verified_names(self):
+        # The name-to-record mapping was proven by cross-checking the HardType
+        # mod: 71/71 of its patched powers landed on the readme's number for the
+        # name the mapping assigns. These sentinels pin that mapping — if a block
+        # base or text0 drifts, a name lands on the wrong record and this fails
+        # before a user writes to it.
+        cat = F.skill_catalog()
+        for idx, name, power in ((220, "Spirit Touch", 20),
+                                 (234, "Electro Shot", 20),
+                                 (263, "Spiral Fist", 32),
+                                 (269, "Iron Blade", 58),
+                                 (283, "Shot Buster", 31),
+                                 (290, "MINIGUN", 34)):
+            with self.subTest(idx):
+                self.assertEqual(cat[idx]["name"], name)
+                self.assertEqual(cat[idx]["numeric"]["power"], power)
+
+    def test_editable_skill_count(self):
+        # 57 ethers + 29 doubles + 16 duals + 40 char techs + 9 E.S. attacks
+        # + 21 E.S. specials + 4 KOS-MOS specials
+        self.assertEqual(len(F.skill_editable_indices(1)), 176)
+        self.assertEqual(len(F.skill_editable_indices(2)), 176)
+
     def test_every_editable_skill_has_retail_numerics(self):
         # the panel shows "differs from retail" per skill; without numerics in
         # the catalog it would silently report a match on a modified disc
