@@ -1040,9 +1040,11 @@ def _sync_to(primary_path, other_path):
         recs, fields = sync_discs(src, dst)
     with Iso(primary_path) as src, Iso(other_path, write=True) as dst:
         sk = sync_skills(src, dst)
-    if recs or sk:
+        urecs, _uf = sync_units(src, dst)
+    if recs or sk or urecs:
         print(f"synced onto disc {n}: {fields} field(s) across {recs} record(s)"
-              + (f" + the ether-skill table" if sk else ""))
+              + (" + the skill tables" if sk else "")
+              + (f" + {urecs} unit record(s)" if urecs else ""))
     else:
         print(f"synced onto disc {n}: already identical")
     return recs, fields
@@ -1242,6 +1244,7 @@ def _regions(disc):
     # overlaps real tables — it swallowed the dual-tech block until this was
     # ordered. A guessed region must never claim a byte a known one can explain.
     return [
+        ("unit stats",    F.unit_tables(disc), F.UNIT_COUNT * F.ENEMY_STRIDE, "unit"),
         ("enemy stats",   t["stats"],   F.ENEMY_COUNT * F.ENEMY_STRIDE
                                         + F.enemy_record_tail(), "stat"),
         ("enemy rewards", t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE, "reward"),
@@ -1254,6 +1257,12 @@ def _locate(off, disc):
     for name, base, size, kind in _regions(disc):
         if not base <= off < base + size:
             continue
+        if kind == "unit":
+            i, r = divmod(off - base, F.ENEMY_STRIDE)
+            for lbl, fo, w, _k in F.UNIT_FIELDS:
+                if fo <= r < fo + w:
+                    return name, f"unit {i} {lbl}"
+            return name, f"unit {i} +0x{r:02X} (undecoded)"
         if kind == "stat":
             i, r = divmod(off - base, F.ENEMY_STRIDE)
             for lbl, fo, w, _k in (F.ENEMY_FIELDS + F.ENEMY_AFFINITY_FIELDS
@@ -1576,6 +1585,48 @@ def _skill_off(iso, i):
             f"combination blocks use a different record layout (see the notes).")
     return off
 
+# ---------------------------------------------------------------------------
+# PLAYER UNITS — the 15-record table before the enemy table (x2fields.UNIT_*).
+# Same 0x5C record structure; only the verified fields are addressable.
+# ---------------------------------------------------------------------------
+def unit_base(iso, i):
+    return F.unit_tables(iso.disc) + i * F.ENEMY_STRIDE
+
+def read_unit(iso, i):
+    base = unit_base(iso, i)
+    out = {lbl: int.from_bytes(iso.read(base + o, w), "little")
+           for (lbl, o, w, _k) in F.UNIT_FIELDS}
+    out["id"] = int.from_bytes(iso.read(base + F.UNIT_ID_OFF, 2), "little")
+    return out
+
+def unit_name(iso, i):
+    ptr = int.from_bytes(iso.read(unit_base(iso, i) + F.UNIT_NAME_PTR_OFF, 2),
+                         "little")
+    raw = iso.read(F.UNIT_NAME_BASE[iso.disc] + ptr, 24)
+    return raw.split(b"\x00", 1)[0].decode("euc-jp", errors="replace")
+
+def write_unit(iso, i, edits):
+    base = unit_base(iso, i)
+    n = 0
+    for (lbl, o, w, _k) in F.UNIT_FIELDS:
+        if lbl in edits and edits[lbl] is not None:
+            v = max(0, min(int(edits[lbl]), (1 << (8 * w)) - 1))
+            iso.write(base + o, v.to_bytes(w, "little"))
+            n += 1
+    return n
+
+def sync_units(src, dst):
+    """Copy the unit table between discs, through the field path."""
+    recs = fields = 0
+    for i in range(F.UNIT_COUNT):
+        want, have = read_unit(src, i), read_unit(dst, i)
+        delta = {k: want[k] for k, _o, _w, _kk in F.UNIT_FIELDS
+                 if want[k] != have[k]}
+        if delta:
+            fields += write_unit(dst, i, delta)
+            recs += 1
+    return recs, fields
+
 def read_skill_at(iso, off):
     """Named numeric fields of the skill record based at an absolute offset.
 
@@ -1613,6 +1664,43 @@ def sync_skills(src, dst):
             dst.write(dbase, blob)
             moved += min(count, scount)
     return moved
+
+def cmd_units(a):
+    """List the player-unit table (characters + E.S.) from the disc."""
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        print(f"{'idx':>3} {'name':<12} {'id':>4}  " +
+              " ".join(f"{lbl:>5}" for lbl, _o, _w, _k in F.UNIT_FIELDS))
+        for i in range(F.UNIT_COUNT):
+            u = read_unit(iso, i)
+            nm = unit_name(iso, i)
+            print(f"{i:3} {nm:<12} {u['id']:>4}  " +
+                  " ".join(f"{u[lbl]:>5}" for lbl, _o, _w, _k in F.UNIT_FIELDS))
+    return 0
+
+def cmd_unit_set(a):
+    """Write fields of one unit record (e.g. --set HP=999 --set EP=50)."""
+    edits = {}
+    for kv in a.set or []:
+        k, _, v = kv.partition("=")
+        if k not in {f[0] for f in F.UNIT_FIELDS}:
+            raise SystemExit(f"unknown unit field {k!r} — one of "
+                             + ", ".join(f[0] for f in F.UNIT_FIELDS))
+        edits[k] = int(v, 0)
+    if not edits:
+        raise SystemExit("nothing to write — pass --set FIELD=VALUE")
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        require_version(iso)
+        nm = unit_name(iso, a.index)
+        n = write_unit(iso, a.index, edits)
+        after = read_unit(iso, a.index)
+    print(f"wrote {n} field(s) to unit {a.index} ({nm}): "
+          + ", ".join(f"{k}={after[k]}" for k in edits))
+    if a.also:
+        _sync_to(a.iso, a.also)
+    return 0
 
 def cmd_skills(a):
     """List the skill/tech catalog extracted from the disc."""
@@ -1880,6 +1968,17 @@ def main():
     sp.add_argument("--also", metavar="OTHER_ISO",
                     help="after importing, copy the result onto the other disc")
     sp.set_defaults(fn=cmd_import_json)
+
+    sp = sub.add_parser("units", help="list the player-unit table (characters + E.S.)")
+    sp.add_argument("iso"); sp.set_defaults(fn=cmd_units)
+
+    sp = sub.add_parser("unit-set", help="write fields of one player unit")
+    sp.add_argument("iso"); sp.add_argument("index", type=int)
+    sp.add_argument("--set", action="append", metavar="FIELD=VALUE")
+    sp.add_argument("--backup", action="store_true")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="after editing, copy the tables onto the other disc")
+    sp.set_defaults(fn=cmd_unit_set)
 
     sp = sub.add_parser("skills", help="list the skill/tech catalog read off the disc")
     sp.add_argument("--grep", help="filter by name, tag or description text")
