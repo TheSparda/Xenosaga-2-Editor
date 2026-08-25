@@ -641,6 +641,20 @@ Verification, in increasing order of strength:
   quietly edited, because the same over-reach is what the `+0x04` affinity and
   `+0x16` string-id retractions came from.
 
+**Damage affinities** are present at the same `+0x58`, straddling into the next
+record exactly as they do for enemies — the `0x14` fill at `+0x00..+0x03` of
+every unit record *is* the previous unit's slots 4-7, which is what makes the
+shared structure visible. Editable, with a caveat stated in the UI and worth
+repeating: **every retail unit reads a flat 100% on all eight**, so nothing
+cross-checks that the game reads this block for player characters the way it
+demonstrably does for enemies. The offsets are verified; the behaviour is
+inferred from the shared record layout. Uniformity is not proof, and this file
+exists partly because that distinction was blurred twice before.
+
+The overhang means `unit_record_tail()` is 4, and anything slicing exactly
+`UNIT_COUNT * stride` reads off the end on unit 14 — the same bug that once
+showed Dark Erde Kaiser's last four affinities as blank-and-modified.
+
 **Starting gear is NOT in this table**, and the size settles it: the save keeps
 equipment at `+0x86..+0x90`, which under the constant `0x34` offset difference
 would land at `+0xBA..+0xC4` — past the end of a `0x5C` record. Whatever seeds a

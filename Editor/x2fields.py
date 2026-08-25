@@ -466,6 +466,16 @@ UNIT_FIELDS = [
     ("AGL",  0x46, 1, "num"),
 ]
 
+def unit_record_tail():
+    """Bytes a unit field reaches past UNIT_STRIDE — the affinity straddle.
+
+    Same trap as enemy_record_tail(): a caller slicing exactly
+    UNIT_COUNT * stride reads off the end on the LAST record and shows the
+    final unit's Ice/Pierce/Slash/Hit as blank-and-modified.
+    """
+    reach = max(off + w for (_l, off, w, _k) in (UNIT_FIELDS + UNIT_AFFINITY_FIELDS))
+    return max(0, reach - ENEMY_STRIDE)
+
 def unit_tables(disc):
     try:
         return UNIT_TABLES[disc]
@@ -794,6 +804,19 @@ def affinity_byte(pct):
     step = int(round(pct / float(ENEMY_AFFINITY_SCALE)))
     step = max(-128, min(step, 127))
     return step & 0xFF
+
+# Player units carry the same damage-affinity block at the same +0x58, and it
+# straddles the record boundary exactly as it does for enemies (slots 4-7 of
+# unit i are the first four bytes of unit i+1) — the 0x14 fill visible at
+# +0x00..+0x03 of every unit record IS the previous unit's slots 4-7.
+#
+# CAVEAT, stated because uniformity is not proof: every retail unit reads a flat
+# 100% on all eight elements, so nothing cross-checks that the game reads this
+# block for player characters the way it demonstrably does for enemies. The
+# offsets are verified; the behaviour is inferred from the shared structure. It
+# is exposed so a mod CAN give a character an elemental weakness or immunity,
+# and the UI says plainly that retail leaves it flat.
+UNIT_AFFINITY_FIELDS = list(ENEMY_AFFINITY_FIELDS)
 
 AFFINITY_PCT_MIN = affinity_pct(0x80)   # -640
 AFFINITY_PCT_MAX = affinity_pct(0x7F)   # +635
@@ -1147,7 +1170,11 @@ def web_tables():
             "stride": ENEMY_STRIDE,
             "count": UNIT_COUNT,
             "idOff": UNIT_ID_OFF,
+            # extra bytes past count*stride a caller must read: the affinity
+            # block overhangs the record, same trap as the enemy table's tail
+            "recordTail": unit_record_tail(),
             "fields": fields(UNIT_FIELDS),
+            "affinityFields": fields(UNIT_AFFINITY_FIELDS),
         },
         "catalogKeys": ENEMY_CATALOG_KEY,
         # Battle-pacing profiles, so the web ISO editor runs the same numbers as

@@ -411,7 +411,8 @@ def write_fake_disc(path, enemies=None):
 
     # the player-unit table: 15 records before the enemy table, same layout.
     # Deterministic filler + the real name pointers, so unit_name() resolves.
-    units = bytearray(F.UNIT_COUNT * F.ENEMY_STRIDE)
+    # + the tail the affinity block overhangs into, same as the enemy table
+    units = bytearray(F.UNIT_COUNT * F.ENEMY_STRIDE + F.unit_record_tail())
     uptrs = [0x564, 0x56A, 0x572, 0x578, 0x57C, 0x582, 0x587,
              0x58B, 0x592, 0x599, 0x5A0, 0x5AA, 0x5B6, 0x5C0, 0x5C7]
     unames = (b"chaos\0KOS-MOS\0Shion\0Jin\0Ziggy\0MOMO\0Jr.\0"
@@ -425,6 +426,12 @@ def write_fake_disc(path, enemies=None):
         for label, off, width, _k in F.UNIT_FIELDS:
             v = over.get(("unit", i), {}).get(label, (i + 2) * 9 % (1 << (8 * width)))
             units[at + off:at + off + width] = int(v).to_bytes(width, "little")
+    # affinities placed absolutely, because the block straddles into the next
+    # record (and past the table on the last one)
+    for i in range(F.UNIT_COUNT):
+        for label, off, _w, _k in F.UNIT_AFFINITY_FIELDS:
+            v = over.get(("unit", i), {}).get(label, F.affinity_byte(100))
+            units[i * F.ENEMY_STRIDE + off] = int(v)
 
     with open(path, "wb") as f:
         f.truncate(end)

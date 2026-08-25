@@ -26,8 +26,9 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
     verified skill records: Ether, Double and Dual skills, every character's single techs,
     E.S. attacks and Special attacks — each shown by its in-game name.
   - **Units** — the **new-game starting stats** (HP, EP, STR, VIT, EATK, EDEF, DEX, EVA,
-    AGL) for every character and E.S. unit — verified against the save format, which copies
-    these records verbatim at join time.
+    AGL) for every character and E.S. unit, plus their eight **damage affinities** — give a
+    character a fire weakness or beam immunity. Verified against the save format, which
+    copies these stats in at join time.
 
   Everything writes **in place** into your disc images. Share your work as a readable
   **patch file** or a standard **`.xdelta`** patch, and use **compare-to-retail** to see
