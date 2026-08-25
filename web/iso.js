@@ -604,7 +604,10 @@
       'a per-record table cross-checked against the game’s boss listings. Debug/unused records '+
       'are never touched.</p>'+
       '<table class="scl"><tbody>'+
-      '<tr><td></td><th>HP</th><th>VIT/EDEF</th><th>STR/EATK</th><th>EXP/SP/CP</th></tr>'+
+      '<tr><td><button type="button" class="helpq" id="clsHelp" title="How these three '+
+        'classes were decided, and which enemies are in each" aria-label="About the '+
+        'encounter classes">?</button></td>'+
+      '<th>HP</th><th>VIT/EDEF</th><th>STR/EATK</th><th>EXP/SP/CP</th></tr>'+
       ECLASSES.map(c=>'<tr><th title="'+esc(classCount(c)+' record(s)')+'">'+
         esc(eclassLabel(c))+' <span class="muted small">('+classCount(c)+')</span></th>'+
         SCOLS.map(f=>'<td><input type="number" id="'+sid(c,f)+'" value="100" min="1" '+
@@ -712,6 +715,9 @@
       loadEnemy();loadSkill();epending();};
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
+    $("#clsHelp").onclick=()=>window.openInfo&&window.openInfo(
+      "What counts as a boss",
+      window.encounterHelpHtml(TABLES.encounter||{}, cat, eclass));
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
     // explicit selectors, not "#brkS"+n — a concatenated id is invisible to
     // anything that greps the source for it (tests/test_web.py checks that)

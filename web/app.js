@@ -85,6 +85,47 @@ function openInfo(title, bodyHtml){
 }
 window.openReview=openReview; window.openPicker=openPicker; window.openInfo=openInfo;
 
+// ---- shared: what's behind the "?" next to the encounter-class controls ----
+// The ISO tab scales by class and the Reference tab filters by it, so both need
+// to answer the same two questions: how a record got its class, and which
+// records are in each one. The prose, the sources and the class table all come
+// out of web/tables.json (generated from x2fields.py) — this only lays them out,
+// so the explanation cannot drift from the table it is explaining.
+//   enc     : the `encounter` block from tables.json
+//   cat     : {index: catalog record} — for names, ids and HP
+//   classOf : (index) -> class key, or "dummy"; each tab passes its own mirror
+//             of x2fields.encounter_class so there is one classifier per tab
+function encounterHelpHtml(enc, cat, classOf){
+  const n=(enc&&enc.notes)||{}, order=(enc&&enc.classes)||[], where=(enc&&enc.where)||{};
+  const label=(c)=>((enc&&enc.labels)||{})[c]||c;
+  const idx=Object.keys(cat||{}).map(Number).sort((a,b)=>a-b);
+  const inClass=(c)=>idx.filter(i=>classOf(i)===c);
+  const row=(i)=>{const r=cat[i]||{};
+    return '<div class="clsrow"><span class="cid">'+String(i).padStart(3,"0")+'</span>'+
+      '<span class="cn">'+esc(r.name||i)+'</span><span class="cw">id '+esc(r.id)+
+      (r.hp!=null?' · '+Number(r.hp).toLocaleString()+' HP':'')+
+      (where[i]?' · '+esc(where[i]):'')+'</span></div>';};
+  // One collapsible section per class. The two curated ones open by default —
+  // they are the judgement calls worth reading — while "everything else" and the
+  // debug rows stay folded so the list is scannable. Counts sit in the summary,
+  // so a folded section still tells you how big it is.
+  const group=(c,name,desc,rows,open)=>'<details class="clsgrp"'+(open?" open":"")+
+    '><summary>'+esc(name)+' <span class="muted small">· '+rows.length+
+    ' records</span></summary><p class="note">'+esc(desc||"")+'</p>'+
+    rows.map(row).join("")+'</details>';
+  let h=(n.why||[]).map(p=>'<p class="note">'+esc(p)+'</p>').join("");
+  if(n.presets) h+='<p class="note">'+esc(n.presets)+'</p>';
+  for(const c of order)
+    h+=group(c, label(c), (n.classes||{})[c], inClass(c), c!==order[0]);
+  const dummies=inClass("dummy");
+  if(dummies.length) h+=group("dummy", "Debug / unused", n.dummies, dummies, false);
+  if((n.sources||[]).length) h+='<div class="fl" style="margin-top:10px">Sources</div>'+
+    '<p class="note">'+n.sources.map(s=>'<a href="'+esc(s[1])+'" target="_blank" '+
+      'rel="noopener">'+esc(s[0])+'</a>').join("<br>")+'</p>';
+  return h;
+}
+window.encounterHelpHtml=encounterHelpHtml;
+
 // ---- theme ----
 (function(){try{if(localStorage.getItem("x2theme")==="light")document.body.classList.add("light");}catch(e){}
   const b=$("#themeBtn");if(b)b.onclick=()=>{document.body.classList.toggle("light");

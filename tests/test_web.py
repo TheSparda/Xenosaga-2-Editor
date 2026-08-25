@@ -131,7 +131,8 @@ class TestDomReferences(unittest.TestCase):
 
     def test_helpers_shared_across_scripts_are_exported(self):
         app = read("app.js")
-        for helper in ("openReview", "openPicker", "openInfo", "toast"):
+        for helper in ("openReview", "openPicker", "openInfo", "toast",
+                       "encounterHelpHtml"):
             with self.subTest(helper):
                 self.assertTrue(re.search(r"window\." + helper + r"\s*=", app),
                                 f"{helper} is used across files but app.js never "
@@ -191,6 +192,27 @@ class TestDomReferences(unittest.TestCase):
         # one pacing row per class, generated from the same list the profiles use
         self.assertIn("ECLASSES.map(", iso,
                       "the pacing table must emit a row per encounter class")
+
+    def test_both_class_controls_offer_the_explainer(self):
+        # A curated table is only trustworthy if the user can read it, so each
+        # tab's class control carries a "?" that opens the same shared listing.
+        for script, button in (("iso.js", "clsHelp"), ("ref.js", "refClsHelp")):
+            src = read(script)
+            with self.subTest(script=script):
+                self.assertRegex(src, r'class="helpq" id="' + button + r'"',
+                                 f"{script} has no ? beside its class control")
+                self.assertRegex(src, r"#" + button + r'"\)\.onclick',
+                                 f"{script} never wires up #{button}")
+                self.assertIn("encounterHelpHtml(", src,
+                              f"{script} must render the shared explainer")
+        # and the explainer's prose must come from the generated table, not be
+        # retyped in JS where it could drift from the classification it explains
+        app = read("app.js")
+        self.assertIn("enc.notes", app.replace("(enc&&enc.notes)", "enc.notes"),
+                      "app.js must read the notes out of tables.json")
+        for phrase in ("22,000", "20,000"):
+            self.assertNotIn(phrase, app,
+                             "the audit numbers belong in x2fields, not in app.js")
 
     def test_engine_files_the_boot_loop_fetches_all_exist(self):
         m = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
