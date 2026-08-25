@@ -14,18 +14,28 @@
   // every bestiary column, so nothing extracted from the disc is hidden here
   const STATS=[["HP","hp"],["STR","str"],["VIT","vit"],["EATK","eatk"],["EDEF","edef"],
                ["DEX","dex"],["EVA","eva"],["AGL","agl"],["EXP","exp"],["SP","sp"],["CP","cp"]];
-  // Two ways to slice the bestiary. The ID bands are what the disc records, but
-  // the 561+ band mixes late-game field Gnosis in with real bosses — so "major"
-  // (retail HP at/above the rebalance threshold) is the more meaningful cut, and
-  // the band filters are labelled as bands rather than as boss-ness.
-  const MAJOR_HP=20000;
+  // Two ways to slice the bestiary. The encounter class is the audited answer to
+  // "what is this fight" — a per-record table (x2fields.BOSS_RECORDS /
+  // SUPERBOSS_RECORDS, shipped in tables.json) cross-checked against the game's
+  // own boss listings. The ID bands are kept alongside it because they are what
+  // the disc records, but they are labelled as bands, not as boss-ness: the 561+
+  // band really does mix optional-dungeon field Gnosis in with real bosses.
   const GROUPS=[
-    {key:"all",   label:"All",           test:()=>true},
-    {key:"major", label:"Major fights",  test:v=>v.hp>=MAJOR_HP},
-    {key:"field", label:"ID 501+",       test:v=>v.id<561},
-    {key:"boss",  label:"ID 561+",       test:v=>v.id>=561&&v.id<701},
-    {key:"es",    label:"ID 701+ (E.S.)",test:v=>v.id>=701},
+    {key:"all",   label:"All",              test:()=>true},
+    {key:"random",label:"Random encounters",cls:"random"},
+    {key:"boss",  label:"Boss battles",     cls:"boss"},
+    {key:"super", label:"Super bosses",     cls:"superboss"},
+    {key:"field", label:"ID 501+",          test:v=>v.id<561},
+    {key:"bossid",label:"ID 561+",          test:v=>v.id>=561&&v.id<701},
+    {key:"es",    label:"ID 701+ (E.S.)",   test:v=>v.id>=701},
   ];
+  // {index: "boss"|"superboss"} plus labels, from the generated tables. Anything
+  // not listed is a random encounter (or a debug row) — mirrors x2fields.
+  let ECLASS={}, ELABELS={}, EWHERE={};
+  const isDummy=(r)=>!!r&&(/^[A-Z]{3}\d{3}$/.test(String(r.name||"").trim())||
+                           (r.exp>0&&r.exp<100&&!r.sp&&!r.cp));
+  const eclass=(id,v)=>isDummy(v)?"dummy":(ECLASS[id]||"random");
+  const CLASS_PILL={boss:"boss",superboss:"super boss",dummy:"unused"};
   const SORTS=[["idx","Index"],["name","Name"],["hp","HP"],["exp","EXP"],["sp","SP"]];
 
   const cache={}; let active="consumables", query="", group="all", sort="idx", desc=false;
@@ -34,15 +44,27 @@
     try{ cache[sec.key]=await (await fetch("../Editor/"+sec.file)).json(); }catch(e){ cache[sec.key]={}; }
     return cache[sec.key]; }
 
+  // the same generated file the ISO editor reads, so both tabs classify a record
+  // identically instead of each carrying its own idea of what a boss is
+  async function loadClasses(){
+    try{
+      const t=await (await fetch("tables.json",{cache:"no-cache"})).json();
+      const enc=t.encounter||{};
+      ECLASS=enc.byIndex||{}; ELABELS=enc.labels||{}; EWHERE=enc.where||{};
+    }catch(e){ /* filters fall back to "everything is a random encounter" */ }
+  }
+
   window.initRef=async function(){
     const root=$("#refRoot"); if(root.dataset.init)return; root.dataset.init="1";
+    await loadClasses();
     root.innerHTML='<div class="card">'+
       '<div class="toolbar" id="refTabs">'+SECTIONS.map((s,i)=>
         '<button class="mtab'+(i===0?" on":"")+'" data-k="'+s.key+'">'+s.label+'</button>').join("")+'</div>'+
       '<input id="refSearch" type="text" placeholder="Search by name…" autocomplete="off" style="width:100%;margin-bottom:10px">'+
       '<div class="toolbar hidden" id="refBestiaryBar">'+
         '<label>Show</label> <select id="refGroup">'+GROUPS.map(g=>
-          '<option value="'+g.key+'">'+g.label+'</option>').join("")+'</select>'+
+          '<option value="'+g.key+'">'+esc((g.cls&&ELABELS[g.cls])||g.label)+
+          '</option>').join("")+'</select>'+
         '<label style="margin-left:8px">Sort</label> <select id="refSort">'+SORTS.map(s=>
           '<option value="'+s[0]+'">'+s[1]+'</option>').join("")+'</select>'+
         '<button id="refDir" class="btn" title="Reverse order">↑</button>'+
@@ -65,11 +87,12 @@
 
   function matching(data){
     const g=GROUPS.find(x=>x.key===group)||GROUPS[0];
+    const test=g.cls?((id,v)=>eclass(id,v)===g.cls):((id,v)=>g.test(v));
     return Object.keys(data).map(id=>[id,data[id]])
       .filter(([id,v])=>{
         const name=v.name||v;
         if(query && !((name+" "+(v.desc||"")).toLowerCase().includes(query))) return false;
-        return v.id===undefined || g.test(v);
+        return v.id===undefined || test(id,v);
       });
   }
 
@@ -95,9 +118,11 @@
     for(const [id,v] of rows){
       const name=v.name||v;
       if(bestiary){
+        const cls=eclass(id,v), tag=CLASS_PILL[cls];
         html+='<div class="refrow"><span class="rid">'+id+'</span>'+
           '<span class="rname">'+esc(name)+'</span>'+
-          '<span class="stpill">id '+v.id+(v.hp>=MAJOR_HP?" · major":"")+'</span>'+
+          '<span class="stpill"'+(EWHERE[id]?' title="'+esc(EWHERE[id])+'"':'')+'>id '+
+            v.id+(tag?" · "+tag:"")+'</span>'+
           '<span class="rpills">'+
             STATS.map(([l,k])=>pill(l,v[k])).join("")+
           '</span></div>';
@@ -116,10 +141,11 @@
   function exportCsv(){
     const data=cache.enemies||{};
     const rows=sortRows(matching(data));
-    const cols=["idx","name","id"].concat(STATS.map(s=>s[1]));
+    const cols=["idx","name","id","class","where"].concat(STATS.map(s=>s[1]));
     const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
     const text=[cols.join(",")].concat(rows.map(([id,v])=>
-      [id,q(v.name),v.id].concat(STATS.map(([,k])=>v[k]??"")).join(","))).join("\n")+"\n";
+      [id,q(v.name),v.id,eclass(id,v),q(EWHERE[id]||"")]
+        .concat(STATS.map(([,k])=>v[k]??"")).join(","))).join("\n")+"\n";
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([text],{type:"text/csv"}));
     a.download="xenosaga2-bestiary.csv";

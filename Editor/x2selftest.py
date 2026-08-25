@@ -184,13 +184,21 @@ def t_plan(iso, _tmp):
     plan = X.plan_rebalance(iso, F.profile("faster"))
     by_index = {i: (name, group, edits) for i, name, group, edits in plan}
 
-    perun = by_index[6]                                   # 22,400 HP -> major
-    eq(perun[1], "major", "Perun group")
-    eq(perun[2]["HP"], (22400, round(22400 * 0.70)), "Perun HP scaling")
+    perun = by_index[6]                     # Heaven's Ruins -> superboss
+    eq(perun[1], "superboss", "Perun group")
+    eq("HP" in perun[2], False, "faster leaves super-boss HP alone")
     eq(perun[2]["EXP"], (30000, 45000), "Perun EXP scaling")
 
-    soldier = by_index[65]                                # 110 HP -> regular
-    eq(soldier[1], "regular", "U-TIC Soldier A group")
+    margulis = by_index[94]                 # 1,200 HP prologue boss -> boss
+    eq(margulis[1], "boss", "Margulis group")
+    eq(margulis[2]["HP"], (1200, round(1200 * 0.70)), "Margulis HP scaling")
+
+    arvakv = by_index[13]                   # 22,000 HP Desert spawn -> random
+    eq(arvakv[1], "random", "Arvakv group")
+    eq(arvakv[2]["HP"], (22000, round(22000 * 0.45)), "Arvakv HP scaling")
+
+    soldier = by_index[65]                  # 110 HP -> random
+    eq(soldier[1], "random", "U-TIC Soldier A group")
     eq(soldier[2]["HP"], (110, round(110 * 0.45)), "soldier HP scaling")
 
     for i, rec in cat.items():
@@ -760,7 +768,7 @@ def t_web_parity(_iso, _tmp):
     """Two editors that rebalance discs differently would be a bad bug, so the
     browser side must run the same numbers as the CLI.
 
-    It used to hold its own copy of PROFILES/MAJOR_HP/CAPS, and this check parsed
+    It used to hold its own copy of PROFILES/CAPS/thresholds, and this check parsed
     the JS literals to catch drift. It now reads them out of web/tables.json,
     generated from x2fields — so the check is that the generated file is current,
     and that iso.js really does consume it instead of re-declaring its own."""
@@ -774,18 +782,25 @@ def t_web_parity(_iso, _tmp):
 
     with open(tables, encoding="utf-8") as f:
         web = json.load(f)
-    eq(web.get("majorHpThreshold"), F.MAJOR_HP_THRESHOLD, "MAJOR_HP threshold")
     eq(web.get("fieldCaps"), F.ENEMY_FIELD_CAPS, "field caps")
     eq(sorted(web.get("profiles", {})), sorted(F.PROFILES), "profile keys")
     for key, prof in F.PROFILES.items():
         for field in ("label", "note"):
             eq(web["profiles"][key][field], prof[field], f"{key}.{field}")
-        for group in ("regular", "major"):
+        for group in F.ENCOUNTER_CLASSES:
             eq(web["profiles"][key][group], prof[group], f"{key}.{group} scaling")
+
+    # the audited encounter classes, so both front-ends group records identically
+    enc = web.get("encounter", {})
+    eq(enc.get("classes"), list(F.ENCOUNTER_CLASSES), "encounter classes")
+    eq(enc.get("labels"), F.ENCOUNTER_LABELS, "encounter labels")
+    eq({int(k): v for k, v in enc.get("byIndex", {}).items()},
+       {i: c for i, c in F.encounter_classes().items() if c in ("boss", "superboss")},
+       "encounter class per record")
 
     src = Path(iso_js).read_text(encoding="utf-8")
     eq("tables.json" in src, True, "iso.js fetches tables.json")
-    for name in ("PROFILES", "MAJOR_HP", "CAPS"):
+    for name in ("PROFILES", "CAPS", "ECLASS_BY_IDX"):
         if f"const {name}=" in src:
             raise AssertionError(f"iso.js re-declares {name} instead of reading "
                                  f"tables.json — the duplication is back")

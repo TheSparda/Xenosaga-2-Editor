@@ -224,8 +224,12 @@ def read_enemy_id(iso, i):
     off = iso.tables["stats"] + i * F.ENEMY_STRIDE + F.ENEMY_ID_OFF
     return int.from_bytes(iso.read(off, 2), "little")
 
-def is_boss(enemy_id):
-    return enemy_id >= F.BOSS_ID_MIN
+def encounter_class(index):
+    """The audited class of a record: random / boss / superboss / dummy.
+
+    Keyed by record index rather than by enemy id or HP — see the ENCOUNTER
+    CLASS block in x2fields for why neither of those works."""
+    return F.encounter_class(index, F.enemy_catalog().get(index))
 
 
 # ---------------------------------------------------------------------------
@@ -375,14 +379,14 @@ def disc_is_pristine(iso, base=None):
 def _scale(value, pct, cap, floor):
     return max(floor, min(int(round(value * pct / 100.0)), cap))
 
-def plan_rebalance(iso, prof, threshold=None, include_dummy=False):
+def plan_rebalance(iso, prof, include_dummy=False):
     """Compute the per-record edits a profile implies. Returns
     [(index, name, group, {field: (old, new)}), ...] — read-only, writes nothing.
 
-    Grouping ("regular" vs "major") is decided on the *catalog* HP, not the
-    disc's current HP, so re-planning against an already-patched disc still
-    classifies each record the same way."""
-    threshold = F.MAJOR_HP_THRESHOLD if threshold is None else threshold
+    The group is the record's audited encounter class (random / boss /
+    superboss), which is a property of the record index rather than of anything
+    on the disc — so re-planning against an already-patched disc classifies every
+    record exactly the same way."""
     cat = F.enemy_catalog()
     plan = []
     for i in range(F.ENEMY_COUNT):
@@ -390,7 +394,7 @@ def plan_rebalance(iso, prof, threshold=None, include_dummy=False):
         if not include_dummy and rec and F.is_dummy_record(rec):
             continue
         cur = read_enemy(iso, i)
-        group = "major" if rec.get("hp", cur.get("HP", 0)) >= threshold else "regular"
+        group = F.encounter_class(i)
         scales = prof.get(group, {})
         edits = {}
         for lbl, pct in scales.items():
@@ -822,8 +826,10 @@ def cmd_enemy_get(a):
         rec = read_enemy(iso, a.index)
         eid = read_enemy_id(iso, a.index)
     name = F.enemy_names().get(a.index, "?")
-    print(f"{a.index:03d} · {name}   (enemy id {eid}"
-          f"{', boss' if is_boss(eid) else ''})")
+    cls = encounter_class(a.index)
+    where = F.encounter_where(a.index)
+    print(f"{a.index:03d} · {name}   (enemy id {eid}, {cls}"
+          f"{'; ' + where if where else ''})")
     for c in _summary_cols():
         van = vanilla_enemy(a.index).get(c)
         mark = "" if van is None or van == rec[c] else f"   (retail {van:,})"
@@ -1490,7 +1496,7 @@ def cmd_restore(a):
 def cmd_rebalance(a):
     """Apply a battle-pacing profile to every enemy record (combo-loop tuning)."""
     prof = dict(F.profile(a.profile))
-    for grp in ("regular", "major"):            # per-field CLI overrides
+    for grp in F.ENCOUNTER_CLASSES:             # per-field CLI overrides
         scales = dict(prof.get(grp, {}))
         if a.rewards is not None:               # shorthand for --exp/--sp/--cp
             scales.update({"EXP": a.rewards, "SP": a.rewards, "CP": a.rewards})
@@ -1512,15 +1518,16 @@ def cmd_rebalance(a):
                   "disc was already edited; scaling again compounds the previous pass.")
             if not (a.force or a.dry_run):
                 raise SystemExit("refusing to compound — pass --force if that's intended")
-        plan = plan_rebalance(iso, prof, threshold=a.threshold, include_dummy=a.include_dummy)
+        plan = plan_rebalance(iso, prof, include_dummy=a.include_dummy)
         print(f"profile: {a.profile} — {F.profile(a.profile)['label']}")
         print(f"{F.profile(a.profile)['note']}")
-        print(f"records affected: {len(plan)} of {F.ENEMY_COUNT} "
-              f"(major = catalog HP >= {a.threshold or F.MAJOR_HP_THRESHOLD:,})\n")
+        counts = collections.Counter(group for _i, _n, group, _e in plan)
+        print(f"records affected: {len(plan)} of {F.ENEMY_COUNT} ("
+              + ", ".join(f"{counts.get(g, 0)} {g}" for g in F.ENCOUNTER_CLASSES) + ")\n")
         show = plan if a.verbose else plan[:12]
         for i, name, group, edits in show:
             body = "  ".join(f"{k} {v[0]:,}→{v[1]:,}" for k, v in edits.items())
-            print(f"  {i:3d} {name:<24} [{group:7}] {body}")
+            print(f"  {i:3d} {name:<24} [{group:9}] {body}")
         if len(show) < len(plan):
             print(f"  … {len(plan) - len(show)} more (use --verbose)")
         if a.dry_run:
@@ -1922,13 +1929,11 @@ def main():
     sp.add_argument("--backup", action="store_true", help="copy the ISO to .bak first")
     sp.add_argument("--force", action="store_true", help="allow scaling an already-edited disc")
     sp.add_argument("--include-dummy", action="store_true", help="also scale debug/unused records")
-    sp.add_argument("--threshold", type=int, help=f"HP at/above which a record counts as "
-                    f"'major' (default {F.MAJOR_HP_THRESHOLD:,})")
     sp.add_argument("--rewards", type=int, metavar="PCT",
                     help="override EXP, SP and CP together (percent)")
     for lbl in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL", "EXP", "SP", "CP"):
         sp.add_argument(f"--{lbl.lower()}", type=int, metavar="PCT",
-                        help=f"override {lbl} scaling for both groups (percent)")
+                        help=f"override {lbl} scaling for every encounter class (percent)")
     sp.add_argument("--also", metavar="OTHER_ISO",
                     help="after editing, copy the result onto the other disc so both stay in step")
     sp.set_defaults(fn=cmd_rebalance)

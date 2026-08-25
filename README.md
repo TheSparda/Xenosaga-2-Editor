@@ -29,8 +29,9 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   **patch file** or a standard **`.xdelta`** patch, and use **compare-to-retail** to see
   exactly how your disc differs from an unmodified one — across *every* editable field —
   and to put it back.
-- **Reference** — searchable bestiary (verified stats & rewards, filter by ID band or major
-  fights, sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc.
+- **Reference** — searchable bestiary (verified stats & rewards, filter by encounter class —
+  random encounters, boss battles, super bosses — or by ID band, sort, CSV export) + item /
+  key-item / E.S.-gear catalogs extracted from the disc.
 - **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
   tap. On desktop the writable file handle is kept too, so a reopened file still saves **in
   place**. Stored locally in your browser (IndexedDB); the ISO entry keeps only a file
@@ -185,8 +186,15 @@ ships four profiles over the verified tables:
 | **Deeper challenge** | Enemies hit harder and last longer, but pay out much more. |
 | **Reward-only** | Fights exactly as designed; only the grind between them goes. |
 
-Records are grouped by their own HP (20,000+ = "major"), because the enemy ID band mixes
-late-game field enemies in with bosses. Debug/unused records are never touched.
+Each profile has **three rows — random encounters, boss battles and super bosses** — because
+they are three different pacing problems. Which records are which is an audited per-record
+table, not a guess from HP or from the enemy ID band: both of those get it wrong (a 22,000 HP
+Desert random encounter reads as a boss; the 1,200 HP prologue Margulis reads as trash). The
+split is 76 random / 24 boss / 12 super boss, cross-checked against the game's published boss
+listings. "Super boss" is the opt-in post-game tier — the three optional dungeons, the Space
+Coliseum's Dark Erde Kaiser, and the English-exclusive Mikumari / Baal Zebul / Phobos Rigas —
+so the presets raise what those pay out but leave their HP exactly as designed. Debug/unused
+records are never touched.
 
 **Break sequences are editable too** — the combo loop's actual gate, rather than a stat
 multiplier. Every enemy stores the zones you must hit *in order* to Break it (zones are
