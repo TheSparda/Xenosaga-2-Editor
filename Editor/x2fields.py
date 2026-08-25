@@ -278,6 +278,71 @@ TECH_NAME_POOL = {1: 0x200FC10, 2: 0x200F410}
 TECH_TEXT0 = 200
 # menu-string pool holding the single/attack/special names, disc 2 -0x800
 SINGLE_NAME_POOL = {1: 0x1D86349, 2: 0x1D85B49}
+
+# ---------------------------------------------------------------------------
+# SKILL NAME TEXT (2026-08-24)
+#
+# Every catalog entry records the ISO offset of its own name (`nameOff`), and
+# each blob is laid out NAME \0 "TARGET (EP n)\nDESCRIPTION" \0. Renaming means
+# writing over the name in place, so a replacement must fit the ORIGINAL name's
+# bytes INCLUDING its terminator — there is no room to grow a packed pool.
+# Anything left over after the new terminator is dead bytes the game never
+# reads, which is exactly the technique the HardType mod uses ("Miracl" ->
+# "Flare\0", leaving a stray 'e').
+#
+# What this deliberately does NOT do is the rest of what that mod does. It
+# patches every disc-wide occurrence of the old byte sequence, which also hits
+# menu and tutorial strings that merely CONTAIN the name — "Miracle" inside
+# "Miracle Star" — truncating an unrelated skill. The blob at `nameOff` is
+# unique and authoritative; only that is rewritten. Prose elsewhere in the game
+# that spells the old name is left alone rather than corrupted.
+# A front-end needs ONE span to read, so this is the bounding box over every
+# catalog nameOff. It is a read span and nothing more: the names live in three
+# scattered pools (the menu strings near 0x1D86349, the ether/double pool at
+# 0x2009B58, the dual-tech pool at 0x200FC10) with megabytes of unrelated data
+# between them. Never use it to decide what a byte IS — see skill_name_at().
+def _skill_text_span(disc):
+    offs = [v.get("nameOff") for v in skill_catalog().values() if v.get("nameOff")]
+    shift = 0 if disc == 1 else 0x800
+    lo = min(offs) - shift
+    return (lo, max(offs) - shift - lo + 0x100)
+
+SKILL_TEXT_SPAN = {1: None, 2: None}    # filled lazily; see skill_text_span()
+
+def skill_text_span(disc):
+    if SKILL_TEXT_SPAN.get(disc) is None:
+        SKILL_TEXT_SPAN[disc] = _skill_text_span(disc)
+    return SKILL_TEXT_SPAN[disc]
+
+def skill_name_at(off, disc=1):
+    """The skill index whose NAME occupies `off`, or None.
+
+    Precise on purpose. The text span is a bounding box big enough to swallow
+    the enemy tables and much else besides; claiming everything inside it as
+    "skill text" is the same mistake the enemy-name window made when it
+    swallowed the dual-tech block.
+    """
+    shift = 0 if disc == 1 else 0x800
+    for i, e in skill_catalog().items():
+        base = e.get("nameOff")
+        if base is None:
+            continue
+        base -= shift
+        if base <= off < base + skill_name_budget(e.get("name") or ""):
+            return i
+    return None
+
+def skill_name_budget(retail_name):
+    """Bytes available for a replacement name: the RETAIL name plus its NUL.
+
+    Derived from the shipped catalog, never from the disc's current bytes.
+    Reading the budget off the disc looks right and is wrong the moment anyone
+    renames: shortening "Aura Blast" to "Flare" moves the terminator, so the
+    next read reports a 5-byte budget and the name can never be restored to its
+    original length. The description's start is fixed by the retail layout, so
+    that is what defines the space.
+    """
+    return len(retail_name.encode("latin1", errors="replace")) + 1
 TECH_TEXT0_SINGLE = 220
 SKILL_STRIDE = 32
 
@@ -1162,6 +1227,9 @@ def web_tables():
             "targetNames": {str(k): v for k, v in sorted(SKILL_TARGET_NAMES.items())},
             "targetSide": {str(k): v for k, v in sorted(SKILL_TARGET_SIDE.items())},
             "targetAll": SKILL_TARGET_ALL,
+            # the text pool the editable names live in — one span covering
+            # every catalog nameOff, so a front-end can rename in place
+            "textSpan": {str(d): list(skill_text_span(d)) for d in (1, 2)},
         },
         # Player units: 15 records before the enemy table, same 0x5C layout.
         # Verified fields only; names come from Editor/x2_units.json.

@@ -2664,6 +2664,7 @@
   "desc": "Ice sword slashes the enemy.",
   "ep": null,
   "name": "Ice Brand",
+  "nameOff": 33618960,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2682,6 +2683,7 @@
   "desc": "Doubles the effect of Veil Ether skills.",
   "ep": null,
   "name": "Burst Veil",
+  "nameOff": 33619025,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2700,6 +2702,7 @@
   "desc": "Double aura attack.",
   "ep": null,
   "name": "Elemental Nocturne",
+  "nameOff": 33619110,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2718,6 +2721,7 @@
   "desc": "Piercing rain of angel feathers.",
   "ep": null,
   "name": "Archangel's Requiem",
+  "nameOff": 33619169,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2736,6 +2740,7 @@
   "desc": "Reinforced Spell Ray.",
   "ep": null,
   "name": "Dual Spell Ray",
+  "nameOff": 33619244,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2754,6 +2759,7 @@
   "desc": "Power combination attack.",
   "ep": null,
   "name": "Cross Fist",
+  "nameOff": 33619302,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2772,6 +2778,7 @@
   "desc": "Gravity strike.",
   "ep": null,
   "name": "Gravity Bomb",
+  "nameOff": 33619362,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2790,6 +2797,7 @@
   "desc": "Chain of punishment.",
   "ep": null,
   "name": "Silver Duet",
+  "nameOff": 33619423,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2808,6 +2816,7 @@
   "desc": "Ziggy's self-sacrificing attack.",
   "ep": null,
   "name": "Power Strike",
+  "nameOff": 33619486,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2826,6 +2835,7 @@
   "desc": "Exorcising sword.",
   "ep": null,
   "name": "Lion Heart",
+  "nameOff": 33619560,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2844,6 +2854,7 @@
   "desc": "Attack that uses the Hilbert Effect.",
   "ep": null,
   "name": "Cross Hilbert",
+  "nameOff": 33619611,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2862,6 +2873,7 @@
   "desc": "Auto revive.",
   "ep": null,
   "name": "Blessed Miracle",
+  "nameOff": 33619691,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2880,6 +2892,7 @@
   "desc": "KOS-MOS buster cannon.",
   "ep": null,
   "name": "Twin Buster",
+  "nameOff": 33619752,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2898,6 +2911,7 @@
   "desc": "Magnificent combination attack.",
   "ep": null,
   "name": "Grand Ronde ",
+  "nameOff": 33619808,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2916,6 +2930,7 @@
   "desc": "Scorching rain of bullets.",
   "ep": null,
   "name": "Fiery Ritornelle",
+  "nameOff": 33619876,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2934,6 +2949,7 @@
   "desc": "Sword dance.",
   "ep": null,
   "name": "Phoenix Blade",
+  "nameOff": 33619947,
   "placeholder": false,
   "tags": [
    "dual tech"
@@ -2952,6 +2968,7 @@
   "desc": "",
   "ep": null,
   "name": "Spirit Touch",
+  "nameOff": 30958409,
   "placeholder": false,
   "tags": [
    "chaos tech"
@@ -2970,6 +2987,7 @@
   "desc": "",
   "ep": null,
   "name": "Angel Blast",
+  "nameOff": 30958422,
   "placeholder": false,
   "tags": [
    "chaos tech"
@@ -2988,6 +3006,7 @@
   "desc": "",
   "ep": null,
   "name": "Divine Seal",
+  "nameOff": 30958434,
   "placeholder": false,
   "tags": [
    "chaos tech"
@@ -3006,6 +3025,7 @@
   "desc": "",
   "ep": null,
   "name": "Spirit Cross",
+  "nameOff": 30958446,
   "placeholder": false,
   "tags": [
    "chaos tech"
@@ -3024,6 +3044,7 @@
   "desc": "",
   "ep": null,
   "name": "Spirit Strike",
+  "nameOff": 30958459,
   "placeholder": false,
   "tags": [
    "chaos tech"
@@ -3042,6 +3063,7 @@
   "desc": "",
   "ep": null,
   "name": "Angel Shot",
+  "nameOff": 30958473,
   "placeholder": false,
   "tags": [
    "chaos tech"
@@ -3060,6 +3082,7 @@
   "desc": "",
   "ep": null,
   "name": "Heaven's Wrath",
+  "nameOff": 30958484,
   "placeholder": false,
   "tags": [
    "chaos tech"
@@ -3078,6 +3101,7 @@
   "desc": "",
   "ep": null,
   "name": "T-ARTS 1",
+  "nameOff": 30958499,
   "placeholder": false,
   "tags": [
    "KOS-MOS tech"
@@ -3096,6 +3120,7 @@
   "desc": "",
   "ep": null,
   "name": "T-ARTS 2",
+  "nameOff": 30958508,
   "placeholder": false,
   "tags": [
    "KOS-MOS tech"
@@ -3114,6 +3139,7 @@
   "desc": "",
   "ep": null,
   "name": "T-ARTS 3",
+  "nameOff": 30958517,
   "placeholder": false,
   "tags": [
    "KOS-MOS tech"
@@ -3132,6 +3158,7 @@
   "desc": "",
   "ep": null,
   "name": "T-ARTS 4",
+  "nameOff": 30958526,
   "placeholder": false,
   "tags": [
    "KOS-MOS tech"
@@ -3150,6 +3177,7 @@
   "desc": "",
   "ep": null,
   "name": "T-ARTS 5",
+  "nameOff": 30958535,
   "placeholder": false,
   "tags": [
    "KOS-MOS tech"
@@ -3168,6 +3196,7 @@
   "desc": "",
   "ep": null,
   "name": "T-ARTS 6",
+  "nameOff": 30958544,
   "placeholder": false,
   "tags": [
    "KOS-MOS tech"
@@ -3186,6 +3215,7 @@
   "desc": "",
   "ep": null,
   "name": "T-ARTS 7",
+  "nameOff": 30958553,
   "placeholder": false,
   "tags": [
    "KOS-MOS tech"
@@ -3204,6 +3234,7 @@
   "desc": "",
   "ep": null,
   "name": "Electro Shot",
+  "nameOff": 30958562,
   "placeholder": false,
   "tags": [
    "Shion tech"
@@ -3222,6 +3253,7 @@
   "desc": "",
   "ep": null,
   "name": "Electro Ray",
+  "nameOff": 30958575,
   "placeholder": false,
   "tags": [
    "Shion tech"
@@ -3240,6 +3272,7 @@
   "desc": "",
   "ep": null,
   "name": "Electro Blast",
+  "nameOff": 30958587,
   "placeholder": false,
   "tags": [
    "Shion tech"
@@ -3258,6 +3291,7 @@
   "desc": "",
   "ep": null,
   "name": "Tempest Blade",
+  "nameOff": 30958657,
   "placeholder": false,
   "tags": [
    "Jin tech"
@@ -3276,6 +3310,7 @@
   "desc": "",
   "ep": null,
   "name": "Wind Blade",
+  "nameOff": 30958671,
   "placeholder": false,
   "tags": [
    "Jin tech"
@@ -3294,6 +3329,7 @@
   "desc": "",
   "ep": null,
   "name": "Spinning Blade",
+  "nameOff": 30958682,
   "placeholder": false,
   "tags": [
    "Jin tech"
@@ -3312,6 +3348,7 @@
   "desc": "",
   "ep": null,
   "name": "Rising Blade",
+  "nameOff": 30958697,
   "placeholder": false,
   "tags": [
    "Jin tech"
@@ -3330,6 +3367,7 @@
   "desc": "",
   "ep": null,
   "name": "Tornado Strike",
+  "nameOff": 30958710,
   "placeholder": false,
   "tags": [
    "Jin tech"
@@ -3348,6 +3386,7 @@
   "desc": "",
   "ep": null,
   "name": "Soaring Blade",
+  "nameOff": 30958725,
   "placeholder": false,
   "tags": [
    "Jin tech"
@@ -3366,6 +3405,7 @@
   "desc": "",
   "ep": null,
   "name": "Raptor",
+  "nameOff": 30958739,
   "placeholder": false,
   "tags": [
    "Jin tech"
@@ -3384,6 +3424,7 @@
   "desc": "",
   "ep": null,
   "name": "Combo One",
+  "nameOff": 30958746,
   "placeholder": false,
   "tags": [
    "Ziggy tech"
@@ -3402,6 +3443,7 @@
   "desc": "",
   "ep": null,
   "name": "Combo Two",
+  "nameOff": 30958756,
   "placeholder": false,
   "tags": [
    "Ziggy tech"
@@ -3420,6 +3462,7 @@
   "desc": "",
   "ep": null,
   "name": "Combo Three",
+  "nameOff": 30958766,
   "placeholder": false,
   "tags": [
    "Ziggy tech"
@@ -3438,6 +3481,7 @@
   "desc": "",
   "ep": null,
   "name": "Combo Four",
+  "nameOff": 30958778,
   "placeholder": false,
   "tags": [
    "Ziggy tech"
@@ -3456,6 +3500,7 @@
   "desc": "",
   "ep": null,
   "name": "Burst Blow",
+  "nameOff": 30958789,
   "placeholder": false,
   "tags": [
    "Ziggy tech"
@@ -3474,6 +3519,7 @@
   "desc": "",
   "ep": null,
   "name": "Burst Blade",
+  "nameOff": 30958800,
   "placeholder": false,
   "tags": [
    "Ziggy tech"
@@ -3492,6 +3538,7 @@
   "desc": "",
   "ep": null,
   "name": "Robin",
+  "nameOff": 30958826,
   "placeholder": false,
   "tags": [
    "MOMO tech"
@@ -3510,6 +3557,7 @@
   "desc": "",
   "ep": null,
   "name": "Lark",
+  "nameOff": 30958832,
   "placeholder": false,
   "tags": [
    "MOMO tech"
@@ -3528,6 +3576,7 @@
   "desc": "",
   "ep": null,
   "name": "Sparrow",
+  "nameOff": 30958837,
   "placeholder": false,
   "tags": [
    "MOMO tech"
@@ -3546,6 +3595,7 @@
   "desc": "",
   "ep": null,
   "name": "Quick Draw",
+  "nameOff": 30958897,
   "placeholder": false,
   "tags": [
    "Jr. tech"
@@ -3564,6 +3614,7 @@
   "desc": "",
   "ep": null,
   "name": "Quick Turn",
+  "nameOff": 30958908,
   "placeholder": false,
   "tags": [
    "Jr. tech"
@@ -3582,6 +3633,7 @@
   "desc": "",
   "ep": null,
   "name": "Quick Drop",
+  "nameOff": 30958919,
   "placeholder": false,
   "tags": [
    "Jr. tech"
@@ -3600,6 +3652,7 @@
   "desc": "",
   "ep": null,
   "name": "Quick Shot",
+  "nameOff": 30958930,
   "placeholder": false,
   "tags": [
    "Jr. tech"
@@ -3618,6 +3671,7 @@
   "desc": "",
   "ep": null,
   "name": "Cross Hand",
+  "nameOff": 30958941,
   "placeholder": false,
   "tags": [
    "Jr. tech"
@@ -3636,6 +3690,7 @@
   "desc": "",
   "ep": null,
   "name": "Crossover",
+  "nameOff": 30958952,
   "placeholder": false,
   "tags": [
    "Jr. tech"
@@ -3654,6 +3709,7 @@
   "desc": "",
   "ep": null,
   "name": "Killing Sky",
+  "nameOff": 30958962,
   "placeholder": false,
   "tags": [
    "Jr. tech"
@@ -3672,6 +3728,7 @@
   "desc": "",
   "ep": null,
   "name": "Hand-to-hand",
+  "nameOff": 30958974,
   "placeholder": false,
   "tags": [
    "Dinah attack"
@@ -3690,6 +3747,7 @@
   "desc": "",
   "ep": null,
   "name": "Beam Blaster",
+  "nameOff": 30958987,
   "placeholder": false,
   "tags": [
    "Dinah attack"
@@ -3708,6 +3766,7 @@
   "desc": "",
   "ep": null,
   "name": "Beam Blaster",
+  "nameOff": 30959000,
   "placeholder": false,
   "tags": [
    "Dinah attack"
@@ -3726,6 +3785,7 @@
   "desc": "",
   "ep": null,
   "name": "Spiral Fist",
+  "nameOff": 30959013,
   "placeholder": false,
   "tags": [
    "Dinah special"
@@ -3744,6 +3804,7 @@
   "desc": "",
   "ep": null,
   "name": "Tornado Fist",
+  "nameOff": 30959025,
   "placeholder": false,
   "tags": [
    "Dinah special"
@@ -3762,6 +3823,7 @@
   "desc": "",
   "ep": null,
   "name": "Twin Dragons",
+  "nameOff": 30959038,
   "placeholder": false,
   "tags": [
    "Dinah special"
@@ -3780,6 +3842,7 @@
   "desc": "",
   "ep": null,
   "name": "Chained Blast",
+  "nameOff": 30959051,
   "placeholder": false,
   "tags": [
    "Dinah special"
@@ -3798,6 +3861,7 @@
   "desc": "",
   "ep": null,
   "name": "Meteor Storm",
+  "nameOff": 30959065,
   "placeholder": false,
   "tags": [
    "Dinah special"
@@ -3816,6 +3880,7 @@
   "desc": "",
   "ep": null,
   "name": "X-BUSTER",
+  "nameOff": 30959078,
   "placeholder": false,
   "tags": [
    "Dinah special"
@@ -3834,6 +3899,7 @@
   "desc": "",
   "ep": null,
   "name": "Iron Blade",
+  "nameOff": 30959087,
   "placeholder": false,
   "tags": [
    "Dinah special"
@@ -3852,6 +3918,7 @@
   "desc": "",
   "ep": null,
   "name": "Kick",
+  "nameOff": 30959098,
   "placeholder": false,
   "tags": [
    "Zebulun attack"
@@ -3870,6 +3937,7 @@
   "desc": "",
   "ep": null,
   "name": "Archery",
+  "nameOff": 30959103,
   "placeholder": false,
   "tags": [
    "Zebulun attack"
@@ -3888,6 +3956,7 @@
   "desc": "",
   "ep": null,
   "name": "Archery",
+  "nameOff": 30959111,
   "placeholder": false,
   "tags": [
    "Zebulun attack"
@@ -3906,6 +3975,7 @@
   "desc": "",
   "ep": null,
   "name": "Rain Arrow",
+  "nameOff": 30959119,
   "placeholder": false,
   "tags": [
    "Zebulun special"
@@ -3924,6 +3994,7 @@
   "desc": "",
   "ep": null,
   "name": "Starlight Arrow",
+  "nameOff": 30959130,
   "placeholder": false,
   "tags": [
    "Zebulun special"
@@ -3942,6 +4013,7 @@
   "desc": "",
   "ep": null,
   "name": "Golden Bow",
+  "nameOff": 30959146,
   "placeholder": false,
   "tags": [
    "Zebulun special"
@@ -3960,6 +4032,7 @@
   "desc": "",
   "ep": null,
   "name": "Ice Rondo",
+  "nameOff": 30959157,
   "placeholder": false,
   "tags": [
    "Zebulun special"
@@ -3978,6 +4051,7 @@
   "desc": "",
   "ep": null,
   "name": "Power Kick",
+  "nameOff": 30959167,
   "placeholder": false,
   "tags": [
    "Zebulun special"
@@ -3996,6 +4070,7 @@
   "desc": "",
   "ep": null,
   "name": "Aird",
+  "nameOff": 30959178,
   "placeholder": false,
   "tags": [
    "Zebulun special"
@@ -4014,6 +4089,7 @@
   "desc": "",
   "ep": null,
   "name": "Meteor Blast",
+  "nameOff": 30959183,
   "placeholder": false,
   "tags": [
    "Zebulun special"
@@ -4032,6 +4108,7 @@
   "desc": "",
   "ep": null,
   "name": "Shield Lancer",
+  "nameOff": 30959196,
   "placeholder": false,
   "tags": [
    "Asher attack"
@@ -4050,6 +4127,7 @@
   "desc": "",
   "ep": null,
   "name": "Gatling Gun",
+  "nameOff": 30959210,
   "placeholder": false,
   "tags": [
    "Asher attack"
@@ -4068,6 +4146,7 @@
   "desc": "",
   "ep": null,
   "name": "Gatling Gun",
+  "nameOff": 30959222,
   "placeholder": false,
   "tags": [
    "Asher attack"
@@ -4086,6 +4165,7 @@
   "desc": "",
   "ep": null,
   "name": "Shot Buster",
+  "nameOff": 30959234,
   "placeholder": false,
   "tags": [
    "Asher special"
@@ -4104,6 +4184,7 @@
   "desc": "",
   "ep": null,
   "name": "Gatling Blast",
+  "nameOff": 30959246,
   "placeholder": false,
   "tags": [
    "Asher special"
@@ -4122,6 +4203,7 @@
   "desc": "",
   "ep": null,
   "name": "Wings of Light",
+  "nameOff": 30959260,
   "placeholder": false,
   "tags": [
    "Asher special"
@@ -4140,6 +4222,7 @@
   "desc": "",
   "ep": null,
   "name": "Ice Storm",
+  "nameOff": 30959275,
   "placeholder": false,
   "tags": [
    "Asher special"
@@ -4158,6 +4241,7 @@
   "desc": "",
   "ep": null,
   "name": "Corona Buster",
+  "nameOff": 30959285,
   "placeholder": false,
   "tags": [
    "Asher special"
@@ -4176,6 +4260,7 @@
   "desc": "",
   "ep": null,
   "name": "Odin Buster",
+  "nameOff": 30959299,
   "placeholder": false,
   "tags": [
    "Asher special"
@@ -4194,6 +4279,7 @@
   "desc": "",
   "ep": null,
   "name": "Moonlight Blade",
+  "nameOff": 30959311,
   "placeholder": false,
   "tags": [
    "Asher special"
@@ -4212,6 +4298,7 @@
   "desc": "",
   "ep": null,
   "name": "MINIGUN",
+  "nameOff": 30959547,
   "placeholder": false,
   "tags": [
    "KOS-MOS special"
@@ -4230,6 +4317,7 @@
   "desc": "",
   "ep": null,
   "name": "MICRO MISSILE",
+  "nameOff": 30959555,
   "placeholder": false,
   "tags": [
    "KOS-MOS special"
@@ -4248,6 +4336,7 @@
   "desc": "",
   "ep": null,
   "name": "DRAGON BLADE",
+  "nameOff": 30959569,
   "placeholder": false,
   "tags": [
    "KOS-MOS special"
@@ -4266,6 +4355,7 @@
   "desc": "",
   "ep": null,
   "name": "X-BUSTER",
+  "nameOff": 30959582,
   "placeholder": false,
   "tags": [
    "KOS-MOS special"

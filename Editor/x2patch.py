@@ -1316,6 +1316,13 @@ def _regions(disc):
 
 def _locate(off, disc):
     """('enemy stats', 'record 6 HP') for a byte offset, or (None, None)."""
+    # Editable name text first, and matched against the individual name blobs
+    # rather than the pool's bounding box — that box spans megabytes and would
+    # otherwise claim every unmapped byte between the three pools.
+    i = F.skill_name_at(off, disc)
+    if i is not None:
+        e = F.skill_catalog()[i]
+        return "skill text", f"skill {i} name ({e.get('name')})"
     for name, base, size, kind in _regions(disc):
         if not base <= off < base + size:
             continue
@@ -1693,6 +1700,80 @@ def sync_units(src, dst):
             recs += 1
     return recs, fields
 
+# ---------------------------------------------------------------------------
+# Skill name text — see x2fields' SKILL NAME TEXT block for why only the blob
+# at nameOff is rewritten and not every occurrence on the disc.
+# ---------------------------------------------------------------------------
+def _name_off(i):
+    e = F.skill_catalog().get(i) or {}
+    return e.get("nameOff")
+
+def read_skill_text(iso, i):
+    """{'name', 'retail', 'budget', 'meta'} for the skill's text blob, or None.
+
+    `budget` and the description's position both come from the RETAIL name in
+    the catalog, not from the disc — see x2fields.skill_name_budget().
+    """
+    entry = F.skill_catalog().get(i) or {}
+    off = entry.get("nameOff")
+    if not off:
+        return None
+    retail = entry.get("name") or ""
+    budget = F.skill_name_budget(retail)
+    raw = iso.read(off, budget + 0x100)
+    name = raw[:budget].split(b"\x00", 1)[0].decode("latin1")
+    # Only the ether/double and dual pools are NAME \0 META \0. The single-tech
+    # and special names live in a flat menu-string list, where the bytes after
+    # the terminator are simply the NEXT name — reading them as a description
+    # prints "MICRO MISSILE" as MINIGUN's description.
+    has_meta = bool(entry.get("desc") or entry.get("target"))
+    meta = raw[budget:].split(b"\x00", 1)[0].decode("latin1") if has_meta else ""
+    return {"name": name, "retail": retail, "budget": budget,
+            "meta": meta, "off": off}
+
+def write_skill_name(iso, i, new):
+    """Rewrite a skill's name in place. Raises if it will not fit."""
+    cur = read_skill_text(iso, i)
+    if not cur:
+        raise SystemExit(f"skill {i} has no name offset in the catalog")
+    data = new.encode("latin1", errors="replace") + b"\x00"
+    if len(data) > cur["budget"]:
+        raise SystemExit(
+            f"{new!r} needs {len(data)} bytes but the retail name "
+            f"{cur['retail']!r} only allotted {cur['budget']} — a packed pool "
+            f"cannot grow, so the replacement must be at most "
+            f"{cur['budget'] - 1} characters")
+    # pad to the full budget so a shorter name leaves no trailing fragment of
+    # the previous one lying between the terminator and the description
+    iso.write(cur["off"], data.ljust(cur["budget"], b"\x00"))
+    return cur
+
+def cmd_skill_rename(a):
+    """Rename one skill, in place, within its existing byte budget."""
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        cur = read_skill_text(iso, a.index)
+    if not cur:
+        raise SystemExit(f"skill {a.index} has no editable name")
+    if a.name is None:
+        renamed = "" if cur["name"] == cur["retail"] else f"  [retail: {cur['retail']!r}]"
+        print(f"skill {a.index}: {cur['name']!r}  "
+              f"(up to {cur['budget'] - 1} characters){renamed}")
+        if cur["meta"]:
+            print(f"  {cur['meta']}")
+        return 0
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        write_skill_name(iso, a.index, a.name)
+    print(f"skill {a.index}: {cur['name']!r} -> {a.name!r}")
+    if a.also:
+        with Iso(a.also, write=True) as other:
+            require_version(other)
+            write_skill_name(other, a.index, a.name)
+        print(f"  also written to {a.also}")
+    return 0
+
 def read_skill_at(iso, off):
     """Named numeric fields of the skill record based at an absolute offset.
 
@@ -2067,6 +2148,14 @@ def main():
     sp.add_argument("--also", metavar="OTHER_ISO",
                     help="after editing, copy the tables onto the other disc")
     sp.set_defaults(fn=cmd_unit_set)
+
+    sp = sub.add_parser("skill-rename",
+                        help="rename a skill in place (omit --name to inspect)")
+    sp.add_argument("iso"); sp.add_argument("index", type=int)
+    sp.add_argument("--name")
+    sp.add_argument("--backup", action="store_true")
+    sp.add_argument("--also", metavar="OTHER_ISO")
+    sp.set_defaults(fn=cmd_skill_rename)
 
     sp = sub.add_parser("skills", help="list the skill/tech catalog read off the disc")
     sp.add_argument("--grep", help="filter by name, tag or description text")

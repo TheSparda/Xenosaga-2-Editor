@@ -604,6 +604,41 @@ consistent with the accuracy reading. Element sanity note: chaos's techs carry
 With these, **176 skill records are editable** — everything the HardType mod
 touches in the skill space is now reachable by this editor.
 
+### 2026-08-24 — Skill name text is editable
+
+Each catalog entry records its own `nameOff`, and the blob is
+`NAME \0 META \0` for the ether/double and dual pools, or a bare name in the
+single-tech/special menu list. Renaming writes over the name in place.
+
+Three things had to be right, and the first two were wrong in the first cut:
+
+* **The budget must come from the RETAIL name, not the disc.** Deriving it from
+  the current terminator looks correct and breaks immediately: shortening
+  "Aura Blast" to "Flare" moves the NUL, so the next read reports a 5-byte
+  budget and the name can never be restored. The retail name in the catalog
+  defines the space the layout allotted.
+* **The description's start is fixed by the same retail length.** Parsing it
+  after the *current* terminator made "Aura Blast" → "Flare" report its
+  description as `last` — the tail of the old name. And the single-tech pool has
+  no description at all, so reading one there printed MINIGUN's as
+  `MICRO MISSILE`, i.e. the next name.
+* **Writes pad the whole budget**, so a shorter name leaves no fragment of the
+  old one between the terminator and the description. Verified end to end:
+  renaming and restoring on a real disc leaves it **byte-identical**.
+
+What this deliberately does NOT do is what HardType does. That patch rewrites
+every disc-wide occurrence of the old byte sequence, which also hits menu and
+tutorial prose that merely *contains* the name — `Miracle` inside
+`Miracle Star`, truncating an unrelated skill. Only the authoritative blob at
+`nameOff` is rewritten; prose elsewhere is left alone.
+
+`skill_text_span()` is a bounding box over three scattered pools, for a
+front-end that needs one read span. It is **not** an identity: it spans
+megabytes and contains the enemy tables. `skill_name_at()` matches individual
+name blobs, and `explain-diff` uses that — otherwise the box would claim every
+unmapped byte between the pools, exactly as the enemy-name window once claimed
+the dual-tech block.
+
 ### 2026-08-24 — Skill/class learning costs: NOT in the flat data region (NEGATIVE RESULT)
 
 Ground truth was excellent — `Guides/skills.rtf` publishes **110 Skill Point

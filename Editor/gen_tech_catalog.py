@@ -25,17 +25,19 @@ OUT = os.path.join(HERE, "x2_skills.json")
 
 
 def read_pool(iso, base, count):
-    """[(name, meta), ...] from `count` NUL-terminated pairs at `base`."""
+    """[(name, meta, offset), ...] from `count` NUL-terminated pairs at `base`.
+
+    The offset is recorded so a name can be renamed in place later — without it
+    the tech entries would be the only skills in the catalog you cannot rename.
+    """
     raw = iso.read(base, 0x1800)
-    parts = raw.split(b"\x00")
-    out, k = [], 0
-    while k + 1 < len(parts) and len(out) < count:
-        name = parts[k].decode("latin1")
-        meta = parts[k + 1].decode("latin1")
-        out.append((name, meta))
-        k += 2
-    if len(out) != count:
-        raise SystemExit(f"read {len(out)} pool entries, expected {count}")
+    out, at = [], 0
+    while len(out) < count:
+        n_end = raw.index(b"\x00", at)
+        m_end = raw.index(b"\x00", n_end + 1)
+        out.append((raw[at:n_end].decode("latin1"),
+                    raw[n_end + 1:m_end].decode("latin1"), base + at))
+        at = m_end + 1
     return out
 
 
@@ -64,9 +66,16 @@ POOL_PLAN = [   # (block label, tokens in this pool group, tokens that are real)
 
 
 def read_single_pool(iso, disc):
-    """{block label: [names]} from the menu-string pool."""
-    raw = iso.read(F.SINGLE_NAME_POOL[disc], 0x600)
-    toks = [t.decode("latin1") for t in raw.split(b"\x00")]
+    """{block label: [(name, offset)]} from the menu-string pool."""
+    base = F.SINGLE_NAME_POOL[disc]
+    raw = iso.read(base, 0x600)
+    toks, at = [], 0
+    while at < len(raw):
+        end = raw.find(b"\x00", at)
+        if end < 0:                     # ran past the window's last terminator
+            break
+        toks.append((raw[at:end].decode("latin1"), base + at))
+        at = end + 1
     out, k = {}, 0
     for label, group, real in POOL_PLAN:
         out[label] = toks[k:k + real]
@@ -99,26 +108,28 @@ def main(argv):
             if len(names) != count:
                 raise SystemExit(f"{lbl}: pool gave {len(names)} names for "
                                  f"{count} records — refusing to write")
-            by_label[lbl] = [(text0 + k, names[k],
+            by_label[lbl] = [(text0 + k, names[k][0], names[k][1],
                               P.read_skill_at(iso, b + k * F.SKILL_STRIDE))
                              for k in range(count)]
 
     cat = json.load(open(OUT, encoding="utf-8"))
     for lbl, rows in by_label.items():
-        for idx, name, rec in rows:
+        for idx, name, name_off, rec in rows:
             cat[str(idx)] = {
                 "desc": "", "ep": rec["EP"] or None, "name": name,
+                "nameOff": name_off,
                 "placeholder": False, "tags": [lbl], "target": "",
                 "numeric": {"ep": rec["EP"], "element": rec["Element"],
                             "power": rec["Power"], "effPct": rec["EffPct"],
                             "effMask": rec["EffMask"], "target": rec["Target"]},
             }
-    for i, ((name, meta), rec) in enumerate(zip(pool, recs)):
+    for i, ((name, meta, name_off), rec) in enumerate(zip(pool, recs)):
         target, _, desc = meta.partition("\\n")
         cat[str(dual_text0 + i)] = {
             "desc": desc,
             "ep": rec["EP"] or None,
             "name": name,
+            "nameOff": name_off,
             "placeholder": False,
             "tags": ["dual tech"],
             "target": target,
@@ -137,7 +148,7 @@ def main(argv):
     nsingles = sum(len(v) for v in by_label.values())
     print(f"{serial}: appended {dual_count} dual techs at {dual_text0}.. and "
           f"{nsingles} techs/attacks/specials at {F.TECH_TEXT0_SINGLE}..")
-    for i, (name, _m) in enumerate(pool):
+    for i, (name, _m, _o) in enumerate(pool):
         print(f"   {dual_text0 + i}  {name:<22} power {recs[i]['Power']:>4}  "
               f"element {F.skill_element_text(recs[i]['Element'])}")
     return 0
