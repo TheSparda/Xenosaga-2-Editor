@@ -323,13 +323,34 @@ and shop stock/price tables are almost certainly here (or in the ELF data seg), 
 Realistically these need the running game (PCSX2 RAM search + write-breakpoints) — the
 same tool gap as the save checksum/party/inventory. Deferred until PCSX2 is available.
 
-### ISO TODO
-- [ ] Find on-foot accessory storage (candidate record slots were constant in samples).
-- [ ] Map the pointer/index tables so every string gets an authoritative id.
-- [ ] Locate editable ISO tables (character growth, enemy stats, shops) for new-game edits.
-- [ ] Translate the pnach EE addresses through the ELF load map to locate the static tables
-  on-disc (characters, techs/ether, gear, enemies, shops, text).
-- [ ] Build `x2fields.py` schemas as each table is verified byte-for-byte.
+### ISO TODO (refreshed 2026-08-24)
+Done since this list was written — kept short, the sections above have the detail:
+- [x] Enemy stats / rewards / drops / affinities / resistances / break+zones / battle flags
+- [x] Player unit table (characters + E.S.), stats and affinities
+- [x] Skill numeric table — 176 records: ethers, doubles, duals, techs, E.S. attacks/specials
+- [x] Schemas in `x2fields.py`, each gated on a disc cross-check and a ground-truth match
+
+Open, in the order they are worth attempting:
+- [ ] **Skill/tech description + name text.** Located (`0x200A..0x200C` pool, plus the
+  menu-string pool at `0x1D86349`) but not editable. Closes 119 of the 133 records PPF
+  import cannot stage. Two constraints, both known: strings are packed and NUL-terminated,
+  so a replacement must fit the existing budget; and several strings exist in ~9 duplicate
+  copies across the disc that must be kept in step.
+- [ ] **Skill / class learning costs.** Not in the skill record (scanned: 0 of 24
+  name-matched skills had their published cost in any field of the 32-byte record), so it
+  is a separate table. Ground truth is unusually good — the skills guide publishes **110
+  Skill Point costs and 27 Class Point costs**, and the menu strings `Required C.Pt:` /
+  `Required S.Pt:` / `CLASS A..H` sit at `0x1D862AA`, just before the tech name pool.
+  Anchored-signature scan, same method as the EP column.
+- [ ] **Equip abilities / E.S. accessory effects.** Still unlocated, and HardType gives no
+  anchor: its readme names exact values (+4 Str, Masamune +10, Gorgon Frame +60) but no
+  patched bytes carry them, so it re-points ids rather than editing effect values. Needs
+  different ground truth.
+- [ ] `0x35EA60` — 6-byte entries, u16s of 200/400/500/600/800/1000/1200/1500. The "shop
+  price table" reading is **dead**: Episode II has no shops, money, weapons or armour (the
+  walkthrough is explicit). Unidentified.
+- [ ] Blocked on runtime (PCSX2) or deep static RE: character growth curves, global battle
+  constants, field-enemy placement/detection.
 
 ## Local resources (all gitignored)
 - `../ISO/` — both retail discs.
