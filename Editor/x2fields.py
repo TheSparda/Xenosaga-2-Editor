@@ -229,10 +229,28 @@ def keyitem_names():
 #   doubles 0x2008400, 29 records, skill text indices 59..87
 # Disc 2 is the usual -0x800. Records are addressed by TEXT INDEX (what
 # `x2patch.py skills` prints), not by position within a block.
+# (label, base, count, first text index in the skill catalog).
+#
+# The dual-tech block was located from the HardType mod: every Attack Power its
+# readme publishes lands at 32-byte stride from 0x20032E0 at +0x0A, in the
+# readme's own order, and the two records it skips are Burst Veil and Blessed
+# Miracle — support techs with no attack power to change. Its names sit in their
+# own pool at 0x200FC10 and are appended to the skill catalog at index 200 by
+# Editor/gen_tech_catalog.py.
+#
+# This also retires a wrong conclusion. The notes used to say the tech blocks
+# share the 32-byte stride but NOT the field layout, "so the combo block would
+# read as sixteen identical 20-power skills under the ether layout". They read as
+# identical 20-power skills because single techs genuinely all have power 20 in
+# vanilla — the layout was right all along.
 SKILL_BLOCKS = {
-    1: (("ether", 0x2007CA0, 57, 0), ("double", 0x2008400, 29, 59)),
-    2: (("ether", 0x20074A0, 57, 0), ("double", 0x2007C00, 29, 59)),
+    1: (("ether", 0x2007CA0, 57, 0), ("double", 0x2008400, 29, 59),
+        ("dual tech", 0x20032E0, 16, 200)),
+    2: (("ether", 0x20074A0, 57, 0), ("double", 0x2007C00, 29, 59),
+        ("dual tech", 0x2002AE0, 16, 200)),
 }
+TECH_NAME_POOL = {1: 0x200FC10, 2: 0x200F410}
+TECH_TEXT0 = 200
 SKILL_STRIDE = 32
 SKILL_NUM_FIELDS = [               # exposed, editable
     ("EP",      0x06, 1, "num"),
@@ -241,8 +259,21 @@ SKILL_NUM_FIELDS = [               # exposed, editable
     ("EffPct",  0x12, 2, "num"),
     ("EffMask", 0x14, 2, "num"),
 ]
+# All EIGHT bits, in the same order as AFFINITY_ELEMENTS — the ether skills only
+# ever use the low five, which is why this shipped as a five-entry map. The
+# physical three show up on techs, and the game labels them in its own
+# description text ("Ice Brand ... Single enemy/P/Slash/Ice" against a record
+# holding 0x50 = Slash|Ice). Verified across the dual-tech block: 7 of the 9
+# entries whose description names elements match their record exactly.
+#
+# The two that "differ" are the strongest evidence, not the weakest. Fiery
+# Ritornelle's record says Fire|Hit while its own description says Fire/Pierce —
+# and the HardType mod's readme says it makes that skill "now properly deals fire
+# and pierce damage", setting the field to 0x28 = Fire|Pierce. Decoding these
+# bits reproduced a vanilla bug that a third party had independently documented.
 SKILL_ELEMENT_BITS = {"Beam": 0x01, "Aura": 0x02, "Thunder": 0x04,
-                      "Fire": 0x08, "Ice": 0x10}
+                      "Fire": 0x08, "Ice": 0x10,
+                      "Pierce": 0x20, "Slash": 0x40, "Hit": 0x80}
 
 def skill_blocks(disc):
     try:

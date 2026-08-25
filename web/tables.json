@@ -298,18 +298,23 @@
     "blocks": {
       "1": [
         ["ether", 33586336, 57, 0],
-        ["double", 33588224, 29, 59]
+        ["double", 33588224, 29, 59],
+        ["dual tech", 33567456, 16, 200]
       ],
       "2": [
         ["ether", 33584288, 57, 0],
-        ["double", 33586176, 29, 59]
+        ["double", 33586176, 29, 59],
+        ["dual tech", 33565408, 16, 200]
       ]
     },
     "elementBits": {
       "Aura": 2,
       "Beam": 1,
       "Fire": 8,
+      "Hit": 128,
       "Ice": 16,
+      "Pierce": 32,
+      "Slash": 64,
       "Thunder": 4
     },
     "fields": [
@@ -319,7 +324,7 @@
       ["EffPct", 18, 2],
       ["EffMask", 20, 2]
     ],
-    "span": 2816,
+    "span": 21696,
     "stride": 32
   },
   "volumeId": "XENOSAGA_II"

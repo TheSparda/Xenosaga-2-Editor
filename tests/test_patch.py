@@ -182,7 +182,13 @@ class TestExplainDiff(unittest.TestCase):
             (t["stats"] + 6 * F.ENEMY_STRIDE + F.ENEMY_NOZONE_OFF,
              "enemy stats", "record 6 NoZone"),
             (t["rewards"] + 40 * F.REWARD_STRIDE, "enemy rewards", "record 40 EXP"),
-            (F.skill_base(1) + 6, "skill blocks", "skill 0 EP"),
+            # anchor on the named block, not skill_base() — the lowest-addressed
+            # block is whichever one happens to sit first, and that changed once
+            # the dual techs were located
+            (next(b for b in F.skill_blocks(1) if b[0] == "ether")[1] + 6,
+             "skill blocks", "skill 0 EP"),
+            (next(b for b in F.skill_blocks(1) if b[0] == "dual tech")[1] + 10,
+             "skill blocks", "skill 200 Power"),
         ]
         for off, region, what in cases:
             with self.subTest(hex(off)):
