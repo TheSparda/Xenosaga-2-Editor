@@ -585,6 +585,32 @@ consistent with the accuracy reading. Element sanity note: chaos's techs carry
 With these, **176 skill records are editable** — everything the HardType mod
 touches in the skill space is now reachable by this editor.
 
+### 2026-08-24 — Encounter rate: there is nothing to edit (NEGATIVE RESULT)
+
+Asked whether the random-encounter rate could be tuned. **Episode II has no
+random encounters.** Enemies are visible on the field and a battle starts on
+contact, so there is no encounter-rate constant of the kind a random-encounter
+RPG carries — the strategy guides describe no such mechanic, and published
+descriptions of the game confirm the party "can see enemy units in the field,
+choosing whether or not to engage them".
+
+Recorded as a negative result so nobody spends a scan hunting for a table that
+cannot exist. What *would* be tunable, none of it located:
+
+* field-enemy placement and count per area
+* detection/chase range — the closest thing to "how often you get dragged in"
+* respawn on re-entering an area
+
+All three are per-area field data, which the notes already establish is
+dynamically loaded from `XENOSAGA.01` rather than sitting at a static ELF
+address — the same blocker as character growth and shops, needing a PCSX2
+session. The pnach cheat set offers no anchor either: it covers battle actors
+and stats, nothing field-side.
+
+The practical lever that already exists for "I fight too much" is making fights
+shorter rather than rarer: battle-pacing profiles, bulk Break shortening, and
+now per-skill power.
+
 ### 2026-08-24 — PLAYER UNIT TABLE SOLVED (15 records @ 0x1FFF020)
 
 The name anchor below led somewhere better than expected: the character records
@@ -601,11 +627,24 @@ Verification, in increasing order of strength:
 * the verified battle flags read coherently: humans type 0 (Bio), E.S. units
   type 2 (Mechanism) with zone targeting off
 * **the save format's "Character id" field is actually the record's `+0x34`
-  name pointer** (0x564 chaos, 0x56A KOS-MOS...), and save character blocks at
-  join time are **byte-identical** to these disc records — KOS-MOS
-  1066/34/31/32/31/33, Shion 547/20/21/31/31/27, E.S. Dinah, E.S. Zebulun all
-  matched exactly, while leveled characters sit above the base values. This
-  table is what a new game copies into the save.
+  name pointer** (0x564 chaos, 0x56A KOS-MOS...), and a save character block at
+  join time carries **the same nine stat values** as the disc record — KOS-MOS
+  1066/30/34/31/32/31/33/30/6, Shion, E.S. Dinah and E.S. Zebulun all matched
+  exactly, while leveled characters sit above the base values. This table is
+  what a new game copies into the save.
+
+  *Correction (same day):* this was first written as the save block being
+  "byte-identical" to the disc record. It cannot be — the save record is `0x108`
+  bytes and the disc record `0x5C`, and the field offsets differ by a constant
+  `0x34`. The nine stat values matching is the actual (still strong) evidence;
+  the stronger phrasing was never what the check tested. Recorded rather than
+  quietly edited, because the same over-reach is what the `+0x04` affinity and
+  `+0x16` string-id retractions came from.
+
+**Starting gear is NOT in this table**, and the size settles it: the save keeps
+equipment at `+0x86..+0x90`, which under the constant `0x34` offset difference
+would land at `+0xBA..+0xC4` — past the end of a `0x5C` record. Whatever seeds a
+new game's equipment lives elsewhere and has no lead yet.
 
 `+0x3A` — still the unexplained "99" halfword on enemy records — is **EP**
 here (all seven characters + Zebulun's 52 match the save exactly). The record
