@@ -171,6 +171,28 @@ class TestDomReferences(unittest.TestCase):
         self.assertIn("breakFloor()", iso,
                       "shortenSeq must consult the shield, not a hardcoded floor")
 
+    def test_touch_targets_do_not_depend_on_screen_width(self):
+        # A 4:3 handheld can be 960 or 1280 logical px wide and still be driven
+        # by thumbs. Gating hit areas on width alone would give it desktop-sized
+        # controls, so the coarse-pointer query must carry them independently.
+        css = read("style.css")
+        m = re.search(r"@media\(pointer:coarse\)\s*\{(.*?)\n\}", css, re.S)
+        self.assertTrue(m, "no coarse-pointer rules — touch sizing is width-gated")
+        block = m.group(1)
+        for sel in ("input[type=number]", ".mtab", ".btn"):
+            with self.subTest(sel):
+                self.assertIn(sel, block,
+                              f"{sel} has no touch sizing outside the width query")
+
+    def test_stat_rows_wrap_instead_of_stretching(self):
+        # the old table{width:100%} spread nine inputs edge to edge and forced a
+        # horizontal scroll on a handheld
+        css = read("style.css")
+        self.assertIn(".fieldtable tr{display:flex;flex-wrap:wrap", css)
+        iso = read("iso.js")
+        self.assertGreaterEqual(iso.count('class="fieldtable"'), 5,
+                                "not every stat table opts into the wrapping grid")
+
     def test_engine_files_the_boot_loop_fetches_all_exist(self):
         m = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
         self.assertTrue(m, "could not find the engine file list in app.js")

@@ -104,6 +104,57 @@ html{scroll-padding-bottom:96px}
    clear-button suppression are specific to it */
 .findbox input[type=search]{width:22ch;text-align:left}
 .findbox input[type=search]::-webkit-search-cancel-button{display:none}
+/* ---- field grids ---------------------------------------------------------
+   Stat rows used to be a table at width:100%, which spread nine inputs edge to
+   edge with huge gaps on a desktop and forced a horizontal scroll on a handheld.
+   They lay out as a wrapping flex row now: cells size to their content, keep a
+   consistent rhythm, and reflow to as many columns as the screen allows. */
+.fieldtable, .fieldtable > tbody{display:block;width:auto}
+.fieldtable tr{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;
+  margin-bottom:2px}
+.fieldtable td{display:block;padding:0;text-align:left;min-width:0}
+.fieldtable td > span{display:inline-flex;align-items:center;gap:4px}
+.fieldtable .fl{font-size:10px;margin-bottom:3px;white-space:nowrap}
+.fieldtable input[type=number]{width:8ch;padding:6px 8px;border-radius:8px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--ink);
+  font:inherit;font-size:14px;text-align:center}
+.fieldtable input[type=number]:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.fieldtable input.changed{border-color:var(--warn);color:var(--warn);font-weight:600}
+
+/* element bits as toggle chips — a checked box in a row of eight reads as a
+   form; a lit chip reads as "this skill is Fire" */
+.ebits{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+label.ebit{display:inline-flex;align-items:center;gap:0;margin:0;font-size:12.5px;
+  cursor:pointer;user-select:none;white-space:nowrap;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--mut);
+  transition:background .12s,color .12s,border-color .12s}
+label.ebit input{position:absolute;opacity:0;width:0;height:0}
+label.ebit:has(input:checked){background:var(--acc);border-color:var(--acc);
+  color:var(--accink);font-weight:600}
+label.ebit:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
+
+/* a verdict, not a sentence: retail comparison as a badge */
+.verdict{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;
+  border-radius:999px;font-size:12.5px;margin:10px 0 0;border:1px solid transparent}
+.verdict.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);
+  border-color:color-mix(in srgb,var(--ok) 30%,transparent)}
+.verdict.off{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);
+  border-color:color-mix(in srgb,var(--warn) 32%,transparent)}
+
+/* the long explanations, folded away — they dominated a short handheld screen */
+details.help{margin:12px 0 0;border-top:1px solid var(--line);padding-top:10px}
+details.help > summary{cursor:pointer;color:var(--mut);font-size:12.5px;
+  list-style:none;padding:4px 0;user-select:none}
+details.help > summary::-webkit-details-marker{display:none}
+details.help > summary::before{content:"▸ ";display:inline-block;transition:transform .12s}
+details.help[open] > summary::before{content:"▾ "}
+details.help > summary:hover{color:var(--ink)}
+details.help .note:first-of-type{margin-top:6px}
+
+/* the record's headline: name, and what it is */
+.rechead{margin:12px 0 2px;font-size:15px}
+.rechead .sub{color:var(--mut);font-size:13px}
+
 /* named skill controls — a target dropdown and element checkboxes, so an id is
    never shown as a bare number you have to go and look up */
 .kctl{margin:10px 0}
@@ -217,6 +268,67 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
 .modal .sheet{background:var(--panel);border:1px solid var(--acc);border-radius:14px;box-shadow:var(--shadow);
   width:100%;max-width:600px;max-height:85vh;display:flex;flex-direction:column;padding:16px}
 @media(max-width:600px){.modal .sheet{max-width:100%;height:92vh;max-height:92vh}}
+
+/* ---- handhelds and narrow screens ---------------------------------------
+   Targeted at a 4:3 / 3:2 Android gaming handheld: not just narrow but SHORT,
+   so vertical space is the scarce resource and every control has to be a thumb
+   target rather than a mouse target. Two breakpoints — layout at 760px, then
+   tighter spacing at 480px. */
+@media(max-width:760px){
+  body{padding:10px}
+  .card{padding:12px 12px;border-radius:12px;margin-bottom:10px}
+  /* tabs: scroll horizontally rather than squeezing or wrapping mid-row */
+  .modebar{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .modebar::-webkit-scrollbar{display:none}
+  .mtab{flex:0 0 auto;padding:10px 16px;min-height:42px}
+  .modebar.panetabs .mtab{padding:9px 15px;min-height:40px}
+  /* toolbars stack: a select next to a search box next to a checkbox is
+     unusable at this width */
+  .toolbar{flex-wrap:wrap;gap:8px}
+  .toolbar select,.findbox{flex:1 1 100%;min-width:0}
+  .toolbar select{max-width:100%;padding:9px 10px;min-height:42px;font-size:15px}
+  .findbox input[type=search]{width:100%;min-height:42px;font-size:15px}
+  /* thumb-sized inputs and buttons */
+  .fieldtable tr{gap:9px 10px}
+  .fieldtable input[type=number]{width:7.5ch;min-height:42px;font-size:15px}
+  .btn,button.file,#pickBtn{min-height:44px;padding:10px 14px}
+  label.ebit{padding:8px 13px;font-size:13px}
+  .restore{min-width:34px;min-height:34px}
+  /* the action bar is the one thing that must always be reachable */
+  .actionbar{gap:7px;padding:9px 10px}
+  .actionbar .btn{flex:1 1 auto}
+  .actionbar .sep{display:none}
+  .actionbar #esave{flex:1 1 100%}
+  html{scroll-padding-bottom:140px}
+}
+@media(max-width:480px){
+  body{padding:8px}
+  .card{padding:11px 10px}
+  .card h2{font-size:12px}
+  .note,.muted{font-size:12.5px}
+  .fieldtable input[type=number]{width:100%}
+  /* three stats per row keeps labels readable instead of truncating */
+  .fieldtable td{flex:1 1 calc(33.333% - 8px);min-width:74px}
+  .brklist div{grid-template-columns:3.5ch 1fr auto;font-size:12px}
+  table.brkopts{font-size:11.5px}
+  table.brkopts th,table.brkopts td{padding:3px 6px}
+}
+/* Coarse pointers get thumb-sized targets at ANY width. Width alone is the
+   wrong signal: a 4:3 handheld can be 960 or 1280 logical pixels wide and still
+   be driven entirely by thumbs, so it would otherwise inherit desktop hit areas
+   while the layout rules above never fire. */
+@media(pointer:coarse){
+  .chip.mini,.restore{min-width:36px;min-height:36px}
+  input[type=checkbox]{width:18px;height:18px}
+  .fieldtable input[type=number]{min-height:42px;font-size:15px}
+  .btn,button.file,#pickBtn,.chip{min-height:44px}
+  .mtab{min-height:44px}
+  .toolbar select,.findbox input[type=search]{min-height:42px;font-size:15px}
+  label.ebit{padding:9px 14px}
+  details.help > summary{padding:8px 0}
+  /* hover styling never un-sticks on touch, so don't rely on it */
+  .mtab:hover{background:var(--panel)}
+}
 .modal h3{margin:0 0 10px;color:var(--acc2);font-size:15px}
 #modalBody{overflow:auto;flex:1}
 .modalbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}

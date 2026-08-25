@@ -551,11 +551,11 @@
       '<span id="ecount" class="muted small"></span>'+
       '<label style="margin-left:8px"><input type="checkbox" id="ebak"> back up ISO first</label>'+
       '</div>'+
-      '<table id="etbl"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
+      '<table id="etbl" class="fieldtable"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
       '<div id="eflags" class="note"></div>'+
       '<div id="eretail" class="note"></div>'+
       '<div class="affbox"><div class="fl">Item drops</div>'+
-        '<table><tbody><tr id="erow4"></tr></tbody></table>'+
+        '<table class="fieldtable"><tbody><tr id="erow4"></tr></tbody></table>'+
         '<div id="edrops" class="muted small"></div>'+
         '<p class="note">Two slots per enemy: a common drop and a rare one, each a '+
         'percentage plus a category (0 nothing, 1 consumable, 2 E.S. gear) and a '+
@@ -563,12 +563,12 @@
         'the item catalog; E.S. gear ids are shown as bare numbers because that id space '+
         'has not been pinned down yet.</p></div>'+
       '<div class="affbox"><div class="fl">Status resistance (%)</div>'+
-        '<table><tbody><tr id="erow5"></tr></tbody></table>'+
+        '<table class="fieldtable"><tbody><tr id="erow5"></tr></tbody></table>'+
         '<p class="note">Higher resists the status more. Eight of the ten statuses a '+
         'strategy guide publishes map to these bytes at 98–100% agreement; the block has '+
         'three more bytes we have not identified, so they are not shown.</p></div>'+
       '<div class="affbox"><div class="fl">Damage taken, by element (%)</div>'+
-        '<table><tbody><tr id="erow3"></tr></tbody></table>'+
+        '<table class="fieldtable"><tbody><tr id="erow3"></tr></tbody></table>'+
         '<p class="note">'+AFF_NORMAL+'% is normal, below resists, above takes extra, '+
         '<b>0 is immune</b> and <b>negative absorbs</b> (Svarozic takes -200% Fire, i.e. it '+
         'heals for double). Stored as a signed byte &times;'+AFF_SCALE+', so values snap to '+
@@ -657,6 +657,7 @@
       '<div id="krow"></div>'+
       '<div id="kelem" class="note"></div>'+
       '<div id="kretail" class="note"></div>'+
+      '<details class="help"><summary>About these fields</summary>'+
       '<p class="note"><b>EP</b> is what the skill costs to cast and <b>Power</b> scales its '+
       'damage or healing — between them they decide whether a skill is worth a turn. '+
       '<b>Element</b> is a bitmask (' + Object.keys(KELEM).sort((a,b)=>KELEM[a]-KELEM[b]).map(n=>esc(n)+" = 0x"+KELEM[n].toString(16).toUpperCase()).join(", ") + '), '+
@@ -667,7 +668,7 @@
       'skills, Dual techs, every character\'s single techs, E.S. attacks and Special attacks. '+
       'The tech blocks were unlocked by cross-checking a third-party mod\'s published numbers '+
       'against its patch bytes — 71 of 71 matched. Techs cost no EP (their EP field is genuinely '+
-      '0); Power, Element and Target work exactly as for ethers.</p>'+
+      '0); Power, Element and Target work exactly as for ethers.</p></details>'+
       '</div>'+
       '</div>'+                              // /pane-skill
       '<div id="pane-unit" hidden>'+
@@ -677,14 +678,15 @@
       '<div id="udesc" class="note"></div>'+
       '<div id="urow"></div>'+
       '<div id="uretail" class="note"></div>'+
+      '<details class="help"><summary>About the unit table</summary>'+
       '<p class="note">These are the values a <b>new game</b> hands each character and E.S. '+
-      'unit — the save format copies this record verbatim, which is how the table was '+
-      'verified: a just-joined character\'s save block is byte-identical to it. Raising a '+
+      'unit — the save format copies these values in, which is how the table was '+
+      'verified: a just-joined character\'s save stats match this record exactly. Raising a '+
       'stat here raises where the character <i>starts</i>; an existing save keeps the values '+
       'it already copied (edit those in the Save Editor).</p>'+
       '<p class="note">The three spare slots between the humans and the E.S. units are real '+
       'records the game ships empty. They are shown for completeness and there is no reason '+
-      'to touch them.</p>'+
+      'to touch them.</p></details>'+
       '</div>'+
       '</div>'+                              // /pane-unit
       // Sticky bottom action bar — same shape and ordering as the Suikoden 3
@@ -841,9 +843,9 @@
     // how this record compares with an unmodified disc
     const off=retailDiffs(i);
     $("#eretail").innerHTML = off.length
-      ? "Differs from retail: "+off.map(d=>esc(d.label)+" "+esc(d.cur)+
-          " (retail "+esc(d.van)+")").join(", ")
-      : "Matches the retail values for this enemy.";
+      ? '<span class="verdict off">● '+off.map(d=>esc(d.label)+" "+esc(d.cur)+
+          " (retail "+esc(d.van)+")").join(" · ")+'</span>'
+      : '<span class="verdict ok">✓ matches retail</span>';
     const paintDrops=()=>{
       const el=$("#edrops"); if(!el) return;
       const v=(f)=>{const sp=DFIELDS.find(x=>x[0]===f); return sp?get(R,i,sp[1],sp[2]):0;};
@@ -897,10 +899,10 @@
     const i=+sel.value, base=skillOff(i);
     if(base<0){ $("#kdesc").textContent="No verified numeric record for this skill."; return; }
     const v=skillInfo(i)||{};
-    $("#kdesc").innerHTML='<b>'+esc(v.name||("skill "+i))+'</b>'+
-      (v.target?' <span class="muted">· '+esc(v.target)+'</span>':'')+
-      ' <span class="muted">· '+esc(skillBlockName(i))+' block</span>'+
-      (v.desc?'<br>'+esc(v.desc):'');
+    $("#kdesc").innerHTML='<div class="rechead"><b>'+esc(v.name||("skill "+i))+'</b>'+
+      ' <span class="sub">'+esc(skillBlockName(i))+
+      (v.target?' · '+esc(v.target):'')+'</span></div>'+
+      (v.desc?'<div class="note">'+esc(v.desc)+'</div>':'');
     // Ids are shown as what they mean, not as numbers: Target is a named
     // dropdown and Element is one checkbox per element. A raw byte here is a
     // number you have to go and look up, which is how you end up writing 0x2A
@@ -917,11 +919,11 @@
                                loadSkill(); epending(); };
 
     const ev=getAt(K,base+KELE[1],KELE[2]);
-    $("#kelemBox").innerHTML='<div class="fl">Element</div>'+
+    $("#kelemBox").innerHTML='<div class="fl">Element</div><div class="ebits">'+
       Object.keys(KELEM).sort((a,b)=>KELEM[a]-KELEM[b]).map(n=>
         '<label class="ebit"><input type="checkbox" data-bit="'+KELEM[n]+'"'+
-        ((ev&KELEM[n])?' checked':'')+'> '+esc(n)+'</label>').join("")+
-      '<span class="muted small"> = 0x'+ev.toString(16).toUpperCase()+'</span>';
+        ((ev&KELEM[n])?' checked':'')+'>'+esc(n)+'</label>').join("")+
+      '<span class="muted small">0x'+ev.toString(16).toUpperCase()+'</span></div>';
     document.querySelectorAll("#kelemBox input").forEach(cb=>cb.onchange=()=>{
       let m=getAt(K,base+KELE[1],KELE[2]);
       m = cb.checked ? (m | +cb.dataset.bit) : (m & ~(+cb.dataset.bit));
@@ -929,7 +931,7 @@
     });
 
     const plain=KFIELDS.filter(f=>f[0]!=="Target" && f[0]!=="Element");
-    $("#krow").innerHTML='<table><tbody><tr>'+plain.map(([l,o,w])=>
+    $("#krow").innerHTML='<table class="fieldtable"><tbody><tr>'+plain.map(([l,o,w])=>
       cellHtml(l,base+o,w,getAt(K,base+o,w),getOrigAt(K,base+o,w))).join("")+'</tr></tbody></table>';
     document.querySelectorAll("#krow input").forEach(inp=>{
       let btn=inp.nextElementSibling;
@@ -959,8 +961,9 @@
                                               : (v)=>v.toLocaleString();
       off.push(esc(l)+" "+esc(String(fmt(cur)))+" (retail "+esc(String(fmt(van)))+")");
     }
-    $("#kretail").innerHTML = off.length ? "Differs from retail: "+off.join(", ")
-                                         : "Matches the retail values for this skill.";
+    $("#kretail").innerHTML = off.length
+      ? '<span class="verdict off">● '+off.join(" · ")+'</span>'
+      : '<span class="verdict ok">✓ matches retail</span>';
   }
 
   // ---- units pane ---------------------------------------------------------
@@ -978,9 +981,10 @@
     const i=+sel.value||0;
     const v=unitInfo(i)||{};
     const uid=getAt(U,i*USTRIDE+((TABLES.unit||{}).idOff||82), 2);
-    $("#udesc").innerHTML='<b>'+esc(unitName(i))+'</b> <span class="muted">· id '+uid+
-      (uid>=100?' · E.S. unit':uid?' · character':' · spare (empty on a retail disc)')+'</span>';
-    $("#urow").innerHTML='<table><tbody><tr>'+UFIELDS.map(([l,o,w])=>
+    $("#udesc").innerHTML='<div class="rechead"><b>'+esc(unitName(i))+'</b> '+
+      '<span class="sub">'+(uid>=100?'E.S. unit':uid?'character':'spare — empty on a retail disc')+
+      ' · id '+uid+'</span></div>';
+    $("#urow").innerHTML='<table class="fieldtable"><tbody><tr>'+UFIELDS.map(([l,o,w])=>
       cellHtml(l,i*USTRIDE+o,w,getAt(U,i*USTRIDE+o,w),getOrigAt(U,i*USTRIDE+o,w)))
       .join("")+'</tr></tbody></table>';
     document.querySelectorAll("#urow input").forEach(inp=>{
@@ -1006,8 +1010,9 @@
       const cur=getAt(U,i*USTRIDE+o,w); if(cur===van) continue;
       off.push(esc(l)+" "+cur.toLocaleString()+" (retail "+van.toLocaleString()+")");
     }
-    el.innerHTML=off.length?"Differs from retail: "+off.join(", ")
-                           :"Matches the retail values for this unit.";
+    el.innerHTML=off.length
+      ? '<span class="verdict off">● '+off.join(" · ")+'</span>'
+      : '<span class="verdict ok">✓ matches retail</span>';
   }
   // The break sequence is one text box over BRK_SLOTS bytes, so it can't use the
   // generic per-field cell wiring above.
