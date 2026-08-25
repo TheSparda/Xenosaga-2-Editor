@@ -78,9 +78,8 @@ td{padding:4px 6px;text-align:center;border-bottom:0}
 td.name{text-align:left;font-weight:600;font-size:15px;white-space:nowrap;
   border-right:1px solid var(--line);vertical-align:middle;padding-left:2px}
 tr.u2 td{padding-bottom:10px;border-bottom:1px solid var(--line)}
-tr.gearrow td{background:var(--panel2)}
+
 .fl{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:2px}
-tr.gearrow .fl{color:var(--acc2)} tr.gearrow .fl::before{content:"⚙ "}
 .gname{font-size:9px;color:var(--acc2);margin-top:2px;max-width:9ch;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;margin-left:auto;margin-right:auto}
 .es td.name{color:var(--mut)}
@@ -115,10 +114,23 @@ html{scroll-padding-bottom:96px}
 .fieldtable td{display:block;padding:0;text-align:left;min-width:0}
 .fieldtable td > span{display:inline-flex;align-items:center;gap:4px}
 .fieldtable .fl{font-size:10px;margin-bottom:3px;white-space:nowrap}
-.fieldtable input[type=number]{width:8ch;padding:6px 8px;border-radius:8px;
+/* Sized to the widest value the field can hold, not a guess: HP is a u32 and
+   rewards run to six digits, and the old fixed 8ch clipped "55555" to "5555"
+   and "850000" to "8500(" — you could not read your own numbers. The spinner is
+   suppressed because it ate width on top of that and nobody steps HP by one. */
+.fieldtable input[type=number]{width:9ch;padding:6px 8px;border-radius:8px;
   border:1px solid var(--line);background:var(--panel2);color:var(--ink);
   font:inherit;font-size:14px;text-align:center}
 .fieldtable input[type=number]:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.fieldtable input[type=number]::-webkit-outer-spin-button,
+.fieldtable input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.fieldtable input[type=number]{-moz-appearance:textfield;appearance:textfield}
+/* Sized from the field CAPS in x2fields, not from eyeballing: HP and EXP clamp
+   at 999999 (6 digits), STR/VIT/EATK/EDEF at 999 and DEX/EVA/AGL at 255 (3),
+   SP/CP at 9999 (4). Headroom of ~2ch covers typing before the clamp applies. */
+.fieldtable input[type=number][data-w="4"]{width:9ch}
+.fieldtable input[type=number][data-w="2"]{width:7ch}
+.fieldtable input[type=number][data-w="1"]{width:6ch}
 .fieldtable input.changed{border-color:var(--warn);color:var(--warn);font-weight:600}
 
 /* element bits as toggle chips — a checked box in a row of eight reads as a
