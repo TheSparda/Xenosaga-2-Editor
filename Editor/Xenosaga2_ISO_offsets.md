@@ -527,6 +527,19 @@ partition problem of exactly the kind `column_profile()` / `_partition_scores()`
 were written for — 15 known-unbreakable against 36 known-breakable, both sets
 name-matched to the guide, is unusually good ground truth. Not yet run.
 
+### 2026-08-24 — PPF import (mod → staged edits)
+
+`apply-ppf` (CLI) and **Import .ppf** (web) parse PPF3.0 — the format the
+HardType mod ships in — and apply only the records that land in mapped tables,
+reporting the rest. The web side stages into the normal edit buffers, so a mod
+import gets the same review/retail-compare/Save pipeline as hand edits, and
+interprets the patch under whichever disc's table layout explains more of it
+(a disc-2 patch against disc-1 buffers would land 0x800 off). Verified against
+the real mod + real disc: 528 of 661 records staged, enemy record 6's HP
+doubling and the readme's tech powers (Heaven's Wrath 17, Iron Blade 80)
+landing exactly. The unreachable 133 are the description strings and the
+`0x35EA60` table.
+
 ### 2026-08-24 — SINGLE TECHS / E.S. ATTACKS / SPECIALS SOLVED (all 74)
 
 The "located, not yet exposed" lead from the HardType map is closed. The missing

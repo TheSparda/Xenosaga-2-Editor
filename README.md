@@ -228,6 +228,24 @@ python3 x2patch.py xdelta-make "…edited.iso" --pristine "…pristine.iso" --ou
 python3 x2patch.py xdelta-apply mymod.xdelta --pristine "…pristine.iso" --out patched.iso
 ```
 
+### Import a mod — "balance my game like HardType"
+
+Difficulty mods for this game ship as **PPF** patches. Instead of applying one
+blind, the editor imports it: **⬆ Import .ppf** parses the patch, stages every
+byte that lands in a table it maps — enemy stats, rewards, drops, units, and all
+176 skill/tech records — and tells you exactly what it could not reach
+(typically description text). Nothing writes until you review and Save, the
+staged values show up field-by-field in every tab with retail comparison intact,
+and you can tweak them before committing. The CLI equivalent:
+
+```bash
+python3 x2patch.py apply-ppf "…(Disc 1).iso" mod.ppf --dry-run
+```
+
+On Landon Ray's XS2HT v3.9 Hard, that stages 528 of 661 records; the remaining
+133 are skill-description strings and one small unmapped table, reported rather
+than silently skipped.
+
 ### What does someone else's mod change?
 
 The reliable way to know whether this editor can reproduce a third-party mod is
