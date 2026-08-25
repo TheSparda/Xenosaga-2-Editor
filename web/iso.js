@@ -585,7 +585,10 @@
       '<span id="ecount" class="muted small"></span>'+
       '<label style="margin-left:8px"><input type="checkbox" id="ebak"> back up ISO first</label>'+
       '</div>'+
-      '<table id="etbl" class="fieldtable"><tbody><tr id="erow"></tr><tr id="erow2" class="gearrow"></tr></tbody></table>'+
+      '<table id="etbl" class="fieldtable"><tbody><tr id="erow"></tr></tbody></table>'+
+      '<div class="affbox"><div class="fl">Battle rewards</div>'+
+        '<table class="fieldtable"><tbody><tr id="erow2"></tr></tbody></table>'+
+      '</div>'+
       '<div id="eflags" class="note"></div>'+
       '<div id="eretail" class="note"></div>'+
       '<div class="affbox"><div class="fl">Item drops</div>'+
@@ -872,10 +875,8 @@
     const i=+$("#esel").value;
     const eid=get(S,i,ID_OFF,2);
     $("#erow").innerHTML=SFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
-    $("#erow2").innerHTML='<td><div class="fl">rewards</div></td>'+
-      RFIELDS.map(([l,o,w])=>cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("")+
-      '<td colspan="4"><div class="fl">enemy id</div><span class="muted small">'+eid+
-      (eid>=BOSS_ID_MIN?" · boss":"")+'</span></td>';
+    $("#erow2").innerHTML=RFIELDS.map(([l,o,w])=>
+      cellHtml(l,o,w,get(R,i,o,w),getOrig(R,i,o,w))).join("");
     $("#erow5").innerHTML=RFIELDS_RES.map(([l,o,w])=>
       cellHtml(l,o,w,get(S,i,o,w),getOrig(S,i,o,w))).join("");
     // Rates stay numeric; category and item id become named dropdowns. A bare
@@ -915,7 +916,8 @@
       cellHtml(l,o,w,affPct(get(S,i,o,w)),affPct(getOrig(S,i,o,w)),true)).join("");
     // type, and whether the game will honour a break sequence at all
     const fl=$("#eflags");
-    if(fl) fl.innerHTML="Type: <b>"+esc(enemyType(i))+"</b> · "+
+    if(fl) fl.innerHTML="id <b>"+eid+"</b>"+(eid>=BOSS_ID_MIN?" · boss":"")+
+      " · type <b>"+esc(enemyType(i))+"</b> · "+
       (canBreak(i)
         ? "breakable"
         : noZone(i)

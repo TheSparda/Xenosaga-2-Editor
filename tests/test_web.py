@@ -204,6 +204,26 @@ class TestDomReferences(unittest.TestCase):
                               f"{f} is no longer routed to a named dropdown")
         self.assertIn("#erow4 select", iso, "the drop selects are not wired")
 
+    def test_number_inputs_are_sized_for_their_field_caps(self):
+        # a fixed 8ch clipped HP 55555 to "5555" and EXP 850000 to "8500(" —
+        # the box has to hold the largest value the field can actually take
+        css = read("style.css")
+        for w, ch in (("4", 9), ("2", 7), ("1", 6)):
+            with self.subTest(width=w):
+                self.assertIn(f'input[type=number][data-w="{w}"]{{width:{ch}ch}}', css,
+                              f"width-{w} fields have no explicit sizing")
+        # ~1.6 chars of the box go to padding/border, so the cap's digit count
+        # plus a little headroom must fit
+        import x2fields as F
+        widths = {lbl: w for lbl, _o, w, _k in F.ENEMY_FIELDS + F.REWARD_FIELDS}
+        room = {4: 9, 2: 7, 1: 6}
+        for lbl, cap in F.ENEMY_FIELD_CAPS.items():
+            if lbl not in widths:
+                continue
+            with self.subTest(lbl):
+                self.assertLessEqual(len(str(cap)) + 1, room[widths[lbl]],
+                                     f"{lbl} caps at {cap} but its box is too narrow")
+
     def test_engine_files_the_boot_loop_fetches_all_exist(self):
         m = re.search(r'for\(const f of \[(.*?)\]\)', read("app.js"), re.S)
         self.assertTrue(m, "could not find the engine file list in app.js")
