@@ -211,14 +211,40 @@ runtime. Two overlays (OV01/OV02.OVL) also present but the save code is in the m
   NOT the save checksum (the LCG-hash family was tested against +0x08 and did not match).
 
 ### Checksum status (BLOCKER for guaranteed-valid writes)
-**Not cracked yet, but pinpointed.** Ruled out (all 20 saves): CRC-32 (16 variants, LE/BE),
-byte/u16/u32 sums, sum-to-const, Adler/Fletcher, truncated MD5/SHA, and the LCG-hash family
-— so it's a bespoke routine inside the save serializer. Two ways to finish it:
-1. **Runtime (fast):** in PCSX2, set an **EE write breakpoint on 0x695168** (the gamedata
-   buffer's checksum word), trigger an in-game save; the game halts on the exact store
-   instruction inside the checksum routine — read that loop and implement `fix_checksum()`.
-2. **Static:** disassemble the 0x186000–0x188900 serializer for the loop that writes
-   `buffer+8`; slower (blind) but doable.
+**Not cracked. Two of the three leads recorded here were WRONG and are corrected
+below** (2026-08-24, static pass over the boot ELF) — following them would have
+burned a PCSX2 session pointing at the wrong code.
+
+* ~~EE write breakpoint on **0x695168**, "the gamedata buffer's checksum
+  word".~~ **`0x695160` is a string literal** — `cvFsMakeDir #1:illegal
+  directory name`. Its neighbours are `cvFsGetMaxByteRate #2:vtbl error`
+  (`0x695138`) and `cvFsMakeDir #3:device not found` (`0x6951B0`). The only two
+  static references to it pass it in `$a0` to an error-printing call.
+* ~~Disassemble the **0x186000–0x188900 serializer**.~~ That range is the
+  **`cvFs` memory-card filesystem library**, not the save serializer — the two
+  references above live inside it, at `0x187D70` and `0x187DA0`.
+* **There are ZERO static references to the checksum word**, which is the real
+  finding: the gamedata buffer is allocated at runtime, so it has no fixed
+  address to break on or to search for. A breakpoint session has to find the
+  buffer first (break on the memory-card write, walk back to its source), not
+  assume an address from these notes.
+
+**Plain sums are now ruled out over EVERY range, not just three.** The earlier
+pass tried `[0C:L]`, `[10:L]`, `[1174:L]`. Building prefix sums and *solving*
+for `(start, end)` covers all ranges at once, for u8, u16 and u32 words: across
+24 saves the only fits are degenerate ones that contain the checksum word itself
+(`[0x8,0xC)` is literally "the word equals itself"). Still standing from before:
+CRC-32 (16 variants, LE/BE), Adler/Fletcher, truncated MD5/SHA, the LCG family.
+
+**One unexplained clue.** The 24 observed values are all distinct but *not*
+uniformly distributed: 21 of 24 sit below `0x2F000000`, with three outliers at
+`0xBBAEBFE0`, `0xDF2D0D7B` and `0xFB7B198E`. A good 32-bit hash would be
+uniform. Something about the low ~2/3 of the range is meaningful and is not yet
+accounted for — that is the thread to pull next.
+
+The first question in the list below is still the one that matters most: whether
+the game validates `+0x08` at all. If it does not, `fix_checksum()` staying a
+pass-through is already correct and none of this blocks anything.
 Until then, `x2save.fix_checksum()` preserves +0x08 as-is.
 gamedata `+0x08` is a 4-byte value that changes per save. It resisted **every** standard
 algorithm tried across all 20 slots: CRC-32 (all 16 init/reflect/xorout variants, LE/BE),
