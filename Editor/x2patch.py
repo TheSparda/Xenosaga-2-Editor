@@ -1237,12 +1237,16 @@ def cmd_shorten_breaks(a):
 def _regions(disc):
     t = F.enemy_tables(disc)
     kb = F.skill_base(disc)
+    # Ordered most-precise first, because the last entry's extent is a GUESS: the
+    # name table's end is not known, so 0x4000 is a generous window that provably
+    # overlaps real tables — it swallowed the dual-tech block until this was
+    # ordered. A guessed region must never claim a byte a known one can explain.
     return [
         ("enemy stats",   t["stats"],   F.ENEMY_COUNT * F.ENEMY_STRIDE
                                         + F.enemy_record_tail(), "stat"),
         ("enemy rewards", t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE, "reward"),
-        ("enemy names",   t["names"],   0x4000, None),
         ("skill blocks",  kb,           F.skill_span(disc), "skill"),
+        ("enemy names",   t["names"],   0x4000, None),
     ]
 
 def _locate(off, disc):
@@ -1272,7 +1276,7 @@ def _locate(off, disc):
                         if fo <= r < fo + w:
                             return name, f"skill {t0 + i} {lbl}"
                     return name, f"skill {t0 + i} +0x{r:02X} (undecoded)"
-            return name, "between blocks"
+            return None, None          # a gap between blocks is not ours to claim
         return name, None
     return None, None
 
@@ -1571,6 +1575,12 @@ def _skill_off(iso, i):
             f"{lo[0]}..{lo[56]} and {lo[57]}..{lo[-1]} — the tech and "
             f"combination blocks use a different record layout (see the notes).")
     return off
+
+def read_skill_at(iso, off):
+    """Named numeric fields of the 32-byte skill record at an absolute offset."""
+    rec = iso.read(off, F.SKILL_STRIDE)
+    return {lbl: int.from_bytes(rec[o:o + w], "little")
+            for (lbl, o, w, _k) in F.SKILL_NUM_FIELDS}
 
 def read_skill(iso, i):
     """Named numeric fields of the skill at TEXT INDEX `i`."""

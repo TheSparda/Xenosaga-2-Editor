@@ -39,6 +39,166 @@
   "tags": [],
   "target": "One ally"
  },
+ "2": {
+  "desc": "Low HP recovery relative to Ether Attack.",
+  "ep": 10,
+  "name": "Medica All",
+  "nameOff": 33594334,
+  "numeric": {
+   "acc": 100,
+   "category": 2,
+   "effKind": 0,
+   "effMask": 0,
+   "effPct": 0,
+   "element": 0,
+   "ep": 10,
+   "poolId": 3,
+   "power": 5
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "All allies"
+ },
+ "3": {
+  "desc": "Clear L-type status effect based on caster's Eatk.",
+  "ep": 4,
+  "name": "Refresh L",
+  "nameOff": 33594407,
+  "numeric": {
+   "acc": 100,
+   "category": 5,
+   "effKind": 1,
+   "effMask": 65535,
+   "effPct": 356,
+   "element": 0,
+   "ep": 4,
+   "poolId": 4,
+   "power": 20
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "4": {
+  "desc": "Clear H-type status effect based on caster's Eatk.",
+  "ep": 6,
+  "name": "Refresh H",
+  "nameOff": 33594485,
+  "numeric": {
+   "acc": 100,
+   "category": 5,
+   "effKind": 2,
+   "effMask": 65535,
+   "effPct": 612,
+   "element": 0,
+   "ep": 6,
+   "poolId": 5,
+   "power": 20
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "5": {
+  "desc": "Clear status effects using half of current HP.",
+  "ep": 8,
+  "name": "Cleanse",
+  "nameOff": 33594563,
+  "numeric": {
+   "acc": 100,
+   "category": 5,
+   "effKind": 0,
+   "effMask": 0,
+   "effPct": 0,
+   "element": 0,
+   "ep": 8,
+   "poolId": 6,
+   "power": 20
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "Self"
+ },
+ "6": {
+  "desc": "Revive character with 25% HP.",
+  "ep": 20,
+  "name": "Revert",
+  "nameOff": 33594631,
+  "numeric": {
+   "acc": 100,
+   "category": 3,
+   "effKind": 0,
+   "effMask": 0,
+   "effPct": 0,
+   "element": 0,
+   "ep": 20,
+   "poolId": 7,
+   "power": 5
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "7": {
+  "desc": "Raise status effect resistance 10%.",
+  "ep": 6,
+  "name": "Vaccine",
+  "nameOff": 33594686,
+  "numeric": {
+   "acc": 100,
+   "category": 4,
+   "effKind": 3,
+   "effMask": 32,
+   "effPct": 868,
+   "element": 0,
+   "ep": 6,
+   "poolId": 8,
+   "power": 20
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One ally"
+ },
+ "8": {
+  "desc": "Lower Dexterity and Evasion of B or G enemy.",
+  "ep": 4,
+  "name": "Down Dex",
+  "nameOff": 33594747,
+  "numeric": {
+   "acc": 100,
+   "category": 4,
+   "effKind": 1,
+   "effMask": 4,
+   "effPct": 356,
+   "element": 0,
+   "ep": 4,
+   "poolId": 9,
+   "power": 20
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One enemy"
+ },
+ "9": {
+  "desc": "Lower Physical Attack of B or G enemy.",
+  "ep": 4,
+  "name": "Down Force",
+  "nameOff": 33594819,
+  "numeric": {
+   "acc": 100,
+   "category": 4,
+   "effKind": 1,
+   "effMask": 8,
+   "effPct": 356,
+   "element": 0,
+   "ep": 4,
+   "poolId": 10,
+   "power": 20
+  },
+  "placeholder": false,
+  "tags": [],
+  "target": "One enemy"
+ },
  "10": {
   "desc": "Lower Physical Defense of B or G enemy.",
   "ep": 4,
@@ -58,96 +218,6 @@
   "placeholder": false,
   "tags": [],
   "target": "One enemy"
- },
- "100": {
-  "desc": "Q @",
-  "ep": null,
-  "name": " Q  ",
-  "nameOff": 33600387,
-  "placeholder": false,
-  "tags": [],
-  "target": "Q @"
- },
- "101": {
-  "desc": "",
-  "ep": null,
-  "name": " Q ",
-  "nameOff": 33600423,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
- },
- "102": {
-  "desc": "",
-  "ep": null,
-  "name": "@@",
-  "nameOff": 33600965,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
- },
- "103": {
-  "desc": "",
-  "ep": null,
-  "name": "@ ",
-  "nameOff": 33600977,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
- },
- "104": {
-  "desc": "Q @",
-  "ep": null,
-  "name": "Q  ",
-  "nameOff": 33601324,
-  "placeholder": false,
-  "tags": [],
-  "target": "Q @"
- },
- "105": {
-  "desc": "",
-  "ep": null,
-  "name": "R ",
-  "nameOff": 33601360,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
- },
- "106": {
-  "desc": "",
-  "ep": null,
-  "name": "R ",
-  "nameOff": 33601372,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
- },
- "107": {
-  "desc": "",
-  "ep": null,
-  "name": "R ",
-  "nameOff": 33601384,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
- },
- "108": {
-  "desc": "",
-  "ep": null,
-  "name": "Q ",
-  "nameOff": 33601396,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
- },
- "109": {
-  "desc": "",
-  "ep": null,
-  "name": "R ",
-  "nameOff": 33601408,
-  "placeholder": false,
-  "tags": [],
-  "target": ""
  },
  "11": {
   "desc": "Lower Ether Attack of B or G enemy.",
@@ -169,96 +239,6 @@
   "tags": [],
   "target": "One enemy"
  },
- "110": {
-  "desc": "HP Recovery +10%.",
-  "ep": null,
-  "name": "HP Mind 10",
-  "nameOff": 33601508,
-  "placeholder": false,
-  "tags": [],
-  "target": "HP Recovery +10%."
- },
- "111": {
-  "desc": "HP Recovery +15%.",
-  "ep": null,
-  "name": "HP Mind 15",
-  "nameOff": 33601537,
-  "placeholder": false,
-  "tags": [],
-  "target": "HP Recovery +15%."
- },
- "112": {
-  "desc": "Status effect recovery +10%.",
-  "ep": null,
-  "name": "ST Mind 10",
-  "nameOff": 33601566,
-  "placeholder": false,
-  "tags": [],
-  "target": "Status effect recovery +10%."
- },
- "113": {
-  "desc": "Status effect recovery +15%.",
-  "ep": null,
-  "name": "ST Mind 15",
-  "nameOff": 33601606,
-  "placeholder": false,
-  "tags": [],
-  "target": "Status effect recovery +15%."
- },
- "114": {
-  "desc": "Poison resistance +25%.",
-  "ep": null,
-  "name": "Poison Guard",
-  "nameOff": 33601646,
-  "placeholder": false,
-  "tags": [],
-  "target": "Poison resistance +25%."
- },
- "115": {
-  "desc": "Lost resistance +25%.",
-  "ep": null,
-  "name": "Lost Guard",
-  "nameOff": 33601683,
-  "placeholder": false,
-  "tags": [],
-  "target": "Lost resistance +25%."
- },
- "116": {
-  "desc": "Blind resistance +25%.",
-  "ep": null,
-  "name": "Blind Guard",
-  "nameOff": 33601716,
-  "placeholder": false,
-  "tags": [],
-  "target": "Blind resistance +25%."
- },
- "117": {
-  "desc": "Heavy resistance +25%.",
-  "ep": null,
-  "name": "Heavy Guard",
-  "nameOff": 33601751,
-  "placeholder": false,
-  "tags": [],
-  "target": "Heavy resistance +25%."
- },
- "118": {
-  "desc": "Weak resistance +25%.",
-  "ep": null,
-  "name": "Weak Guard",
-  "nameOff": 33601786,
-  "placeholder": false,
-  "tags": [],
-  "target": "Weak resistance +25%."
- },
- "119": {
-  "desc": "Slow resistance +25%.",
-  "ep": null,
-  "name": "Slow Guard",
-  "nameOff": 33601819,
-  "placeholder": false,
-  "tags": [],
-  "target": "Slow resistance +25%."
- },
  "12": {
   "desc": "Lower Ether Defense of B or G enemy.",
   "ep": 4,
@@ -278,96 +258,6 @@
   "placeholder": false,
   "tags": [],
   "target": "One enemy"
- },
- "120": {
-  "desc": "Stun resistance +25%.",
-  "ep": null,
-  "name": "Stun Guard",
-  "nameOff": 33601852,
-  "placeholder": false,
-  "tags": [],
-  "target": "Stun resistance +25%."
- },
- "121": {
-  "desc": "Ether PD resistance +25%.",
-  "ep": null,
-  "name": "Ether PD Guard",
-  "nameOff": 33601885,
-  "placeholder": false,
-  "tags": [],
-  "target": "Ether PD resistance +25%."
- },
- "122": {
-  "desc": "Ether DD resistance +25%.",
-  "ep": null,
-  "name": "Ether DD Guard",
-  "nameOff": 33601926,
-  "placeholder": false,
-  "tags": [],
-  "target": "Ether DD resistance +25%."
- },
- "123": {
-  "desc": "Poison EP resistance +25%.",
-  "ep": null,
-  "name": "Poison EP Guard",
-  "nameOff": 33601967,
-  "placeholder": false,
-  "tags": [],
-  "target": "Poison EP resistance +25%."
- },
- "124": {
-  "desc": "Increase skill slots by one.",
-  "ep": null,
-  "name": "Expansion Pack",
-  "nameOff": 33602010,
-  "placeholder": false,
-  "tags": [],
-  "target": "Increase skill slots by one."
- },
- "125": {
-  "desc": "Recall enemy zones once learned.",
-  "ep": null,
-  "name": "Memory",
-  "nameOff": 33602054,
-  "placeholder": false,
-  "tags": [],
-  "target": "Recall enemy zones once learned."
- },
- "126": {
-  "desc": "Break bonus chance +10%.",
-  "ep": null,
-  "name": "Break B10",
-  "nameOff": 33602094,
-  "placeholder": false,
-  "tags": [],
-  "target": "Break bonus chance +10%."
- },
- "127": {
-  "desc": "Break bonus chance +15%.",
-  "ep": null,
-  "name": "Break B15",
-  "nameOff": 33602129,
-  "placeholder": false,
-  "tags": [],
-  "target": "Break bonus chance +15%."
- },
- "128": {
-  "desc": "Retain full Agility after casting Ether.",
-  "ep": null,
-  "name": "Lost AGL",
-  "nameOff": 33602164,
-  "placeholder": false,
-  "tags": [],
-  "target": "Retain full Agility after casting Ether."
- },
- "129": {
-  "desc": "Regeneration x2 during reserve.",
-  "ep": null,
-  "name": "Rapid Refresh",
-  "nameOff": 33602214,
-  "placeholder": false,
-  "tags": [],
-  "target": "Regeneration x2 during reserve."
  },
  "13": {
   "desc": "Lower Dexterity and Evasion of M enemy.",
@@ -389,96 +279,6 @@
   "tags": [],
   "target": "One enemy"
  },
- "130": {
-  "desc": "Experience Points +10%.",
-  "ep": null,
-  "name": "Experience Up 10",
-  "nameOff": 33602260,
-  "placeholder": false,
-  "tags": [],
-  "target": "Experience Points +10%."
- },
- "131": {
-  "desc": "Experience Points +15%.",
-  "ep": null,
-  "name": "Experience Up 15",
-  "nameOff": 33602301,
-  "placeholder": false,
-  "tags": [],
-  "target": "Experience Points +15%."
- },
- "132": {
-  "desc": "Skill Points +10%.",
-  "ep": null,
-  "name": "Skill Up 10",
-  "nameOff": 33602342,
-  "placeholder": false,
-  "tags": [],
-  "target": "Skill Points +10%."
- },
- "133": {
-  "desc": "Skill Points +15%.",
-  "ep": null,
-  "name": "Skill Up 15",
-  "nameOff": 33602373,
-  "placeholder": false,
-  "tags": [],
-  "target": "Skill Points +15%."
- },
- "134": {
-  "desc": "Damage reduction +20% when guarding.",
-  "ep": null,
-  "name": "Guard",
-  "nameOff": 33602404,
-  "placeholder": false,
-  "tags": [],
-  "target": "Damage reduction +20% when guarding."
- },
- "135": {
-  "desc": "Recover 10% EP with the Stock command.",
-  "ep": null,
-  "name": "Focus 1",
-  "nameOff": 33602447,
-  "placeholder": false,
-  "tags": [],
-  "target": "Recover 10% EP with the Stock command."
- },
- "136": {
-  "desc": "Recover 15% EP with the Stock command.",
-  "ep": null,
-  "name": "Focus 2",
-  "nameOff": 33602494,
-  "placeholder": false,
-  "tags": [],
-  "target": "Recover 15% EP with the Stock command."
- },
- "137": {
-  "desc": "Raise Evasion after using the Stock command.",
-  "ep": null,
-  "name": "Inner Peace",
-  "nameOff": 33602541,
-  "placeholder": false,
-  "tags": [],
-  "target": "Raise Evasion after using the Stock command."
- },
- "138": {
-  "desc": "Increase Physical Attack.",
-  "ep": null,
-  "name": "STR+2",
-  "nameOff": 33602598,
-  "placeholder": false,
-  "tags": [],
-  "target": "Str +2"
- },
- "139": {
-  "desc": "Increase Physical Defense.",
-  "ep": null,
-  "name": "VIT+2",
-  "nameOff": 33602638,
-  "placeholder": false,
-  "tags": [],
-  "target": "Vit +2"
- },
  "14": {
   "desc": "Lower Physical Attack of M enemy.",
   "ep": 4,
@@ -498,96 +298,6 @@
   "placeholder": false,
   "tags": [],
   "target": "One enemy"
- },
- "140": {
-  "desc": "Increase Dexterity.",
-  "ep": null,
-  "name": "DEX+2",
-  "nameOff": 33602679,
-  "placeholder": false,
-  "tags": [],
-  "target": "Dex +2"
- },
- "141": {
-  "desc": "Increase Evasion.",
-  "ep": null,
-  "name": "EVA+2",
-  "nameOff": 33602713,
-  "placeholder": false,
-  "tags": [],
-  "target": "Eva +2"
- },
- "142": {
-  "desc": "Increase Ether Attack.",
-  "ep": null,
-  "name": "EATK+2",
-  "nameOff": 33602745,
-  "placeholder": false,
-  "tags": [],
-  "target": "Eatk +2"
- },
- "143": {
-  "desc": "Increase Ether Defense.",
-  "ep": null,
-  "name": "EDEF+2",
-  "nameOff": 33602784,
-  "placeholder": false,
-  "tags": [],
-  "target": "Edef +2"
- },
- "144": {
-  "desc": "Increase max HP & EP 10%.",
-  "ep": null,
-  "name": "Limiter Up",
-  "nameOff": 33602824,
-  "placeholder": false,
-  "tags": [],
-  "target": "Increase max HP & EP 10%."
- },
- "145": {
-  "desc": "Double parameter effects of equipped skills.",
-  "ep": null,
-  "name": "Double Power",
-  "nameOff": 33602861,
-  "placeholder": false,
-  "tags": [],
-  "target": "Double parameter effects of equipped skills."
- },
- "146": {
-  "desc": "Increases critical hit rate 5%.",
-  "ep": null,
-  "name": "CRTC+5",
-  "nameOff": 33602919,
-  "placeholder": false,
-  "tags": [],
-  "target": "Critical +5%."
- },
- "147": {
-  "desc": "Rare item acquisition +10%.",
-  "ep": null,
-  "name": "Rare+10",
-  "nameOff": 33602973,
-  "placeholder": false,
-  "tags": [],
-  "target": "Rare item acquisition +10%."
- },
- "148": {
-  "desc": "Rare item acquisition +30%.",
-  "ep": null,
-  "name": "Rare+30",
-  "nameOff": 33603009,
-  "placeholder": false,
-  "tags": [],
-  "target": "Rare item acquisition +30%."
- },
- "149": {
-  "desc": "Lower all damage received by 10%.",
-  "ep": null,
-  "name": "Damage-10",
-  "nameOff": 33603045,
-  "placeholder": false,
-  "tags": [],
-  "target": "Lower all damage received by 10%."
  },
  "15": {
   "desc": "Lower Physical Defense of M enemy.",
@@ -609,98 +319,6 @@
   "tags": [],
   "target": "One enemy"
  },
- "150": {
-  "desc": "EP consumption 1/2.",
-  "ep": null,
-  "name": "EP Half",
-  "nameOff": 33603089,
-  "placeholder": false,
-  "tags": [
-   "2."
-  ],
-  "target": "EP consumption 1"
- },
- "151": {
-  "desc": "Duration of status effects x2.",
-  "ep": null,
-  "name": "ST Double",
-  "nameOff": 33603117,
-  "placeholder": false,
-  "tags": [],
-  "target": "Duration of status effects x2."
- },
- "152": {
-  "desc": "(only after enemy individual attack).",
-  "ep": null,
-  "name": "Revenge Power",
-  "nameOff": 33603158,
-  "placeholder": false,
-  "tags": [],
-  "target": "25% chance of Counterboost after taking a critical hit"
- },
- "153": {
-  "desc": "character icon is showing.",
-  "ep": null,
-  "name": "Combo Boost",
-  "nameOff": 33603266,
-  "placeholder": false,
-  "tags": [],
-  "target": "Boost possible even when"
- },
- "154": {
-  "desc": "EP +2 every turn.",
-  "ep": null,
-  "name": "EP Regen",
-  "nameOff": 33603331,
-  "placeholder": false,
-  "tags": [],
-  "target": "EP +2 every turn."
- },
- "155": {
-  "desc": "Increase attack when party member is knocked out.",
-  "ep": null,
-  "name": "Samurai Soul",
-  "nameOff": 33603358,
-  "placeholder": false,
-  "tags": [],
-  "target": "Increase attack when party member is knocked out."
- },
- "156": {
-  "desc": "Increase defense when party member is knocked out.",
-  "ep": null,
-  "name": "Knight Soul",
-  "nameOff": 33603421,
-  "placeholder": false,
-  "tags": [],
-  "target": "Increase defense when party member is knocked out."
- },
- "157": {
-  "desc": "1 HP and full stock (1 time only).",
-  "ep": null,
-  "name": "Last Revenge",
-  "nameOff": 33603484,
-  "placeholder": false,
-  "tags": [],
-  "target": "When knocked out, Counterboost with"
- },
- "158": {
-  "desc": "also doubles EP consumption.",
-  "ep": null,
-  "name": "Ether Burst",
-  "nameOff": 33603569,
-  "placeholder": false,
-  "tags": [],
-  "target": "Doubles Ether attack damage, but"
- },
- "159": {
-  "desc": "Stock +1 when battle starts.",
-  "ep": null,
-  "name": "First Combo",
-  "nameOff": 33603644,
-  "placeholder": false,
-  "tags": [],
-  "target": "Stock +1 when battle starts."
- },
  "16": {
   "desc": "Lower Ether Attack of M enemy.",
   "ep": 4,
@@ -721,96 +339,6 @@
   "tags": [],
   "target": "One enemy"
  },
- "160": {
-  "desc": "when using the Stock command.",
-  "ep": null,
-  "name": "Rebound",
-  "nameOff": 33603685,
-  "placeholder": false,
-  "tags": [],
-  "target": "50% chance to Counterboost after guard or evasion"
- },
- "161": {
-  "desc": "when using the Stock command.",
-  "ep": null,
-  "name": "Overload",
-  "nameOff": 33603774,
-  "placeholder": false,
-  "tags": [],
-  "target": "50% chance of stock +2"
- },
- "162": {
-  "desc": "Status effect resistance +20%.",
-  "ep": null,
-  "name": "ST Resist 20",
-  "nameOff": 33603837,
-  "placeholder": false,
-  "tags": [],
-  "target": "Status effect resistance +20%."
- },
- "163": {
-  "desc": "Status effect resistance +30%.",
-  "ep": null,
-  "name": "ST Resist 30",
-  "nameOff": 33603881,
-  "placeholder": false,
-  "tags": [],
-  "target": "Status effect resistance +30%."
- },
- "164": {
-  "desc": "Reduce fire damage 25%.",
-  "ep": null,
-  "name": "Flame Coat",
-  "nameOff": 33603925,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce fire damage 25%."
- },
- "165": {
-  "desc": "Reduce ice damage 25%.",
-  "ep": null,
-  "name": "Ice Coat",
-  "nameOff": 33603960,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce ice damage 25%."
- },
- "166": {
-  "desc": "Reduce thunder damage 25%.",
-  "ep": null,
-  "name": "Thunder Coat",
-  "nameOff": 33603992,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce thunder damage 25%."
- },
- "167": {
-  "desc": "Reduce aura damage 25%.",
-  "ep": null,
-  "name": "Aura Coat",
-  "nameOff": 33604032,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce aura damage 25%."
- },
- "168": {
-  "desc": "Reduce slashing damage 25%.",
-  "ep": null,
-  "name": "Blade Coat",
-  "nameOff": 33604066,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce slashing damage 25%."
- },
- "169": {
-  "desc": "Reduce piercing damage 25%.",
-  "ep": null,
-  "name": "Spear Coat",
-  "nameOff": 33604105,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce piercing damage 25%."
- },
  "17": {
   "desc": "Lower Ether Defense of M enemy.",
   "ep": 4,
@@ -830,44 +358,6 @@
   "placeholder": false,
   "tags": [],
   "target": "One enemy"
- },
- "170": {
-  "desc": "Reduce strike damage 25%.",
-  "ep": null,
-  "name": "Hammer Coat",
-  "nameOff": 33604144,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce strike damage 25%."
- },
- "171": {
-  "desc": "Reduce beam damage 25%.",
-  "ep": null,
-  "name": "Beam Coat",
-  "nameOff": 33604182,
-  "placeholder": false,
-  "tags": [],
-  "target": "Reduce beam damage 25%."
- },
- "172": {
-  "desc": "Additional 10-15% damage.",
-  "ep": null,
-  "name": "Swimsuit",
-  "nameOff": 33604216,
-  "placeholder": false,
-  "tags": [
-   "Skill points +10%"
-  ],
-  "target": "Agl +1"
- },
- "173": {
-  "desc": "",
-  "ep": null,
-  "name": "予備",
-  "nameOff": 33604277,
-  "placeholder": true,
-  "tags": [],
-  "target": ""
  },
  "18": {
   "desc": "20% chance to cancel M enemy's action.",
@@ -908,26 +398,6 @@
   "placeholder": false,
   "tags": [],
   "target": "One enemy"
- },
- "2": {
-  "desc": "Low HP recovery relative to Ether Attack.",
-  "ep": 10,
-  "name": "Medica All",
-  "nameOff": 33594334,
-  "numeric": {
-   "acc": 100,
-   "category": 2,
-   "effKind": 0,
-   "effMask": 0,
-   "effPct": 0,
-   "element": 0,
-   "ep": 10,
-   "poolId": 3,
-   "power": 5
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "All allies"
  },
  "20": {
   "desc": "Block B or G enemy's Ether skills.",
@@ -1123,26 +593,6 @@
    "element": 0,
    "ep": 4,
    "poolId": 30,
-   "power": 20
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "One ally"
- },
- "3": {
-  "desc": "Clear L-type status effect based on caster's Eatk.",
-  "ep": 4,
-  "name": "Refresh L",
-  "nameOff": 33594407,
-  "numeric": {
-   "acc": 100,
-   "category": 5,
-   "effKind": 1,
-   "effMask": 65535,
-   "effPct": 356,
-   "element": 0,
-   "ep": 4,
-   "poolId": 4,
    "power": 20
   },
   "placeholder": false,
@@ -1368,26 +818,6 @@
   "tags": [],
   "target": "Self"
  },
- "4": {
-  "desc": "Clear H-type status effect based on caster's Eatk.",
-  "ep": 6,
-  "name": "Refresh H",
-  "nameOff": 33594485,
-  "numeric": {
-   "acc": 100,
-   "category": 5,
-   "effKind": 2,
-   "effMask": 65535,
-   "effPct": 612,
-   "element": 0,
-   "ep": 6,
-   "poolId": 5,
-   "power": 20
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "One ally"
- },
  "40": {
   "desc": "Increase turns 25%.",
   "ep": 10,
@@ -1588,26 +1018,6 @@
   "tags": [],
   "target": "Self"
  },
- "5": {
-  "desc": "Clear status effects using half of current HP.",
-  "ep": 8,
-  "name": "Cleanse",
-  "nameOff": 33594563,
-  "numeric": {
-   "acc": 100,
-   "category": 5,
-   "effKind": 0,
-   "effMask": 0,
-   "effPct": 0,
-   "element": 0,
-   "ep": 8,
-   "poolId": 6,
-   "power": 20
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "Self"
- },
  "50": {
   "desc": "Lower Ether Attack and raise Ether Defense.",
   "ep": 4,
@@ -1801,26 +1211,6 @@
   "placeholder": false,
   "tags": [],
   "target": "All allies (Medica × 2)"
- },
- "6": {
-  "desc": "Revive character with 25% HP.",
-  "ep": 20,
-  "name": "Revert",
-  "nameOff": 33594631,
-  "numeric": {
-   "acc": 100,
-   "category": 3,
-   "effKind": 0,
-   "effMask": 0,
-   "effPct": 0,
-   "element": 0,
-   "ep": 20,
-   "poolId": 7,
-   "power": 5
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "One ally"
  },
  "60": {
   "desc": "Mid HP recovery.",
@@ -2021,26 +1411,6 @@
   "placeholder": false,
   "tags": [],
   "target": "All enemies (Break Arms × 2)"
- },
- "7": {
-  "desc": "Raise status effect resistance 10%.",
-  "ep": 6,
-  "name": "Vaccine",
-  "nameOff": 33594686,
-  "numeric": {
-   "acc": 100,
-   "category": 4,
-   "effKind": 3,
-   "effMask": 32,
-   "effPct": 868,
-   "element": 0,
-   "ep": 6,
-   "poolId": 8,
-   "power": 20
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "One ally"
  },
  "70": {
   "desc": "Lower Physical Defense of M enemies.",
@@ -2245,26 +1615,6 @@
   ],
   "target": "All enemies"
  },
- "8": {
-  "desc": "Lower Dexterity and Evasion of B or G enemy.",
-  "ep": 4,
-  "name": "Down Dex",
-  "nameOff": 33594747,
-  "numeric": {
-   "acc": 100,
-   "category": 4,
-   "effKind": 1,
-   "effMask": 4,
-   "effPct": 356,
-   "element": 0,
-   "ep": 4,
-   "poolId": 9,
-   "power": 20
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "One enemy"
- },
  "80": {
   "desc": "Thunder Ether attack.",
   "ep": null,
@@ -2464,26 +1814,6 @@
   "tags": [],
   "target": "敵０3"
  },
- "9": {
-  "desc": "Lower Physical Attack of B or G enemy.",
-  "ep": 4,
-  "name": "Down Force",
-  "nameOff": 33594819,
-  "numeric": {
-   "acc": 100,
-   "category": 4,
-   "effKind": 1,
-   "effMask": 8,
-   "effPct": 356,
-   "element": 0,
-   "ep": 4,
-   "poolId": 10,
-   "power": 20
-  },
-  "placeholder": false,
-  "tags": [],
-  "target": "One enemy"
- },
  "90": {
   "desc": "敵０5",
   "ep": null,
@@ -2573,5 +1903,947 @@
   "placeholder": false,
   "tags": [],
   "target": ""
+ },
+ "100": {
+  "desc": "Q @",
+  "ep": null,
+  "name": " Q  ",
+  "nameOff": 33600387,
+  "placeholder": false,
+  "tags": [],
+  "target": "Q @"
+ },
+ "101": {
+  "desc": "",
+  "ep": null,
+  "name": " Q ",
+  "nameOff": 33600423,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "102": {
+  "desc": "",
+  "ep": null,
+  "name": "@@",
+  "nameOff": 33600965,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "103": {
+  "desc": "",
+  "ep": null,
+  "name": "@ ",
+  "nameOff": 33600977,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "104": {
+  "desc": "Q @",
+  "ep": null,
+  "name": "Q  ",
+  "nameOff": 33601324,
+  "placeholder": false,
+  "tags": [],
+  "target": "Q @"
+ },
+ "105": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601360,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "106": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601372,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "107": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601384,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "108": {
+  "desc": "",
+  "ep": null,
+  "name": "Q ",
+  "nameOff": 33601396,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "109": {
+  "desc": "",
+  "ep": null,
+  "name": "R ",
+  "nameOff": 33601408,
+  "placeholder": false,
+  "tags": [],
+  "target": ""
+ },
+ "110": {
+  "desc": "HP Recovery +10%.",
+  "ep": null,
+  "name": "HP Mind 10",
+  "nameOff": 33601508,
+  "placeholder": false,
+  "tags": [],
+  "target": "HP Recovery +10%."
+ },
+ "111": {
+  "desc": "HP Recovery +15%.",
+  "ep": null,
+  "name": "HP Mind 15",
+  "nameOff": 33601537,
+  "placeholder": false,
+  "tags": [],
+  "target": "HP Recovery +15%."
+ },
+ "112": {
+  "desc": "Status effect recovery +10%.",
+  "ep": null,
+  "name": "ST Mind 10",
+  "nameOff": 33601566,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect recovery +10%."
+ },
+ "113": {
+  "desc": "Status effect recovery +15%.",
+  "ep": null,
+  "name": "ST Mind 15",
+  "nameOff": 33601606,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect recovery +15%."
+ },
+ "114": {
+  "desc": "Poison resistance +25%.",
+  "ep": null,
+  "name": "Poison Guard",
+  "nameOff": 33601646,
+  "placeholder": false,
+  "tags": [],
+  "target": "Poison resistance +25%."
+ },
+ "115": {
+  "desc": "Lost resistance +25%.",
+  "ep": null,
+  "name": "Lost Guard",
+  "nameOff": 33601683,
+  "placeholder": false,
+  "tags": [],
+  "target": "Lost resistance +25%."
+ },
+ "116": {
+  "desc": "Blind resistance +25%.",
+  "ep": null,
+  "name": "Blind Guard",
+  "nameOff": 33601716,
+  "placeholder": false,
+  "tags": [],
+  "target": "Blind resistance +25%."
+ },
+ "117": {
+  "desc": "Heavy resistance +25%.",
+  "ep": null,
+  "name": "Heavy Guard",
+  "nameOff": 33601751,
+  "placeholder": false,
+  "tags": [],
+  "target": "Heavy resistance +25%."
+ },
+ "118": {
+  "desc": "Weak resistance +25%.",
+  "ep": null,
+  "name": "Weak Guard",
+  "nameOff": 33601786,
+  "placeholder": false,
+  "tags": [],
+  "target": "Weak resistance +25%."
+ },
+ "119": {
+  "desc": "Slow resistance +25%.",
+  "ep": null,
+  "name": "Slow Guard",
+  "nameOff": 33601819,
+  "placeholder": false,
+  "tags": [],
+  "target": "Slow resistance +25%."
+ },
+ "120": {
+  "desc": "Stun resistance +25%.",
+  "ep": null,
+  "name": "Stun Guard",
+  "nameOff": 33601852,
+  "placeholder": false,
+  "tags": [],
+  "target": "Stun resistance +25%."
+ },
+ "121": {
+  "desc": "Ether PD resistance +25%.",
+  "ep": null,
+  "name": "Ether PD Guard",
+  "nameOff": 33601885,
+  "placeholder": false,
+  "tags": [],
+  "target": "Ether PD resistance +25%."
+ },
+ "122": {
+  "desc": "Ether DD resistance +25%.",
+  "ep": null,
+  "name": "Ether DD Guard",
+  "nameOff": 33601926,
+  "placeholder": false,
+  "tags": [],
+  "target": "Ether DD resistance +25%."
+ },
+ "123": {
+  "desc": "Poison EP resistance +25%.",
+  "ep": null,
+  "name": "Poison EP Guard",
+  "nameOff": 33601967,
+  "placeholder": false,
+  "tags": [],
+  "target": "Poison EP resistance +25%."
+ },
+ "124": {
+  "desc": "Increase skill slots by one.",
+  "ep": null,
+  "name": "Expansion Pack",
+  "nameOff": 33602010,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase skill slots by one."
+ },
+ "125": {
+  "desc": "Recall enemy zones once learned.",
+  "ep": null,
+  "name": "Memory",
+  "nameOff": 33602054,
+  "placeholder": false,
+  "tags": [],
+  "target": "Recall enemy zones once learned."
+ },
+ "126": {
+  "desc": "Break bonus chance +10%.",
+  "ep": null,
+  "name": "Break B10",
+  "nameOff": 33602094,
+  "placeholder": false,
+  "tags": [],
+  "target": "Break bonus chance +10%."
+ },
+ "127": {
+  "desc": "Break bonus chance +15%.",
+  "ep": null,
+  "name": "Break B15",
+  "nameOff": 33602129,
+  "placeholder": false,
+  "tags": [],
+  "target": "Break bonus chance +15%."
+ },
+ "128": {
+  "desc": "Retain full Agility after casting Ether.",
+  "ep": null,
+  "name": "Lost AGL",
+  "nameOff": 33602164,
+  "placeholder": false,
+  "tags": [],
+  "target": "Retain full Agility after casting Ether."
+ },
+ "129": {
+  "desc": "Regeneration x2 during reserve.",
+  "ep": null,
+  "name": "Rapid Refresh",
+  "nameOff": 33602214,
+  "placeholder": false,
+  "tags": [],
+  "target": "Regeneration x2 during reserve."
+ },
+ "130": {
+  "desc": "Experience Points +10%.",
+  "ep": null,
+  "name": "Experience Up 10",
+  "nameOff": 33602260,
+  "placeholder": false,
+  "tags": [],
+  "target": "Experience Points +10%."
+ },
+ "131": {
+  "desc": "Experience Points +15%.",
+  "ep": null,
+  "name": "Experience Up 15",
+  "nameOff": 33602301,
+  "placeholder": false,
+  "tags": [],
+  "target": "Experience Points +15%."
+ },
+ "132": {
+  "desc": "Skill Points +10%.",
+  "ep": null,
+  "name": "Skill Up 10",
+  "nameOff": 33602342,
+  "placeholder": false,
+  "tags": [],
+  "target": "Skill Points +10%."
+ },
+ "133": {
+  "desc": "Skill Points +15%.",
+  "ep": null,
+  "name": "Skill Up 15",
+  "nameOff": 33602373,
+  "placeholder": false,
+  "tags": [],
+  "target": "Skill Points +15%."
+ },
+ "134": {
+  "desc": "Damage reduction +20% when guarding.",
+  "ep": null,
+  "name": "Guard",
+  "nameOff": 33602404,
+  "placeholder": false,
+  "tags": [],
+  "target": "Damage reduction +20% when guarding."
+ },
+ "135": {
+  "desc": "Recover 10% EP with the Stock command.",
+  "ep": null,
+  "name": "Focus 1",
+  "nameOff": 33602447,
+  "placeholder": false,
+  "tags": [],
+  "target": "Recover 10% EP with the Stock command."
+ },
+ "136": {
+  "desc": "Recover 15% EP with the Stock command.",
+  "ep": null,
+  "name": "Focus 2",
+  "nameOff": 33602494,
+  "placeholder": false,
+  "tags": [],
+  "target": "Recover 15% EP with the Stock command."
+ },
+ "137": {
+  "desc": "Raise Evasion after using the Stock command.",
+  "ep": null,
+  "name": "Inner Peace",
+  "nameOff": 33602541,
+  "placeholder": false,
+  "tags": [],
+  "target": "Raise Evasion after using the Stock command."
+ },
+ "138": {
+  "desc": "Increase Physical Attack.",
+  "ep": null,
+  "name": "STR+2",
+  "nameOff": 33602598,
+  "placeholder": false,
+  "tags": [],
+  "target": "Str +2"
+ },
+ "139": {
+  "desc": "Increase Physical Defense.",
+  "ep": null,
+  "name": "VIT+2",
+  "nameOff": 33602638,
+  "placeholder": false,
+  "tags": [],
+  "target": "Vit +2"
+ },
+ "140": {
+  "desc": "Increase Dexterity.",
+  "ep": null,
+  "name": "DEX+2",
+  "nameOff": 33602679,
+  "placeholder": false,
+  "tags": [],
+  "target": "Dex +2"
+ },
+ "141": {
+  "desc": "Increase Evasion.",
+  "ep": null,
+  "name": "EVA+2",
+  "nameOff": 33602713,
+  "placeholder": false,
+  "tags": [],
+  "target": "Eva +2"
+ },
+ "142": {
+  "desc": "Increase Ether Attack.",
+  "ep": null,
+  "name": "EATK+2",
+  "nameOff": 33602745,
+  "placeholder": false,
+  "tags": [],
+  "target": "Eatk +2"
+ },
+ "143": {
+  "desc": "Increase Ether Defense.",
+  "ep": null,
+  "name": "EDEF+2",
+  "nameOff": 33602784,
+  "placeholder": false,
+  "tags": [],
+  "target": "Edef +2"
+ },
+ "144": {
+  "desc": "Increase max HP & EP 10%.",
+  "ep": null,
+  "name": "Limiter Up",
+  "nameOff": 33602824,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase max HP & EP 10%."
+ },
+ "145": {
+  "desc": "Double parameter effects of equipped skills.",
+  "ep": null,
+  "name": "Double Power",
+  "nameOff": 33602861,
+  "placeholder": false,
+  "tags": [],
+  "target": "Double parameter effects of equipped skills."
+ },
+ "146": {
+  "desc": "Increases critical hit rate 5%.",
+  "ep": null,
+  "name": "CRTC+5",
+  "nameOff": 33602919,
+  "placeholder": false,
+  "tags": [],
+  "target": "Critical +5%."
+ },
+ "147": {
+  "desc": "Rare item acquisition +10%.",
+  "ep": null,
+  "name": "Rare+10",
+  "nameOff": 33602973,
+  "placeholder": false,
+  "tags": [],
+  "target": "Rare item acquisition +10%."
+ },
+ "148": {
+  "desc": "Rare item acquisition +30%.",
+  "ep": null,
+  "name": "Rare+30",
+  "nameOff": 33603009,
+  "placeholder": false,
+  "tags": [],
+  "target": "Rare item acquisition +30%."
+ },
+ "149": {
+  "desc": "Lower all damage received by 10%.",
+  "ep": null,
+  "name": "Damage-10",
+  "nameOff": 33603045,
+  "placeholder": false,
+  "tags": [],
+  "target": "Lower all damage received by 10%."
+ },
+ "150": {
+  "desc": "EP consumption 1/2.",
+  "ep": null,
+  "name": "EP Half",
+  "nameOff": 33603089,
+  "placeholder": false,
+  "tags": [
+   "2."
+  ],
+  "target": "EP consumption 1"
+ },
+ "151": {
+  "desc": "Duration of status effects x2.",
+  "ep": null,
+  "name": "ST Double",
+  "nameOff": 33603117,
+  "placeholder": false,
+  "tags": [],
+  "target": "Duration of status effects x2."
+ },
+ "152": {
+  "desc": "(only after enemy individual attack).",
+  "ep": null,
+  "name": "Revenge Power",
+  "nameOff": 33603158,
+  "placeholder": false,
+  "tags": [],
+  "target": "25% chance of Counterboost after taking a critical hit"
+ },
+ "153": {
+  "desc": "character icon is showing.",
+  "ep": null,
+  "name": "Combo Boost",
+  "nameOff": 33603266,
+  "placeholder": false,
+  "tags": [],
+  "target": "Boost possible even when"
+ },
+ "154": {
+  "desc": "EP +2 every turn.",
+  "ep": null,
+  "name": "EP Regen",
+  "nameOff": 33603331,
+  "placeholder": false,
+  "tags": [],
+  "target": "EP +2 every turn."
+ },
+ "155": {
+  "desc": "Increase attack when party member is knocked out.",
+  "ep": null,
+  "name": "Samurai Soul",
+  "nameOff": 33603358,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase attack when party member is knocked out."
+ },
+ "156": {
+  "desc": "Increase defense when party member is knocked out.",
+  "ep": null,
+  "name": "Knight Soul",
+  "nameOff": 33603421,
+  "placeholder": false,
+  "tags": [],
+  "target": "Increase defense when party member is knocked out."
+ },
+ "157": {
+  "desc": "1 HP and full stock (1 time only).",
+  "ep": null,
+  "name": "Last Revenge",
+  "nameOff": 33603484,
+  "placeholder": false,
+  "tags": [],
+  "target": "When knocked out, Counterboost with"
+ },
+ "158": {
+  "desc": "also doubles EP consumption.",
+  "ep": null,
+  "name": "Ether Burst",
+  "nameOff": 33603569,
+  "placeholder": false,
+  "tags": [],
+  "target": "Doubles Ether attack damage, but"
+ },
+ "159": {
+  "desc": "Stock +1 when battle starts.",
+  "ep": null,
+  "name": "First Combo",
+  "nameOff": 33603644,
+  "placeholder": false,
+  "tags": [],
+  "target": "Stock +1 when battle starts."
+ },
+ "160": {
+  "desc": "when using the Stock command.",
+  "ep": null,
+  "name": "Rebound",
+  "nameOff": 33603685,
+  "placeholder": false,
+  "tags": [],
+  "target": "50% chance to Counterboost after guard or evasion"
+ },
+ "161": {
+  "desc": "when using the Stock command.",
+  "ep": null,
+  "name": "Overload",
+  "nameOff": 33603774,
+  "placeholder": false,
+  "tags": [],
+  "target": "50% chance of stock +2"
+ },
+ "162": {
+  "desc": "Status effect resistance +20%.",
+  "ep": null,
+  "name": "ST Resist 20",
+  "nameOff": 33603837,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect resistance +20%."
+ },
+ "163": {
+  "desc": "Status effect resistance +30%.",
+  "ep": null,
+  "name": "ST Resist 30",
+  "nameOff": 33603881,
+  "placeholder": false,
+  "tags": [],
+  "target": "Status effect resistance +30%."
+ },
+ "164": {
+  "desc": "Reduce fire damage 25%.",
+  "ep": null,
+  "name": "Flame Coat",
+  "nameOff": 33603925,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce fire damage 25%."
+ },
+ "165": {
+  "desc": "Reduce ice damage 25%.",
+  "ep": null,
+  "name": "Ice Coat",
+  "nameOff": 33603960,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce ice damage 25%."
+ },
+ "166": {
+  "desc": "Reduce thunder damage 25%.",
+  "ep": null,
+  "name": "Thunder Coat",
+  "nameOff": 33603992,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce thunder damage 25%."
+ },
+ "167": {
+  "desc": "Reduce aura damage 25%.",
+  "ep": null,
+  "name": "Aura Coat",
+  "nameOff": 33604032,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce aura damage 25%."
+ },
+ "168": {
+  "desc": "Reduce slashing damage 25%.",
+  "ep": null,
+  "name": "Blade Coat",
+  "nameOff": 33604066,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce slashing damage 25%."
+ },
+ "169": {
+  "desc": "Reduce piercing damage 25%.",
+  "ep": null,
+  "name": "Spear Coat",
+  "nameOff": 33604105,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce piercing damage 25%."
+ },
+ "170": {
+  "desc": "Reduce strike damage 25%.",
+  "ep": null,
+  "name": "Hammer Coat",
+  "nameOff": 33604144,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce strike damage 25%."
+ },
+ "171": {
+  "desc": "Reduce beam damage 25%.",
+  "ep": null,
+  "name": "Beam Coat",
+  "nameOff": 33604182,
+  "placeholder": false,
+  "tags": [],
+  "target": "Reduce beam damage 25%."
+ },
+ "172": {
+  "desc": "Additional 10-15% damage.",
+  "ep": null,
+  "name": "Swimsuit",
+  "nameOff": 33604216,
+  "placeholder": false,
+  "tags": [
+   "Skill points +10%"
+  ],
+  "target": "Agl +1"
+ },
+ "173": {
+  "desc": "",
+  "ep": null,
+  "name": "予備",
+  "nameOff": 33604277,
+  "placeholder": true,
+  "tags": [],
+  "target": ""
+ },
+ "200": {
+  "desc": "Ice sword slashes the enemy.",
+  "ep": null,
+  "name": "Ice Brand",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/P/Slash/Ice",
+  "numeric": {
+   "ep": 0,
+   "element": 80,
+   "power": 110,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "201": {
+  "desc": "Doubles the effect of Veil Ether skills.",
+  "ep": null,
+  "name": "Burst Veil",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "All allies/Support (Burst Veil)",
+  "numeric": {
+   "ep": 0,
+   "element": 0,
+   "power": 120,
+   "effPct": 1124,
+   "effMask": 256
+  }
+ },
+ "202": {
+  "desc": "Double aura attack.",
+  "ep": null,
+  "name": "Elemental Nocturne",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "All enemies/E/Aura",
+  "numeric": {
+   "ep": 0,
+   "element": 2,
+   "power": 50,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "203": {
+  "desc": "Piercing rain of angel feathers.",
+  "ep": null,
+  "name": "Archangel's Requiem",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "All enemies/P/Pierce",
+  "numeric": {
+   "ep": 0,
+   "element": 32,
+   "power": 84,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "204": {
+  "desc": "Reinforced Spell Ray.",
+  "ep": null,
+  "name": "Dual Spell Ray",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/E/Beam",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 95,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "205": {
+  "desc": "Power combination attack.",
+  "ep": null,
+  "name": "Cross Fist",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/P/Strike",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 110,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "206": {
+  "desc": "Gravity strike.",
+  "ep": null,
+  "name": "Gravity Bomb",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/P/Strike (L Slow)",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 130,
+   "effPct": 336,
+   "effMask": 1
+  }
+ },
+ "207": {
+  "desc": "Chain of punishment.",
+  "ep": null,
+  "name": "Silver Duet",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/E/Non-elemental",
+  "numeric": {
+   "ep": 0,
+   "element": 0,
+   "power": 90,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "208": {
+  "desc": "Ziggy's self-sacrificing attack.",
+  "ep": null,
+  "name": "Power Strike",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/P/Strike/Fire",
+  "numeric": {
+   "ep": 0,
+   "element": 136,
+   "power": 250,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "209": {
+  "desc": "Exorcising sword.",
+  "ep": null,
+  "name": "Lion Heart",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/P/Slash",
+  "numeric": {
+   "ep": 0,
+   "element": 64,
+   "power": 150,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "210": {
+  "desc": "Attack that uses the Hilbert Effect.",
+  "ep": null,
+  "name": "Cross Hilbert",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "All enemies/Status (H Lost)",
+  "numeric": {
+   "ep": 0,
+   "element": 0,
+   "power": 120,
+   "effPct": 612,
+   "effMask": 1024
+  }
+ },
+ "211": {
+  "desc": "Auto revive.",
+  "ep": null,
+  "name": "Blessed Miracle",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "All allies/Support (Best Ally)",
+  "numeric": {
+   "ep": 0,
+   "element": 0,
+   "power": 120,
+   "effPct": 868,
+   "effMask": 2048
+  }
+ },
+ "212": {
+  "desc": "KOS-MOS buster cannon.",
+  "ep": null,
+  "name": "Twin Buster",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/E/Beam",
+  "numeric": {
+   "ep": 0,
+   "element": 1,
+   "power": 140,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "213": {
+  "desc": "Magnificent combination attack.",
+  "ep": null,
+  "name": "Grand Ronde ",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/P/Strike",
+  "numeric": {
+   "ep": 0,
+   "element": 128,
+   "power": 170,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "214": {
+  "desc": "Scorching rain of bullets.",
+  "ep": null,
+  "name": "Fiery Ritornelle",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "All enemies/P/Pierce/Fire",
+  "numeric": {
+   "ep": 0,
+   "element": 136,
+   "power": 65,
+   "effPct": 0,
+   "effMask": 0
+  }
+ },
+ "215": {
+  "desc": "Sword dance.",
+  "ep": null,
+  "name": "Phoenix Blade",
+  "placeholder": false,
+  "tags": [
+   "dual tech"
+  ],
+  "target": "Single enemy/E/Aura",
+  "numeric": {
+   "ep": 0,
+   "element": 2,
+   "power": 150,
+   "effPct": 0,
+   "effMask": 0
+  }
  }
 }
