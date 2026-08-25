@@ -23,6 +23,8 @@
   // Ether + Double skill numeric records: two disjoint blocks per disc, read as
   // one span so a single buffer covers both (x2fields.skill_span()).
   let KFIELDS, KSTRIDE, KBLOCKS, KSPAN, KELEM, KTARGETS, KTGT_ALL, SKILLS=null;
+  // the skill/tech name pool, so names can be renamed in place
+  let KTEXT=null;
   // player units: 15 records before the enemy table, same 0x5C layout
   let UFIELDS, UAFIELDS, USTRIDE, UCOUNT, UTAIL, UTABLES, UNITS=null;
   let TABLES=null;
@@ -62,6 +64,7 @@
     KBLOCKS=(t.skill||{}).blocks||{}; KSPAN=(t.skill||{}).span||0;
     KELEM=(t.skill||{}).elementBits||{};
     KTARGETS=(t.skill||{}).targetNames||{}; KTGT_ALL=(t.skill||{}).targetAll||8;
+    KTEXT=(t.skill||{}).textSpan||null;
     UFIELDS=(t.unit||{}).fields||[]; USTRIDE=(t.unit||{}).stride||92;
     UAFIELDS=(t.unit||{}).affinityFields||[];
     // the affinity block overhangs the record, so the LAST unit's Ice/Pierce/
@@ -98,9 +101,10 @@
   // TARGET   = 'both' | 1 | 2 — which discs a Save actually writes
   const DISCS={};
   let PRIMARY=null, TARGET='both';
-  // four independent slices of the disc, each {buf, orig, dv}: enemy stats,
-  // enemy rewards, the skill numeric blocks, and the player-unit table
-  let S=null, R=null, K=null, U=null;
+  // five independent slices of the disc, each {buf, orig, dv}: enemy stats,
+  // enemy rewards, the skill numeric blocks, the player-unit table, and the
+  // skill/tech name text pool
+  let S=null, R=null, K=null, U=null, TX=null;
   const loadedDiscs=()=>Object.keys(DISCS).map(Number).sort();
   const targetDiscs=()=>loadedDiscs().filter(n=>TARGET==='both'||TARGET===n);
   const $=(s,r=document)=>r.querySelector(s);
@@ -378,8 +382,10 @@
     const kbuf=new Uint8Array(await f.slice(kb,kb+KSPAN).arrayBuffer());
     const uBase=UTABLES[String(disc)];
     const ubuf=new Uint8Array(await f.slice(uBase,uBase+UCOUNT*USTRIDE+UTAIL).arrayBuffer());
+    const [tBase,tLen]=KTEXT[String(disc)];
+    const tbuf=new Uint8Array(await f.slice(tBase,tBase+tLen).arrayBuffer());
 
-    DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,kBase:kb,uBase,
+    DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,kBase:kb,uBase,tBase,
                  size:f.size,backedUp:false};
     rememberIso(disc,DISCS[disc].name,h);
 
@@ -390,6 +396,7 @@
       R={buf:rb,orig:rb.slice(),dv:new DataView(rb.buffer)};
       K={buf:kbuf,orig:kbuf.slice(),dv:new DataView(kbuf.buffer)};
       U={buf:ubuf,orig:ubuf.slice(),dv:new DataView(ubuf.buffer)};
+      TX={buf:tbuf,orig:tbuf.slice(),dv:new DataView(tbuf.buffer),base:tBase};
       const [,hpO,hpW]=SFIELDS.find(x=>x[0]==="HP");
       const perun=get(S,6,hpO,hpW), want=retail(6,"HP");
       say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+")"+
@@ -401,13 +408,14 @@
       // decide which disc's values win. Compare against `orig`, not `buf`, so
       // staged edits aren't mistaken for a difference between the discs.
       const dS=countDiff(sb,S.orig), dR=countDiff(rb,R.orig),
-            dK=countDiff(kbuf,K.orig), dU=countDiff(ubuf,U.orig);
-      if(dS+dR+dK+dU===0){
+            dK=countDiff(kbuf,K.orig), dU=countDiff(ubuf,U.orig),
+            dT=countDiff(tbuf,TX.orig);
+      if(dS+dR+dK+dU+dT===0){
         say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+") — matches disc "+PRIMARY,"ok");
       } else {
         say(disc,"⚠ Disc "+disc+" loaded, but its enemy/skill tables differ from disc "+PRIMARY+
                " in "+(dS+dR+dK)+" byte run(s) — pick which disc's values to keep below","err");
-        pendingDiverge={disc,sb,rb,kbuf,ubuf,runs:dS+dR+dK+dU};
+        pendingDiverge={disc,sb,rb,kbuf,ubuf,tbuf,runs:dS+dR+dK+dU+dT};
       }
     }
     renderDiscBar();
@@ -433,6 +441,8 @@
          dv:new DataView(pendingDiverge.kbuf.buffer)};
       U={buf:pendingDiverge.ubuf,orig:pendingDiverge.ubuf.slice(),
          dv:new DataView(pendingDiverge.ubuf.buffer)};
+      TX={buf:pendingDiverge.tbuf,orig:pendingDiverge.tbuf.slice(),
+          dv:new DataView(pendingDiverge.tbuf.buffer),base:DISCS[n].tBase};
       PRIMARY=n; pendingDiverge=null;
       renderEditor(); renderDiscBar();
       toastFn("Now editing disc "+n+"'s values — they will be written to every targeted disc");
@@ -657,6 +667,7 @@
         'class="chip mini" title="Clear search" aria-label="Clear search">✕</button></span>'+
       '<span id="kcount" class="muted small"></span></div>'+
       '<div id="kdesc" class="note"></div>'+
+      '<div id="kname" class="kctl"></div>'+
       '<div id="ktarget" class="kctl"></div>'+
       '<div id="kelemBox" class="kctl"></div>'+
       '<div id="krow"></div>'+
@@ -669,6 +680,10 @@
       'so it pairs with the enemy damage affinities on the Enemies tab. <b>EffPct</b> and '+
       '<b>EffMask</b> drive the status effect a skill applies; they are verified as fields but '+
       'their encoding is only partly decoded, so treat them as advanced.</p>'+
+      '<p class="note"><b>Name</b> is rewritten in place, so it must fit the retail name\'s '+
+      'bytes — a packed string pool cannot grow. Prose elsewhere in the game that spells the '+
+      'old name (menu and tutorial text) is deliberately left alone rather than blind-patched, '+
+      'which is how a rename of "Miracle" ends up truncating "Miracle Star".</p>'+
       '<p class="note">All '+skillKeys().length+' verified records are editable: Ether and Double '+
       'skills, Dual techs, every character\'s single techs, E.S. attacks and Special attacks. '+
       'The tech blocks were unlocked by cross-checking a third-party mod\'s published numbers '+
@@ -750,7 +765,7 @@
     // Revert covers every pane: one Save writes them all, so one Revert has to
     // undo them all or the button would lie about its scope.
     $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);K.buf.set(K.orig);
-      U.buf.set(U.orig);
+      U.buf.set(U.orig);TX.buf.set(TX.orig);
       loadEnemy();loadSkill();loadUnit();epending();};
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
@@ -884,6 +899,41 @@
     checkBrkPlan(); paintBrkOpts();
   }
 
+  // ---- skill name text ------------------------------------------------------
+  // Budget comes from the RETAIL name in the catalog, never from the buffer's
+  // current bytes: reading it live looks right and is wrong the moment anyone
+  // renames, because shortening the name moves the terminator and the field can
+  // then never be restored to its original length.
+  const nameOff=(i)=>{const v=skillInfo(i); return v&&v.nameOff;};
+  const nameBudget=(i)=>{const v=skillInfo(i);
+    return v&&v.name!==undefined ? v.name.length+1 : 0;};
+  function readName(i){
+    const off=nameOff(i); if(!off||!TX) return null;
+    const at=off-TX.base, n=nameBudget(i);
+    if(at<0||at+n>TX.buf.length) return null;
+    let out="";
+    for(let k=0;k<n-1;k++){ const c=TX.buf[at+k]; if(!c) break; out+=String.fromCharCode(c); }
+    return out;
+  }
+  function readNameOrig(i){
+    const off=nameOff(i); if(!off||!TX) return null;
+    const at=off-TX.base, n=nameBudget(i);
+    if(at<0||at+n>TX.orig.length) return null;
+    let out="";
+    for(let k=0;k<n-1;k++){ const c=TX.orig[at+k]; if(!c) break; out+=String.fromCharCode(c); }
+    return out;
+  }
+  function writeName(i,text){
+    const off=nameOff(i); if(!off||!TX) return false;
+    const at=off-TX.base, n=nameBudget(i);
+    const bytes=[];
+    for(const ch of String(text)){ const c=ch.charCodeAt(0); bytes.push(c>255?63:c); }
+    if(bytes.length+1>n) return false;
+    // pad the whole budget, so a shorter name leaves no fragment of the old one
+    for(let k=0;k<n;k++) TX.buf[at+k] = k<bytes.length ? bytes[k] : 0;
+    return true;
+  }
+
   // ---- skills pane --------------------------------------------------------
   function skillMatches(i,q){
     if(!q) return true;
@@ -922,6 +972,23 @@
     // dropdown and Element is one checkbox per element. A raw byte here is a
     // number you have to go and look up, which is how you end up writing 0x2A
     // when you meant "all allies".
+    const cur=readName(i), budget=nameBudget(i)-1;
+    $("#kname").innerHTML = cur===null
+      ? '<div class="fl">Name</div><span class="muted small">not renameable</span>'
+      : '<div class="fl">Name</div><input type="text" id="knameIn" maxlength="'+budget+
+        '" value="'+esc(cur)+'"><span class="muted small" id="knameHint"></span>';
+    if(cur!==null){
+      const inp=$("#knameIn"), hint=$("#knameHint");
+      const paint=()=>{
+        const left=budget-inp.value.length;
+        hint.textContent=left+" of "+budget+" left"+
+          (inp.value!==v.name?"  ·  retail: "+v.name:"");
+        inp.classList.toggle("changed", inp.value!==readNameOrig(i));
+      };
+      inp.oninput=()=>{ if(writeName(i,inp.value)){ paint(); epending(); } };
+      paint();
+    }
+
     const KTGT=KFIELDS.find(f=>f[0]==="Target"), KELE=KFIELDS.find(f=>f[0]==="Element");
     const tv=getAt(K,base+KTGT[1],1), tdef=getOrigAt(K,base+KTGT[1],1);
     const known=Object.keys(KTARGETS).map(Number);
@@ -1342,7 +1409,7 @@
   }
 
   function diffCount(){let n=0;
-    for(const T of [S,R,K,U]){for(let i=0;i<T.buf.length;i++)if(T.buf[i]!==T.orig[i]){n++;while(i<T.buf.length&&T.buf[i]!==T.orig[i])i++;}}
+    for(const T of [S,R,K,U,TX]){for(let i=0;i<T.buf.length;i++)if(T.buf[i]!==T.orig[i]){n++;while(i<T.buf.length&&T.buf[i]!==T.orig[i])i++;}}
     return n;}
   function epending(){const n=diffCount();const b=$("#ebadge");if(b)b.textContent=n?"("+n+")":"";
     const s=$("#esave"),r=$("#erev");if(s)s.disabled=!n;if(r)r.disabled=!n;
@@ -1393,6 +1460,8 @@
     for(const i of skillKeys()){
       const base=skillOff(i); if(base<0) continue;
       let cells="";
+      const nOld=readNameOrig(i), nNew=readName(i);
+      if(nOld!==null && nOld!==nNew) cells+=row("Name",nOld||"—",nNew||"—");
       for(const [l,o,w] of KFIELDS){
         const a=getOrigAt(K,base+o,w), b=getAt(K,base+o,w);
         if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
@@ -1435,7 +1504,7 @@
   // enemy tables 0x800 into the wrong place.
   function xdeltaEdits(d){
     const runs=[];
-    for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase]])
+    for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase],[TX,d.tBase]])
       for(const [s0,e0] of diffRuns(T)) runs.push({off:base+s0,data:T.buf.slice(s0,e0)});
     return runs.sort((a,b)=>a.off-b.off);
   }
@@ -1675,7 +1744,7 @@
         st.textContent="writing disc "+n+"…";
         let runs=0;
         const w=await d.handle.createWritable({keepExistingData:true});
-        for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase]]){
+        for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase],[TX,d.tBase]]){
           for(const [s,e] of diffRuns(T)){
             await w.write({type:"write",position:base+s,data:T.buf.slice(s,e)}); runs++;
           }
@@ -1690,6 +1759,7 @@
     } else {
       // only clear the pending state once every target actually took the write
       S.orig=S.buf.slice();R.orig=R.buf.slice();K.orig=K.buf.slice();U.orig=U.buf.slice();
+      TX.orig=TX.buf.slice();
       loadEnemy();loadSkill();loadUnit();
       st.textContent="✓ wrote disc "+done.join(", disc ");st.className="status ok";
       toastFn("✓ Saved to "+(done.length>1?"both discs":"disc "+targets[0]));

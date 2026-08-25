@@ -22,7 +22,7 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
     sequences** and **breakable zones** for all 125 records, with search, one-click
     **battle-pacing profiles**, **bulk Break shortening**, and **JSON export/import** for
     spreadsheet-scale edits.
-  - **Skills** — **EP cost, target (single ↔ AoE), power and element** for all **176**
+  - **Skills** — **name, EP cost, target (single ↔ AoE), power and element** for all **176**
     verified skill records: Ether, Double and Dual skills, every character's single techs,
     E.S. attacks and Special attacks — each shown by its in-game name.
   - **Units** — the **new-game starting stats** (HP, EP, STR, VIT, EATK, EDEF, DEX, EVA,

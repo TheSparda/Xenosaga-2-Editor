@@ -155,6 +155,13 @@ details.help .note:first-of-type{margin-top:6px}
 .rechead{margin:12px 0 2px;font-size:15px}
 .rechead .sub{color:var(--mut);font-size:13px}
 
+/* the rename field */
+.kctl input[type=text]{font:inherit;font-size:14px;padding:7px 10px;border-radius:8px;
+  border:1px solid var(--line);background:var(--panel2);color:var(--ink);
+  min-width:16ch;margin-right:8px}
+.kctl input[type=text]:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.kctl input[type=text].changed{border-color:var(--warn);color:var(--warn);font-weight:600}
+
 /* named skill controls — a target dropdown and element checkboxes, so an id is
    never shown as a bare number you have to go and look up */
 .kctl{margin:10px 0}

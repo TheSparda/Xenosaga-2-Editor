@@ -257,6 +257,49 @@ class TestSkillTargeting(unittest.TestCase):
                                      f"skill {i} has no retail Target to compare against")
 
 
+class TestSkillNames(unittest.TestCase):
+    """Renaming a skill in a packed string pool."""
+
+    def test_budget_comes_from_the_retail_name_not_the_disc(self):
+        # Reading the budget off the disc looks right and is wrong the moment
+        # anyone renames: shortening moves the terminator, the next read reports
+        # the SHORTER budget, and the name can never be restored to full length.
+        self.assertEqual(F.skill_name_budget("Aura Blast"), 11)
+        self.assertEqual(F.skill_name_budget("Flare"), 6)
+        self.assertEqual(F.skill_name_budget(""), 1)
+
+    def test_every_editable_skill_can_be_renamed(self):
+        cat = F.skill_catalog()
+        missing = [i for i in F.skill_editable_indices(1)
+                   if not cat.get(i, {}).get("nameOff")]
+        self.assertEqual(missing, [],
+                         "these skills have no name offset, so they cannot be renamed")
+
+    def test_name_lookup_is_blob_precise_not_pool_wide(self):
+        # the read span is a bounding box over three scattered pools; using it
+        # to identify bytes would claim the enemy tables as "skill text"
+        cat = F.skill_catalog()
+        off = cat[0]["nameOff"]
+        self.assertEqual(F.skill_name_at(off), 0)
+        self.assertEqual(F.skill_name_at(off + len("Medica")), 0)     # the NUL
+        self.assertIsNone(F.skill_name_at(off + 32),
+                          "a byte past the name blob is not that skill's name")
+        lo, ln = F.skill_text_span(1)
+        self.assertTrue(lo < F.ENEMY_TABLE_OFF < lo + ln,
+                        "the span really does contain the enemy table…")
+        self.assertIsNone(F.skill_name_at(F.ENEMY_TABLE_OFF),
+                          "…and must not claim it as skill text")
+
+    def test_the_read_span_covers_every_name(self):
+        for disc in (1, 2):
+            lo, ln = F.skill_text_span(disc)
+            shift = 0 if disc == 1 else 0x800
+            for i in F.skill_editable_indices(disc):
+                off = F.skill_catalog()[i]["nameOff"] - shift
+                with self.subTest(disc=disc, skill=i):
+                    self.assertTrue(lo <= off < lo + ln)
+
+
 class TestExplainDiff(unittest.TestCase):
     """Reading a third-party mod's bytes rather than trusting its description."""
 
