@@ -205,9 +205,10 @@ def keyitem_names():
 #   +0x12 u16  effect chance (100 on every effect-bearing skill seen)
 #   +0x13 u8   effect kind (1 inflict / 2 block / 3 add-buff / 4 damage-cut)
 #   +0x14 u16  effect bitmask (Flame Veil 0x08, Ice Veil 0x10 — element bits)
-#   +0x16 u16  STRING ID, 1-based text index — 57/57 exact. This is the field
-#              that killed every earlier search: records name themselves, so
-#              no order assumption was ever needed.
+#   +0x16 u16  POOL INDEX, 1-based — per-block pool, NOT a global text index
+#              (the doubles carry 80..108 for text 59..87; see the offsets
+#              doc's v1.8.0 correction). Records name themselves within their
+#              block's pool, so no order assumption was ever needed.
 #   +0x1C u16  animation/VFX id                              [unverified name]
 #
 # HOW IT WAS FOUND, for next time: two earlier scans failed because the text
