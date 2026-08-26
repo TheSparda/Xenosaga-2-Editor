@@ -394,7 +394,8 @@ Open, in the order they are worth attempting:
 - [x] **Skill purchase costs — `0x35E958`, 112 records, SOLVED** (the old "`0x35EA60`
   unidentified" entry, base corrected). `[type][id][SPTS u16][slot][pad]`; type = Auto /
   Equip / Ether skill, id = rank within type in catalog order, 112/112 against the
-  walkthrough's class tree. Disc 1 only. Not yet exposed for editing.
+  walkthrough's class tree. Per-disc base (disc 2 at `0x410158`, `+0xB1800`).
+  Editable in the web editor's Costs tab; both discs are written.
 - [ ] Blocked on runtime (PCSX2) or deep static RE: character growth curves, global battle
   constants, field-enemy placement/detection.
 
@@ -1591,13 +1592,32 @@ the "map guide rows by signature, not by name" lesson above.
 
 The disc arbitrates between the two guides: `skills.rtf` is wrong on VIT+2.
 
-What the mod does here is now fully legible: it **swaps two pairs of Ether-skill
-entries** — id 19 (500 SPTS, slot 7) with id 5 (800), and id 35 (400) with id 38
-(1200) — re-pricing four ethers rather than editing any value.
+**Disc 2 carries it too — at its own base `0x410158`.** This is the only table
+in this file whose second-disc copy is not a fixed shift: it is `+0xB1800` away
+and byte-identical over all 112 records, so it lives in a per-disc base map like
+`ENEMY_TABLES`. An earlier draft said "disc 1 only" after probing `0`, `±0x800`
+and `±0x1000` and finding nothing. The table was there the whole time, further
+out. **Probing a handful of likely shifts is not a search — scan for the
+content.** (The mod's own disc-2 patch does not touch this table, which is what
+made "disc 1 only" look corroborated. It is a gap in the mod, not the disc: a
+cost change applied only to disc 1 would revert at the disc swap.)
 
-The table is **disc 1 only**: no copy on disc 2 at `0`, `-0x800` or `+0x800`, and
-the mod's disc-2 patch does not touch it, while that same patch does carry the
-nine captions at `-0x800`.
+What the mod does here is now fully legible, and it is the last unexplained
+thing in its whole patch. It writes **only the id byte** of four records, which
+swaps *which skill sits at each price*:
+
+| record | retail | after the mod |
+|---|---|---|
+| 54 | Junk Beam @ 500 SP | Refresh H @ 500 SP |
+| 64 | Refresh H @ 800 SP | **Junk Beam @ 800 SP** |
+| 55 | Miracle Star @ 400 SP | Prayer @ 400 SP |
+| 84 | Prayer @ 1200 SP | **Miracle Star @ 1200 SP** |
+
+Junk Beam and Miracle Star are exactly the two ethers the mod renames — to
+**Medica 3** and **Flare** — so it moves its two new premium skills up the price
+ladder and drops the skills they displaced into the cheap slots. That is a real
+check on the whole mapping, not just a consistency note: the two records it
+re-prices are, independently, the two skills it renames.
 
 This also answers issue #5's research target 4 (skill gating) on its cost axis:
 "make Heaven's Rain expensive" is now a two-byte edit. The *level* axis — which

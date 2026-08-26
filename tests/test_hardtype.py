@@ -27,6 +27,7 @@ def extents():
         "rewards": (et["rewards"], 125 * F.REWARD_STRIDE),
         "skills": (F.skill_base(1), F.skill_span(1)),
         "units": (F.UNIT_TABLES[1], F.UNIT_COUNT * 92),
+        "costs": (F.skill_cost_base(1), F.skill_cost_span(1)),
         "text": F.skill_text_span(1),
     }
 
@@ -157,6 +158,59 @@ class TestGearTable(unittest.TestCase):
     def test_does_not_overlap_the_passive_records(self):
         p_end = F.passive_base(1) + F.PASSIVE_COUNT * F.PASSIVE_STRIDE
         self.assertGreaterEqual(F.gear_record_off(1, 0), p_end)
+
+
+class TestSkillCostTable(unittest.TestCase):
+    """The skill-cost table is the one region whose disc-2 base is NOT -0x800.
+    Its risks are that shift assumption and the (type, id) -> catalog mapping,
+    which decides which skill's NAME sits over a cost the user then edits."""
+
+    def test_disc2_is_its_own_base_not_a_shift(self):
+        d1, d2 = F.skill_cost_base(1), F.skill_cost_base(2)
+        self.assertNotEqual(d1 - d2, 0x800,
+                            "disc 2's cost base is a distinct base, not the usual shift")
+        self.assertEqual(d2 - d1, 0xB1800)
+
+    def test_span_matches_the_record_count(self):
+        for disc in (1, 2):
+            self.assertEqual(F.skill_cost_span(disc),
+                             F.SKILL_COST_COUNT * F.SKILL_COST_STRIDE)
+
+    def test_fields_fit_the_record(self):
+        for label, off, width, _kind in F.SKILL_COST_FIELDS:
+            self.assertLessEqual(off + width, F.SKILL_COST_STRIDE,
+                                 f"SKILL_COST_FIELDS.{label} runs past the record")
+        for off in (F.SKILL_COST_TYPE_OFF, F.SKILL_COST_ID_OFF, F.SKILL_COST_SLOT_OFF):
+            self.assertLess(off, F.SKILL_COST_STRIDE)
+
+    def test_record_offsets_are_bounded(self):
+        self.assertIsNone(F.skill_cost_record_off(1, -1))
+        self.assertIsNone(F.skill_cost_record_off(1, F.SKILL_COST_COUNT))
+        self.assertEqual(F.skill_cost_record_off(1, 0), F.skill_cost_base(1))
+
+    def test_mapping_covers_both_id_spaces(self):
+        # ether ids are catalog+1; the auto/equip band shares one space at +109
+        self.assertEqual(F.skill_cost_catalog_index(2, 1), 0)
+        self.assertEqual(F.skill_cost_catalog_index(0, 1), 110)
+        self.assertEqual(F.skill_cost_catalog_index(1, 62), 171)
+        # auto and equip must agree, since they share the id space
+        self.assertEqual(F.skill_cost_catalog_index(0, 30),
+                         F.skill_cost_catalog_index(1, 30))
+
+    def test_mapping_refuses_to_guess(self):
+        """An unknown type must return None, not a plausible index — the caller
+        uses this to put a skill NAME on an editable cost."""
+        self.assertIsNone(F.skill_cost_catalog_index(3, 1))
+        self.assertIsNone(F.skill_cost_catalog_index(2, 0))
+        self.assertIsNone(F.skill_cost_catalog_index(0, 0))
+
+    def test_named_skills_exist_in_the_catalog(self):
+        cat = F.skill_catalog()
+        for type_, hi in ((2, 51), (0, 28), (1, 62)):
+            for id_ in range(1, hi + 1):
+                ci = F.skill_cost_catalog_index(type_, id_)
+                self.assertIn(ci, cat,
+                              f"type {type_} id {id_} maps outside the catalog")
 
 
 if __name__ == "__main__":

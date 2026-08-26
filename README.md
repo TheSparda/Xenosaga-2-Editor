@@ -16,7 +16,7 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   **`.sps`/`.xps`** (SharkPort), **`.cbs`** (CodeBreaker) and **`.max`** (AR Max / MAX
   Drive). Powered by the real Python engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
-  one**, in five tabs:
+  one**, in six tabs:
   - **Enemies** — **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle rewards**
     (EXP, SP, CP), **damage affinities**, **status resistances**, **item drops**, **Break
     sequences** and **breakable zones** for all 125 records, with search, one-click
@@ -37,6 +37,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
     catalog. Turn Auxiliary Armor A's +30 Arm into +90, or repoint an Anti-Fire Armor at
     Ice. Names are read-only here (E.S. equipment names resolve through menu code, not a
     pointer table), so an accessory keeps its old name when you change what it does.
+  - **Costs** — what each skill costs in **Skill Points** to learn, for all **112**
+    purchasable skills, grouped the way the game groups them: auto skills, equip skills and
+    ethers. The other half of skill pacing from the SP the Enemies tab hands out — make a
+    late-game ether cheap, or price a strong one out of reach. Verified against the
+    walkthrough's class tree, 112 of 112.
   - **Units** — the **new-game starting stats** (HP, EP, STR, VIT, EATK, EDEF, DEX, EVA,
     AGL) for every character and E.S. unit, plus their eight **damage affinities** — give a
     character a fire weakness or beam immunity. Verified against the save format, which
@@ -250,8 +255,8 @@ Difficulty mods for this game ship as **PPF** patches. Instead of applying one
 blind, the editor imports it: **⬆ Import .ppf** parses the patch, stages every
 byte that lands in a table it maps — enemy stats, rewards, drops, units, all 176
 skill/tech records, the 64 passive/equip records, the 31 E.S. accessory
-effects, and skill names and descriptions — and tells you exactly what it could
-not reach. Nothing writes
+effects, the 112 skill purchase costs, and skill names and descriptions — and
+tells you exactly what it could not reach. Nothing writes
 until you review and Save, the
 staged values show up field-by-field in every tab with retail comparison intact,
 and you can tweak them before committing. The CLI equivalent:
@@ -260,12 +265,12 @@ and you can tweak them before committing. The CLI equivalent:
 python3 x2patch.py apply-ppf "…(Disc 1).iso" mod.ppf --dry-run
 ```
 
-On Landon Ray's XS2HT v3.9 Hard, that stages **648 of 661** records. The 13 it
-does not are nine duplicate copies of a renamed skill's *battle caption* and four
-bytes in a cost table whose ids are not yet pinned down — both now identified
-(see [the notes](Editor/Xenosaga2_ISO_offsets.md)), neither yet written. The only
-user-visible effect is that a renamed skill keeps its retail name in battle
-captions.
+On Landon Ray's XS2HT v3.9 Hard, the web editor stages **652 of 661** records.
+The nine it does not are duplicate copies of a renamed skill's *battle caption*,
+which live outside every table and are found by scanning the image instead — the
+command line does apply those, so `apply-ppf` reaches all 661. The only
+user-visible difference is that a skill renamed in the web editor keeps its
+retail name in battle captions.
 
 You do not need the `.ppf` to get this one: the ISO editor ships **HardType
 (Normal)** and **HardType (Hard)** as one-click presets, generated from the
