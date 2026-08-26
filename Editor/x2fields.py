@@ -10,7 +10,7 @@ Each field, once known, is: (label, offset_within_record, width_bytes, kind)
   kind: "item" = resolve via item id list, "skill" = skill/tech id,
         "num" = plain number, "char" = character id.
 """
-import json, os
+import json, os, struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -59,15 +59,43 @@ def disc_of(serial):
 #
 # The on-card save file (named after its folder, e.g. "BASLUS-20892Xeno201")
 # is a fixed 20,832-byte blob:
-#   0x0000  header: +0x08 u32 checksum ("muY+"-style), +0x10 u8 misc counter
+#   0x0000  header: +0x08 u64 CHECKSUM (see below), +0x10 u32 save counter
 #   0x0174..0x0D44   embedded JPEG thumbnail (per-save screenshot)
 #   0x0D44..0x1174   ~1 KB high-entropy block (2nd image / packed state) [TODO]
 #   0x00D0  u32  GOLD (verified: rises/falls with earning+spending)
 #   0x1174  character table: CHAR_COUNT records x CHAR_STRIDE bytes
+#   0x2A70  key-item table: KEYITEM_COUNT u16 have-flags
 # ===========================================================================
 GAMEDATA_SIZE = 20832
 
 GD_GOLD_OFF = 0xD0                 # u32 gold / money
+
+# ---------------------------------------------------------------------------
+# SAVE CHECKSUM (SOLVED 2026-08-25) — read straight out of the boot ELF, not
+# guessed. `SaveMakeCheckSum` lives at va 0x22BBF8 (SLUS-20892) and is called
+# from the tail of the serializer at 0x22C6FC; its 64-bit result is stored with
+# a single `sd $v0, 8($s1)`, which is why every hash search that treated +0x08
+# as a u32 failed — the field is 8 bytes wide and +0x0C is its high half.
+#
+# The routine copies the whole 0x5160-byte struct to the stack, ZEROES the
+# 8 bytes at +0x08 in that copy (`sd $zero, 8($sp)`), then runs one byte loop:
+#
+#     acc = 0
+#     for i in 1 .. 0x5160:                # 1-based, every byte, no exclusions
+#         acc += data[i - 1] * i + 0x793
+#
+# in 64-bit arithmetic (the multiply is __muldi3 at 0x2A4EE8), and stores acc
+# little-endian at +0x08. Position-weighted, so it catches transpositions a
+# plain sum would miss — which is exactly why solving for a (start, end) plain
+# sum over every range came back empty.
+#
+# Verified against all 44 local gamedata blobs: 44/44 exact.
+# ---------------------------------------------------------------------------
+GD_CHECKSUM_OFF   = 0x08
+GD_CHECKSUM_WIDTH = 8              # u64 little-endian; +0x0C is the high half
+GD_CHECKSUM_STEP  = 0x793          # per-byte constant added inside the loop
+
+GD_SAVE_COUNTER_OFF = 0x10         # u32, ++ on every write (serializer 0x22C6EC)
 
 # The per-save screenshot the game embeds, shown on the load screen. Useful for
 # telling one slot from another in the editor.
@@ -85,7 +113,15 @@ CHAR_COUNT     = 15               # rec0-6 on-foot, 7-9 reserved, 10-14 E.S. uni
 # Names cross-checked against the pnach + almarsguides code lists. Level verified
 # by tracking one character across 20 saves (7 -> 54). Past +0x22 = tech arrays.
 CHAR_FIELDS = [
-    ("Character id", 0x00, 2, "char"),
+    # +0x00 is NOT an id. It is the disc unit record's +0x34 NAME POINTER, copied
+    # in at join time (0x564 chaos, +6 for "chaos\0", 0x56A KOS-MOS, +8...). The
+    # real id is +0x1E — 1..7 for the characters, 101..103 for the E.S. units,
+    # matching x2_units.json. The old label said "Character id" and every caller
+    # tested it for 0 to mean "slot empty", which worked by accident because an
+    # empty record is all-zero. Renamed rather than quietly kept: an id you can
+    # edit but that is really a pointer into a name pool is exactly the kind of
+    # field this project has retracted twice.
+    ("Name ptr",     0x00, 2, "ptr"),
     ("HP",           0x02, 2, "num"),   # max HP (u16, cap 9999)
     ("EP",           0x06, 2, "num"),   # Ether Points (cap 99)
     ("Str",          0x08, 2, "num"),   # Strength     (cap 999)
@@ -96,11 +132,62 @@ CHAR_FIELDS = [
     ("Eva",          0x11, 1, "num"),   # Evasion
     ("Agl",          0x12, 1, "num"),   # Agility (tentative; ~constant in samples)
     ("Level",        0x13, 1, "num"),
+    ("Unit id",      0x1E, 2, "unit"),  # 1..7 characters, 101..103 E.S. (x2_units.json)
     ("Current HP",   0x5C, 2, "num"),   # live HP (==base at low lvl, +gear bonus later)
 ]
 
-# +0x23..0x32 are constant per-character config (0x14 x8, 0x64 x8 — affinities/base tech),
-# +0x33.. is a growing list of learned tech/skill ids. Not exposed as editable yet.
+# The record is the disc unit record shifted by a constant 0x34 (see the unit
+# table notes), so every offset below is `unit offset - 0x34`.
+CHAR_UNIT_DELTA = 0x34
+
+# Damage affinities — the SAME eight-byte block the ISO Units tab edits, at unit
+# +0x58 == save +0x24. Retail writes a flat 0x14 (=100%) on all eight for every
+# character in all 24 local saves, exactly as the disc table does; the caveat the
+# Units tab carries applies here too and the UI repeats it.
+CHAR_AFFINITY_OFF = 0x24            # == ENEMY_AFFINITY_OFF (0x58) - CHAR_UNIT_DELTA
+CHAR_AFFINITY_COUNT = 8
+
+# +0x2C..+0x33 is the 0x64-fill block the enemy/unit records also carry at their
+# +0x60 — constant everywhere, never per-character. Documented, not exposed.
+CHAR_CONST64_OFF = 0x2C
+
+# EQUIPPED EQUIP-SKILLS (VERIFIED 2026-08-25). Four u8 slots; 0 = empty. The
+# value is a skill-cost id, i.e. catalog index = id + SKILL_COST_PASSIVE_DELTA.
+# Across the 24 local saves, 255 non-empty slots decode to skills the same
+# character has LEARNED (255/255) and, for every id the cost table prices,
+# to a type-1 "equip skill" (227/227). The 28 that fall outside the priced range
+# are all the same id, 63, held by KOS-MOS and Ziggy from their first save — an
+# id the cost table does not sell, so it is granted, not bought.
+# Matches the skills FAQ: "three slots to equip Equip Skills, although this
+# number can be increased to four by learning a particular skill."
+EQUIP_SLOT_OFF = 0x34
+EQUIP_SLOT_COUNT = 4
+
+# Fields that describe the record rather than the character. The name pointer
+# aims into a packed pool and the unit id is what the game matches against the
+# disc's unit table — editing either is how you turn a save that loads into one
+# that does not, so both front-ends and the writer treat them as read-only.
+SAVE_READONLY_FIELDS = ("Name ptr", "Unit id")
+
+# E.S. ACCESSORY SLOTS (VERIFIED 2026-08-25) — three u16s, 0 = empty, the value
+# being a ONE-BASED index into the disc's item catalog (x2_items.json), so
+# catalog index = value - 1. 132 of 132 non-empty slots across the 24 local
+# saves land on a real accessory; not one lands on a 予備 placeholder, which is
+# the test that picks this reading out of the alternatives (a 0-based read puts
+# the observed 34..37 past the end of the 31-entry E.S. accessory list).
+#
+# This RETIRES the earlier "34-37 are weapon/frame items" reading recorded in
+# es_equip_catalog()'s docstring: under the 1-based catalog reading they are
+# G ST Double, Quick Charge, EMAX300 and Auto Recover, all ordinary accessories.
+ES_ACCESSORY_OFF = 0x86
+ES_ACCESSORY_COUNT = 3
+ES_ACCESSORY_FIELDS = [(f"Slot {i + 1}", ES_ACCESSORY_OFF + 2 * i, 2, "esacc")
+                       for i in range(ES_ACCESSORY_COUNT)]
+
+# +0x8C is zero in every sample. +0x8E is CONSTANT per E.S. unit across all 24
+# saves (Dinah 2, Zebulun 6, Asher 7) and +0x90 moves in the range 0..5 — small
+# ids that look pilot-related. Nothing verifies either, so neither is exposed;
+# the old "Gear 4" field WAS +0x90, and it was never gear.
 
 # In-game caps, from the almarsguides CodeBreaker lists cross-checked with the
 # pnach. Used for the "max stats" convenience button and for input validation, so
@@ -116,16 +203,9 @@ SHEET_COLS = [("Lvl", "Level"), ("HP", "HP"), ("Cur HP", "Current HP"), ("EP", "
               ("Str", "Str"), ("Vit", "Vit"), ("EAtk", "Eatk"), ("EDef", "Edef"),
               ("Dex", "Dex"), ("Eva", "Eva"), ("Agl", "Agl")]
 
-# E.S. (mech) equipment slots — EXPERIMENTAL. These four u16s in the record vary
-# across saves for E.S. units only (weapon/frame/armor/anima ids), so they're
-# editable, but the slot->kind mapping and the id->name catalog are NOT confirmed
-# yet (that needs the ISO item tables + a ground-truth save). Raw numeric ids.
-ES_EQUIP_FIELDS = [
-    ("Gear 1", 0x86, 2, "num"),
-    ("Gear 2", 0x88, 2, "num"),
-    ("Gear 3", 0x8A, 2, "num"),
-    ("Gear 4", 0x90, 2, "num"),
-]
+# Kept as an alias so nothing that imported the old name breaks; the fields are
+# now the three verified accessory slots, not four guessed ones.
+ES_EQUIP_FIELDS = ES_ACCESSORY_FIELDS
 
 # rec index -> character. Inferred from the pnach EE-RAM order (Chaos lowest
 # address, stride 0x40), which matches the save record order 1:1 (7 on-foot
@@ -138,15 +218,230 @@ ROSTER = {
 }
 
 # ---------------------------------------------------------------------------
+# SAVE: PLAY TIME and the wall-clock save stamp (VERIFIED 2026-08-25).
+#
+# Two PS2-style time structs sit in the header:
+#
+#   0x60  when the save was written, real-world  (2005-02-17 07:29:52 in one
+#         SharkPort sample — the date these saves were actually made)
+#   0x68  ELAPSED PLAY TIME, same struct, counting from 2000-01-01 00:00:00
+#
+# Layout, little-endian: u8 pad, u8 sec, u8 min, u8 hour, u8 day, u8 month,
+# u16 year. Play time therefore reads hours = (day - 1) * 24 + hour, which is
+# how a 27:36 save stores day 2 / hour 3.
+#
+# Verified against ground truth the game itself wrote: every container whose
+# icon.sys carries a title ("XenosagaEPII-01[47:41]") agrees with the struct on
+# hours AND minutes, 16 of 16, from 0:50 to 47:41. The eight .max samples carry
+# no title, so they are outside the check rather than counted as passes.
+GD_SAVETIME_OFF = 0x60             # real-world stamp; read-only in the editors
+GD_PLAYTIME_OFF = 0x68             # elapsed play time
+PS2_TIME_SIZE = 8
+PLAYTIME_EPOCH_DAY = 1             # day 1 == zero elapsed days
+
+
+def decode_ps2_time(blob, off=0):
+    """{'year','month','day','hour','minute','second'} from an 8-byte struct."""
+    pad, sec, minute, hour, day, month, year = struct.unpack_from(
+        "<BBBBBBH", blob, off)
+    return {"year": year, "month": month, "day": day,
+            "hour": hour, "minute": minute, "second": sec}
+
+
+def playtime_hm(blob, off=GD_PLAYTIME_OFF):
+    """(hours, minutes) of elapsed play time — the number on the load screen."""
+    t = decode_ps2_time(blob, off)
+    return (t["day"] - PLAYTIME_EPOCH_DAY) * 24 + t["hour"], t["minute"]
+
+
+def playtime_text(blob, off=GD_PLAYTIME_OFF):
+    h, m = playtime_hm(blob, off)
+    return f"{h}:{m:02d}"
+
+
+def encode_playtime(hours, minutes, seconds=0):
+    """Elapsed (h, m) back into the 8-byte struct the game wrote.
+
+    Clamped to what the field can hold: day is a u8, so 254 days * 24 + 23 is
+    the ceiling. The game's own counter has never been seen past two days.
+    """
+    hours = max(0, int(hours)); minutes = max(0, min(int(minutes), 59))
+    day = min(PLAYTIME_EPOCH_DAY + hours // 24, 0xFF)
+    return struct.pack("<BBBBBBH", 0, max(0, min(int(seconds), 59)), minutes,
+                       hours % 24, day, 1, 2000)
+
+
+# ---------------------------------------------------------------------------
+# SAVE: PER-CHARACTER GROWTH BLOCK (VERIFIED 2026-08-25) — 15 records of 0x40
+# bytes at 0x2274, indexed the same way as the character table.
+#
+#   +0x00 u32  EXP            total, counted from the character's join point
+#   +0x04 u32  EXP to next    remaining to the next level
+#   +0x08 u32  Skill Points   what the skill/ether shop spends
+#   +0x0C u32  Class Points   what unlocking a class costs
+#   +0x10 u16 x6  Str Vit Eatk Edef Dex Eva   (mirrors the character record)
+#   +0x1C u16  HP   +0x1E u16  EP             (likewise)
+#   +0x20 12 bytes  ETHER-SKILLS-LEARNED bitmask
+#   +0x2C  8 bytes  AUTO/EQUIP-SKILLS-LEARNED bitmask
+#   +0x34  8 bytes  zero in all 24 samples — undecoded, unwritten
+#   +0x3C u32  grows monotonically; NOT the class-unlock set (a character with
+#              twenty skills learned has one bit set here). Unidentified.
+#
+# How each was pinned, because "four u32 counters" is exactly the shape that
+# invites a guess:
+#
+# * EXP: the only one of the four that never decreases, across 14 saves of one
+#   playthrough (0:50 -> 22:30).
+# * EXP to next: EXP + this is a per-character function of level — 79 of 79
+#   (character, level) pairs in the progression give a single value, and it
+#   rises strictly with level for every character. It is per-character rather
+#   than global because characters join with their EXP reset to zero.
+# * Skill Points vs Class Points: the skills FAQ states that all characters gain
+#   EXP after a battle but "only the three active party members will gain any
+#   skill points", and that "generally only bosses will give Class Points".
+#   Across the short gaps in the progression, all 7 characters gain EXP while at
+#   most 3 gain +0x08 — and +0x0C moves on fewer transitions still. The disc's
+#   own reward table agrees from the other side: CP is non-zero on 25 of 125
+#   enemies, SP on 82. +0x0C is a multiple of 50 in 142 of 160 populated
+#   records, matching class prices; +0x08 is in 52, matching SP earned in
+#   arbitrary amounts and spent in multiples of 50.
+#
+# The masks are bit-per-skill, and both are monotone across all 14 saves of the
+# progression — a bit that is set is never cleared, which is what "learned"
+# means and what a live-state field would not do.
+#
+#   ether mask  bit i  ->  skill catalog index i        (0..56)
+#   skill mask  bit i  ->  skill catalog index i + 110  (110..173)
+#
+# The alignment proof is a hole, not a match: on a save with essentially every
+# ether learned, the one clear bit inside the run is bit 25 — and catalog 25 is
+# Burst Veil, independently recorded in the skill-cost notes as one of the two
+# ethers the shop does not sell. Bits 51..53 being set on the same save is the
+# other half: those are the Erde-family quest rewards, also absent from the cost
+# table, and they are set because they were granted.
+GROWTH_TABLE_OFF = 0x2274
+GROWTH_STRIDE = 0x40
+GROWTH_COUNT = 15                  # same indexing as the character table
+GROWTH_FIELDS = [
+    ("EXP",          0x00, 4, "num"),
+    ("EXP to next",  0x04, 4, "num"),
+    ("Skill Points", 0x08, 4, "num"),
+    ("Class Points", 0x0C, 4, "num"),
+]
+# Generous but finite: the game's own numbers reach ~340,000 EXP by level 67.
+GROWTH_CAPS = {"EXP": 9999999, "EXP to next": 9999999,
+               "Skill Points": 999999, "Class Points": 999999}
+
+ETHER_MASK_OFF = 0x20
+ETHER_MASK_BYTES = 12
+ETHER_MASK_COUNT = 57              # catalog 0..56, the ether block
+ETHER_MASK_TEXT0 = 0
+SKILL_MASK_OFF = 0x2C
+SKILL_MASK_BYTES = 8
+SKILL_MASK_COUNT = 64              # catalog 110..173, the passive/equip block
+SKILL_MASK_TEXT0 = 110             # == PASSIVE_TEXT0 (asserted below)
+
+
+def learned_indices(blob, off, count, text0):
+    """Catalog indices whose bit is set in a learned-skill mask."""
+    return [text0 + i for i in range(count)
+            if blob[off + (i >> 3)] >> (i & 7) & 1]
+
+
+def set_learned_bit(buf, off, count, text0, index, on):
+    """Set/clear one catalog index in a mask held in `buf` (a bytearray)."""
+    i = index - text0
+    if not (0 <= i < count):
+        raise IndexError(f"catalog index {index} is not in this mask")
+    byte = off + (i >> 3)
+    if on:
+        buf[byte] |= 1 << (i & 7)
+    else:
+        buf[byte] &= ~(1 << (i & 7)) & 0xFF
+
+
+# ---------------------------------------------------------------------------
+# SAVE: THE THREE INVENTORIES (VERIFIED 2026-08-25).
+#
+# All three are flat u16 arrays indexed by the disc's own item catalog
+# (x2_items.json), which is what makes them nameable at all — the pnach-derived
+# id lists drift from the disc past a certain point (see consumable_catalog).
+#
+#   0x2674  40 slots  quantities, catalog 40..79  — Med Kit S .. Awakening IV
+#   0x2872  40 slots  quantities, catalog  0..39  — the E.S. accessories
+#   0x2A70 107 slots  have-flags, key items       — decoders, clues, Secret Keys
+#
+# Consumables: the catalog's 予備 placeholders sit at 57, 58, 59 and 75, i.e.
+# slots 17, 18, 19 and 35 — and those four slots read zero in 22 of the 24 local
+# saves. The two exceptions are the pair of AR Max saves that hold 99 of all
+# forty slots including the placeholders, which is what a "max items" cheat
+# code does and not evidence against the layout.
+#
+# E.S. accessories: the same test, but sharper — the catalog places nine
+# placeholders at 2, 3, 4, 7, 8, 9, 37, 38 and 39, and a scan of the whole
+# 12 KB of undecoded save for a 40-entry u16 window with those nine slots always
+# zero and nothing above 99 returns exactly ONE offset, 0x2872.
+#
+# Key items: the array is indexed by x2_keyitems.json id with no shift at all —
+# Decoder 01..18 at 0..17, ZAZA's Clue 1..7 at 19..25, Secret Key 1..31 at
+# 76..106, each run contiguous and in order, the completionist save holding
+# nearly all of them and the 0:50 save exactly one.
+INV_CONSUMABLE_OFF = 0x2674        # u16 quantity per slot
+INV_CONSUMABLE_COUNT = 40
+INV_CONSUMABLE_ITEM0 = 40          # catalog index of slot 0
+INV_ES_GEAR_OFF = 0x2872           # u16 quantity per slot
+INV_ES_GEAR_COUNT = 40
+INV_ES_GEAR_ITEM0 = 0
+INV_KEYITEM_OFF = 0x2A70           # u16 have-flag per key-item id
+INV_KEYITEM_COUNT = 107
+INV_QTY_MAX = 99                   # the game's own stack cap
+
+
+def item_catalog():
+    """{int index: {name, desc, placeholder}} — the disc's item text table."""
+    return {int(k): v for k, v in res_json("x2_items.json").items()}
+
+
+def es_accessory_name(stored, catalog=None):
+    """Name for an E.S. accessory slot's stored value (1-based), or None."""
+    if not stored:
+        return None
+    cat = catalog if catalog is not None else item_catalog()
+    entry = cat.get(int(stored) - 1)
+    if entry is None or entry.get("placeholder"):
+        return None
+    return entry["name"]
+
+
+# ---------------------------------------------------------------------------
 # INVENTORY reference (item id -> name), from the disc-1 pnach. The in-RAM tables
 # are: consumables @ EE 0x61C800 (u16 quantity per id, cap 99), key items @ EE
-# 0x61CC00 (u16 have-flag per id). These id->name maps are authoritative; the
-# SAVE-side offsets of the inventory are NOT confirmed yet — the local samples hold
-# almost no consumables and there's no known-inventory reference to verify a
-# candidate, so decoding inventory from a save is deferred (see offsets notes).
+# 0x61CC00 (u16 have-flag per id). These id->name maps are authoritative.
 # ---------------------------------------------------------------------------
 INV_CONSUMABLE_RAM = 0x61C800    # u16 quantity per consumable id (cap 99)
 INV_KEYITEM_RAM    = 0x61CC00    # u16 have-flag per key-item id
+
+# ---------------------------------------------------------------------------
+# SECRET KEYS — the tail of the key-item table, ids 76..106 (INV_KEYITEM_OFF).
+#
+# Independently corroborated STATICALLY while cracking the save checksum: the
+# serializer (boot ELF va 0x22BCA4) and its loader twin (0x22C728) copy this
+# table between the save struct and work RAM with an inlined memcpy whose two
+# bases are materialized as literals — 0x6422B0 (the save struct 0x63F840 plus
+# 0x2A70) and 0x61CC00, the exact key-item address the pnach pokes. Both
+# directions, both functions. That is the same offset the empirical scan found.
+#
+# Each key unlocks one "???" secret skill for purchase; SECRET_SKILL_GATES maps
+# key number -> the cost-table record it opens. Holding a key does not grant the
+# skill: you still pay Class Points to open the class and Skill Points to learn
+# it, and Levels 2-4 still need Class Complete on the tier below.
+# ---------------------------------------------------------------------------
+SECRET_KEY_FIRST = 76              # key-item id of "Secret Key 1"
+SECRET_KEY_COUNT = 31
+
+def secret_key_ids():
+    """Key-item ids of Secret Keys 1..31, in order."""
+    return list(range(SECRET_KEY_FIRST, SECRET_KEY_FIRST + SECRET_KEY_COUNT))
 
 # Catalog JSONs are {id: {"name":..., "desc":...}} — names from the pnach, in-game
 # descriptions extracted from the disc-1 data region (~ISO 0x200CE00).
@@ -513,6 +808,8 @@ PASSIVE_STRIDE = 12
 PASSIVE_COUNT = 64                 # exposed: catalog text indices 110..173
 PASSIVE_TAIL_COUNT = 40            # located, unnamed — not exposed
 PASSIVE_TEXT0 = 110                # catalog index of record 0
+assert SKILL_MASK_TEXT0 == PASSIVE_TEXT0   # the save mask and the ISO
+                                           # passive table index the same skills
 PASSIVE_FIELDS = [                 # exposed, editable
     ("Param", 0x0A, 1, "num"),
     ("StatMask", 0x0B, 1, "num"),
@@ -641,6 +938,35 @@ def skill_cost_catalog_index(type_, id_):
     if type_ in (0, 1):
         return id_ + SKILL_COST_PASSIVE_DELTA if id_ >= 1 else None
     return None
+
+
+# ---------------------------------------------------------------------------
+# SECRET-SKILL GATING (SOLVED 2026-08-25) — the cost record's `slot` byte.
+#
+# `slot` was logged here as "unread; probably the class-tree tier". It is not
+# the tier: it is the SECRET KEY INDEX. Decoding the 31 records that carry a
+# nonzero slot and naming each through skill_cost_catalog_index() reproduces the
+# skills FAQ's "Secret Key #N unlocks ..." list in order, 31 of 31 — including
+# the six the FAQ leaves romanized, which is what makes the match a real check
+# rather than a coincidence of ordering: Kikou 1 = Focus 1, Ponkotsu Beam = Junk
+# Beam, Kyuusoku Kaifuku = Rapid Refresh, Imashime = Curse, Saiai no Kachi =
+# Best Ally, and "Attack One / adds one stock" = Stock 1 ("Increase Stock count
+# by one"), which is also the only one whose names share no word at all.
+#
+# So a secret skill is gated by exactly one byte on the disc, and zeroing it
+# should make that skill buyable with no key at all. That is the one part of
+# this that is INFERENCE, not observation: `slot` provably ENCODES the key
+# requirement, but we have not watched the game read it. The CLI/UI both say so.
+#
+# Retail values, so the edit is reversible from a disc that has already been
+# patched: {cost-table record index: secret key number}.
+# ---------------------------------------------------------------------------
+SECRET_SKILL_GATES = {
+    28: 1,  29: 2,  30: 3,  31: 4,  44: 5,  47: 6,  54: 7,  60: 8,
+    61: 9,  62: 10, 63: 11, 65: 12, 67: 13, 73: 14, 75: 15, 83: 16,
+    85: 17, 87: 18, 91: 19, 92: 20, 93: 21, 94: 22, 95: 23, 97: 24,
+    101: 25, 104: 26, 106: 27, 108: 28, 109: 29, 110: 30, 111: 31,
+}
 
 
 GEAR_COUNT = 40
@@ -1506,10 +1832,41 @@ def web_tables():
             "stride": CHAR_STRIDE,
             "count": CHAR_COUNT,
             "fields": fields(CHAR_FIELDS),
-            "esFields": fields(ES_EQUIP_FIELDS),
+            "esFields": fields(ES_ACCESSORY_FIELDS),
             "caps": CHAR_CAPS,
             "sheetCols": [list(c) for c in SHEET_COLS],
+            "readonlyFields": list(SAVE_READONLY_FIELDS),
+            # the same eight damage affinities the unit table carries, at the
+            # unit record's +0x58 minus the constant 0x34 record shift
+            "affinityOff": CHAR_AFFINITY_OFF,
+            "equipSlotOff": EQUIP_SLOT_OFF,
+            "equipSlotCount": EQUIP_SLOT_COUNT,
         },
+        # The second per-character record: EXP, the two point pools, and the
+        # two learned-skill bitmasks. Same index as the character table.
+        "growth": {
+            "base": GROWTH_TABLE_OFF,
+            "stride": GROWTH_STRIDE,
+            "count": GROWTH_COUNT,
+            "fields": fields(GROWTH_FIELDS),
+            "caps": GROWTH_CAPS,
+            "etherMask": [ETHER_MASK_OFF, ETHER_MASK_BYTES, ETHER_MASK_COUNT,
+                          ETHER_MASK_TEXT0],
+            "skillMask": [SKILL_MASK_OFF, SKILL_MASK_BYTES, SKILL_MASK_COUNT,
+                          SKILL_MASK_TEXT0],
+        },
+        # The three save inventories, each a flat u16 array indexed by the
+        # disc's own item catalog (item0 = the catalog index of slot 0).
+        "inventory": {
+            "consumables": {"off": INV_CONSUMABLE_OFF,
+                            "count": INV_CONSUMABLE_COUNT,
+                            "item0": INV_CONSUMABLE_ITEM0, "max": INV_QTY_MAX},
+            "esGear": {"off": INV_ES_GEAR_OFF, "count": INV_ES_GEAR_COUNT,
+                       "item0": INV_ES_GEAR_ITEM0, "max": INV_QTY_MAX},
+            "keyItems": {"off": INV_KEYITEM_OFF, "count": INV_KEYITEM_COUNT,
+                         "max": 1},
+        },
+        "playtimeOff": GD_PLAYTIME_OFF,
         # Ether + Double skill numeric records. Two disjoint blocks per disc, so
         # the front-end reads one span covering both rather than two buffers;
         # skillSpan is that span's length, identical on both discs.
@@ -1577,6 +1934,10 @@ def web_tables():
             "slotOff": SKILL_COST_SLOT_OFF,
             "typeNames": {str(k): v for k, v in sorted(SKILL_COST_TYPE_NAMES.items())},
             "passiveDelta": SKILL_COST_PASSIVE_DELTA,
+            # slot == the Secret Key that unlocks the record. Shipped as the
+            # retail map so the front-end can restore a disc that is already
+            # patched, where the "original" bytes are all zero.
+            "secretKeys": {str(k): v for k, v in sorted(SECRET_SKILL_GATES.items())},
         },
         # Player units: 15 records before the enemy table, same 0x5C layout.
         # Verified fields only; names come from Editor/x2_units.json.

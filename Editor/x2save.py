@@ -403,8 +403,18 @@ def extract_gamedata(path, fmt=None, slot=0):
     return gd
 
 
+def _inventory(gd, off, count):
+    """`count` u16 slots as a plain list — quantities, or have-flags."""
+    return list(struct.unpack_from(f"<{count}H", gd, off))
+
+
 def decode_gamedata(gd):
-    """Decode a raw gamedata payload into structured fields."""
+    """Decode a raw gamedata payload into structured fields.
+
+    Names are deliberately NOT resolved here: both front-ends already load the
+    catalogs once, and shipping 300 strings per save through the Pyodide bridge
+    on every slot switch would be the slow way to say the same thing.
+    """
     if len(gd) != F.GAMEDATA_SIZE:
         raise ValueError(f"unexpected gamedata size {len(gd)} (want {F.GAMEDATA_SIZE})")
     gold = struct.unpack_from("<I", gd, F.GD_GOLD_OFF)[0]
@@ -412,13 +422,38 @@ def decode_gamedata(gd):
     for i in range(F.CHAR_COUNT):
         base = F.CHAR_TABLE_OFF + i * F.CHAR_STRIDE
         rec = {}
-        for label, off, width, _kind in F.CHAR_FIELDS + F.ES_EQUIP_FIELDS:
+        for label, off, width, _kind in F.CHAR_FIELDS + F.ES_ACCESSORY_FIELDS:
             rec[label] = int.from_bytes(gd[base + off:base + off + width], "little")
         rec["name"] = F.ROSTER.get(i, f"rec{i}")
-        rec["active"] = rec["Character id"] != 0 and rec["Level"] > 0
+        rec["active"] = rec["Unit id"] != 0 and rec["Level"] > 0
         rec["is_es"] = rec["name"].startswith("E.S.")
+        # the eight damage affinities, as stored bytes (x5 == percent)
+        rec["affinity"] = {name: gd[base + F.CHAR_AFFINITY_OFF + k]
+                           for k, name in enumerate(F.AFFINITY_ELEMENTS)}
+        # the four equip-skill slots, as skill-cost ids (0 = empty)
+        rec["equip"] = list(gd[base + F.EQUIP_SLOT_OFF:
+                               base + F.EQUIP_SLOT_OFF + F.EQUIP_SLOT_COUNT])
+        # the growth block that carries EXP and the two point pools
+        gbase = F.GROWTH_TABLE_OFF + i * F.GROWTH_STRIDE
+        for label, off, width, _kind in F.GROWTH_FIELDS:
+            rec[label] = int.from_bytes(gd[gbase + off:gbase + off + width], "little")
+        rec["ether"] = F.learned_indices(gd, gbase + F.ETHER_MASK_OFF,
+                                         F.ETHER_MASK_COUNT, F.ETHER_MASK_TEXT0)
+        rec["skills"] = F.learned_indices(gd, gbase + F.SKILL_MASK_OFF,
+                                          F.SKILL_MASK_COUNT, F.SKILL_MASK_TEXT0)
         chars.append(rec)
-    return {"gold": gold, "characters": chars}
+    ph, pm = F.playtime_hm(gd)
+    return {
+        "gold": gold,
+        "characters": chars,
+        "playtime": {"hours": ph, "minutes": pm, "text": f"{ph}:{pm:02d}"},
+        "saved": F.decode_ps2_time(gd, F.GD_SAVETIME_OFF),
+        "inventory": {
+            "consumables": _inventory(gd, F.INV_CONSUMABLE_OFF, F.INV_CONSUMABLE_COUNT),
+            "esGear": _inventory(gd, F.INV_ES_GEAR_OFF, F.INV_ES_GEAR_COUNT),
+            "keyItems": _inventory(gd, F.INV_KEYITEM_OFF, F.INV_KEYITEM_COUNT),
+        },
+    }
 
 
 def decode_save(path, fmt=None, slot=0):
@@ -427,45 +462,162 @@ def decode_save(path, fmt=None, slot=0):
 
 
 # --- WRITE path --------------------------------------------------------------
-# NOTE: the gamedata header carries a 4-byte value @0x08 that is NOT yet
-# reverse-engineered (it resists every standard CRC/sum/hash we tried, so it's
-# a custom routine). We do NOT know if the game validates it on load. fix_checksum()
-# is the single hook to plug the algorithm into once it's cracked; until then the
-# field is preserved as-is and writes are gated behind an explicit round-trip check.
-CHECKSUM_KNOWN = False
+# The gamedata header's integrity field is CRACKED (2026-08-25): +0x08 is a u64,
+# not a u32, which is why every u32 hash search missed it. See F.GD_CHECKSUM_OFF
+# for the derivation off the boot ELF. fix_checksum() now recomputes it, so an
+# edited save carries a checksum the game's own routine would have produced.
+CHECKSUM_KNOWN = True
+
+def checksum(gd):
+    """The game's own save checksum for a gamedata payload, as a 64-bit int.
+
+    Mirrors SaveMakeCheckSum (boot ELF va 0x22BBF8): blank the checksum field,
+    then accumulate `byte * one_based_index + 0x793` over every byte in 64-bit
+    arithmetic. Position-weighted, so byte order matters."""
+    b = bytearray(gd)
+    off, width = F.GD_CHECKSUM_OFF, F.GD_CHECKSUM_WIDTH
+    b[off:off + width] = bytes(width)
+    acc = F.GD_CHECKSUM_STEP * len(b)
+    for i, v in enumerate(b, 1):
+        acc += v * i
+    return acc & ((1 << (8 * width)) - 1)
 
 def fix_checksum(gd):
-    """Return gd with its integrity field(s) recomputed. Currently a pass-through
-    (algorithm unknown). See Xenosaga2_ISO_offsets.md."""
-    return gd
+    """Return gd with its integrity field recomputed to match its contents."""
+    if len(gd) != F.GAMEDATA_SIZE:
+        raise ValueError(f"bad gamedata size {len(gd)}")
+    b = bytearray(gd)
+    struct.pack_into("<Q", b, F.GD_CHECKSUM_OFF, checksum(gd))
+    return bytes(b)
+
+def checksum_ok(gd):
+    """True if the payload's stored checksum matches the one its bytes imply."""
+    stored = struct.unpack_from("<Q", gd, F.GD_CHECKSUM_OFF)[0]
+    return stored == checksum(gd)
 
 _FIELD_MAX = {1: 0xFF, 2: 0xFFFF, 4: 0xFFFFFFFF}
 
 def _field_spec(label):
-    for lb, off, width, kind in F.CHAR_FIELDS + F.ES_EQUIP_FIELDS:
+    """(table, offset, width) for a writable per-character field label.
+
+    `table` says which of the two per-character records the offset belongs to —
+    the 0x108-byte character record or the 0x40-byte growth record. They are
+    addressed by the same index, which is exactly why the caller must not be
+    left to guess which base a label belongs to.
+    """
+    for lb, off, width, _kind in F.CHAR_FIELDS + F.ES_ACCESSORY_FIELDS:
         if lb == label:
-            return off, width
+            return "char", off, width
+    for lb, off, width, _kind in F.GROWTH_FIELDS:
+        if lb == label:
+            return "growth", off, width
     raise KeyError(label)
+
+
+# One copy, in x2fields, so the web front-end and the writer cannot disagree.
+READONLY_FIELDS = F.SAVE_READONLY_FIELDS
+
+
+def _write_char_field(b, idx, label, value):
+    table, off, width = _field_spec(label)
+    if label in READONLY_FIELDS:
+        raise KeyError(f"{label} is read-only")
+    base = (F.CHAR_TABLE_OFF + idx * F.CHAR_STRIDE if table == "char"
+            else F.GROWTH_TABLE_OFF + idx * F.GROWTH_STRIDE)
+    # clamped to the field's WIDTH, not to the in-game cap: the caps exist for
+    # the front-ends' "max" buttons, and a save editor that silently refused a
+    # level of 120 would be lying about what it wrote.
+    v = max(0, min(int(value), _FIELD_MAX[width]))
+    b[base + off:base + off + width] = v.to_bytes(width, "little")
+
+
+def _write_inventory(b, off, count, values, vmax):
+    for slot, qty in values.items():
+        slot = int(slot)
+        if not (0 <= slot < count):
+            raise IndexError(f"inventory slot {slot} out of range (0..{count - 1})")
+        struct.pack_into("<H", b, off + 2 * slot, max(0, min(int(qty), vmax)))
+
 
 def apply_edits(gd, edits):
     """Apply edits to a 20,832-byte gamedata blob and return a new blob.
 
-    edits = {"gold": int, "characters": {rec_index: {field_label: value, ...}}}
-    Values are clamped to their field width. Only known fields are writable."""
+    edits = {
+      "gold": int,
+      "playtime": {"hours": int, "minutes": int},
+      "characters": {rec_index: {
+          field_label: value, ...,            # stats, EXP, Skill/Class Points
+          "affinity": {"Fire": stored_byte, ...},
+          "equip":    [id, id, id, id],       # equip-skill slots, 0 = empty
+          "ether":    [catalog_index, ...],   # the full learned set, not a delta
+          "skills":   [catalog_index, ...],
+      }},
+      "inventory": {"consumables": {slot: qty}, "esGear": {slot: qty},
+                    "keyItems": {id: 0|1}},
+    }
+
+    Values are clamped to their field's in-game cap and width. Only known fields
+    are writable; nothing is written to the undecoded bytes.
+    """
     if len(gd) != F.GAMEDATA_SIZE:
         raise ValueError(f"bad gamedata size {len(gd)}")
     b = bytearray(gd)
     if "gold" in edits and edits["gold"] is not None:
         v = max(0, min(int(edits["gold"]), _FIELD_MAX[4]))
         struct.pack_into("<I", b, F.GD_GOLD_OFF, v)
+    pt = edits.get("playtime")
+    if pt:
+        # keep the seconds the save already had, so an untouched playtime
+        # round-trips byte-for-byte
+        secs = b[F.GD_PLAYTIME_OFF + 1]
+        b[F.GD_PLAYTIME_OFF:F.GD_PLAYTIME_OFF + F.PS2_TIME_SIZE] = F.encode_playtime(
+            pt.get("hours", 0), pt.get("minutes", 0), secs)
     for idx, fields in edits.get("characters", {}).items():
+        idx = int(idx)
         if not (0 <= idx < F.CHAR_COUNT):
             raise IndexError(f"character index {idx} out of range")
         base = F.CHAR_TABLE_OFF + idx * F.CHAR_STRIDE
+        gbase = F.GROWTH_TABLE_OFF + idx * F.GROWTH_STRIDE
         for label, value in fields.items():
-            off, width = _field_spec(label)
-            v = max(0, min(int(value), _FIELD_MAX[width]))
-            b[base + off:base + off + width] = v.to_bytes(width, "little")
+            if label == "affinity":
+                for name, byte in (value or {}).items():
+                    k = F.AFFINITY_ELEMENTS.index(name)
+                    b[base + F.CHAR_AFFINITY_OFF + k] = int(byte) & 0xFF
+            elif label == "equip":
+                slots = list(value or [])[:F.EQUIP_SLOT_COUNT]
+                slots += [0] * (F.EQUIP_SLOT_COUNT - len(slots))
+                b[base + F.EQUIP_SLOT_OFF:
+                  base + F.EQUIP_SLOT_OFF + F.EQUIP_SLOT_COUNT] = bytes(
+                      max(0, min(int(v), 0xFF)) for v in slots)
+            elif label in ("ether", "skills"):
+                off, count, text0 = (
+                    (F.ETHER_MASK_OFF, F.ETHER_MASK_COUNT, F.ETHER_MASK_TEXT0)
+                    if label == "ether"
+                    else (F.SKILL_MASK_OFF, F.SKILL_MASK_COUNT, F.SKILL_MASK_TEXT0))
+                want = set(int(v) for v in (value or []))
+                # refuse an index this mask does not cover rather than dropping
+                # it silently — a skill you asked for and did not get is worse
+                # than an error
+                for idx_ in sorted(want):
+                    if not (text0 <= idx_ < text0 + count):
+                        raise IndexError(
+                            f"catalog index {idx_} is not in the {label} mask "
+                            f"({text0}..{text0 + count - 1})")
+                for k in range(count):
+                    F.set_learned_bit(b, gbase + off, count, text0,
+                                      text0 + k, (text0 + k) in want)
+            else:
+                _write_char_field(b, idx, label, value)
+    inv = edits.get("inventory") or {}
+    if inv.get("consumables"):
+        _write_inventory(b, F.INV_CONSUMABLE_OFF, F.INV_CONSUMABLE_COUNT,
+                         inv["consumables"], F.INV_QTY_MAX)
+    if inv.get("esGear"):
+        _write_inventory(b, F.INV_ES_GEAR_OFF, F.INV_ES_GEAR_COUNT,
+                         inv["esGear"], F.INV_QTY_MAX)
+    if inv.get("keyItems"):
+        _write_inventory(b, F.INV_KEYITEM_OFF, F.INV_KEYITEM_COUNT,
+                         inv["keyItems"], 1)
     return fix_checksum(bytes(b))
 
 def _sharkport_gd_span(data):
@@ -616,11 +768,36 @@ def write_save(path, edits, make_backup=True, fmt=None, slot=0):
         if check["gold"] != want:
             raise IOError("round-trip verify failed (gold); file left as written")
     for idx, fields in edits.get("characters", {}).items():
+        got = check["characters"][int(idx)]
         for label, value in fields.items():
-            _, width = _field_spec(label)
-            want = max(0, min(int(value), _FIELD_MAX[width]))
-            if check["characters"][idx][label] != want:
-                raise IOError(f"round-trip verify failed (rec{idx}.{label})")
+            if label == "affinity":
+                for name, byte in (value or {}).items():
+                    if got["affinity"][name] != int(byte) & 0xFF:
+                        raise IOError(f"round-trip verify failed (rec{idx}.{name})")
+            elif label == "equip":
+                want = [max(0, min(int(v), 0xFF)) for v in (value or [])]
+                want += [0] * (F.EQUIP_SLOT_COUNT - len(want))
+                if got["equip"] != want[:F.EQUIP_SLOT_COUNT]:
+                    raise IOError(f"round-trip verify failed (rec{idx}.equip)")
+            elif label in ("ether", "skills"):
+                if got[label] != sorted(set(int(v) for v in (value or []))):
+                    raise IOError(f"round-trip verify failed (rec{idx}.{label})")
+            else:
+                _, _off, width = _field_spec(label)
+                want = max(0, min(int(value), _FIELD_MAX[width]))
+                if got[label] != want:
+                    raise IOError(f"round-trip verify failed (rec{idx}.{label})")
+    for kind, slots in (edits.get("inventory") or {}).items():
+        got = check["inventory"][kind]
+        vmax = 1 if kind == "keyItems" else F.INV_QTY_MAX
+        for slot, qty in (slots or {}).items():
+            if got[int(slot)] != max(0, min(int(qty), vmax)):
+                raise IOError(f"round-trip verify failed ({kind}[{slot}])")
+    if edits.get("playtime"):
+        want = edits["playtime"]
+        if (check["playtime"]["hours"], check["playtime"]["minutes"]) != (
+                int(want.get("hours", 0)), int(want.get("minutes", 0))):
+            raise IOError("round-trip verify failed (playtime)")
     return check
 
 
@@ -652,13 +829,58 @@ def scan_saves(root):
     return out
 
 
+def _skill_index(token):
+    """A skill catalog index from an index or a (case-insensitive) name.
+
+    Refuses an ambiguous name rather than picking the first match — several
+    catalog entries genuinely share a name (the three Erde Kaiser Fury records),
+    and silently learning one of them is not an answer.
+    """
+    token = str(token).strip()
+    if token.lstrip("-").isdigit():
+        return int(token)
+    hits = [i for i, v in F.skill_catalog().items()
+            if v["name"].lower() == token.lower()]
+    if not hits:
+        raise SystemExit(f"no skill named {token!r} — try `x2save.py skills <save>`")
+    if len(hits) > 1:
+        raise SystemExit(f"{token!r} names {len(hits)} catalog entries "
+                         f"({', '.join(str(i) for i in hits)}) — pass the index")
+    return hits[0]
+
+
+def _is_ether(index):
+    """True if a catalog index belongs to the ether mask rather than the skill one."""
+    return F.ETHER_MASK_TEXT0 <= index < F.ETHER_MASK_TEXT0 + F.ETHER_MASK_COUNT
+
+
+def _consumable_slot(token):
+    """An inventory slot from a slot number or an item name."""
+    token = str(token).strip()
+    if token.isdigit():
+        return int(token)
+    cat = F.item_catalog()
+    for slot in range(F.INV_CONSUMABLE_COUNT):
+        entry = cat.get(F.INV_CONSUMABLE_ITEM0 + slot) or {}
+        if entry.get("name", "").lower() == token.lower():
+            return slot
+    raise SystemExit(f"no consumable named {token!r} — try `x2save.py items <save>`")
+
+
 def _print_decode(d):
-    print(f"Gold: {d['gold']:,}")
-    print(f"{'#':>2} {'character':<14} {'lvl':>3} {'HP':>6}  id")
+    print(f"Gold: {d['gold']:,}    Played: {d['playtime']['text']}")
+    print(f"{'#':>2} {'character':<14} {'lvl':>3} {'HP':>6} {'EXP':>9} {'SP':>7} "
+          f"{'CP':>7}  {'ethers':>6} {'skills':>6}")
     for i, c in enumerate(d["characters"]):
         if not c["active"]:
             continue
-        print(f"{i:>2} {c['name']:<14} {c['Level']:>3} {c['HP']:>6}  0x{c['Character id']:04X}")
+        print(f"{i:>2} {c['name']:<14} {c['Level']:>3} {c['HP']:>6} "
+              f"{c['EXP']:>9,} {c['Skill Points']:>7,} {c['Class Points']:>7,}  "
+              f"{len(c['ether']):>6} {len(c['skills']):>6}")
+    inv = d["inventory"]
+    print(f"\nitems: {sum(1 for v in inv['consumables'] if v)} kinds carried · "
+          f"E.S. gear: {sum(1 for v in inv['esGear'] if v)} kinds · "
+          f"key items: {sum(1 for v in inv['keyItems'] if v)} held")
 
 def _slot_line(s):
     bits = [s["folder"]]
@@ -667,6 +889,18 @@ def _slot_line(s):
     if s.get("playtime"):
         bits.append(s["playtime"])
     return "  ".join(bits)
+
+def _slot_arg(argv=None):
+    """`--slot N` / `--slot=N` off the command line, else 0."""
+    import sys
+    argv = sys.argv if argv is None else argv
+    for i, a in enumerate(argv):
+        if a == "--slot" and i + 1 < len(argv):
+            return int(argv[i + 1])
+        if a.startswith("--slot="):
+            return int(a.split("=", 1)[1])
+    return 0
+
 
 def _print_slots(path, fmt=None):
     slots = list_slots(path, fmt)
@@ -686,24 +920,128 @@ def main():
         ap.add_argument("--char", type=int, help="record index (0=chaos, ...)")
         ap.add_argument("--level", type=int)
         ap.add_argument("--hp", type=int)
+        ap.add_argument("--exp", type=int, help="total EXP (with --char)")
+        ap.add_argument("--sp", type=int, help="Skill Points (with --char)")
+        ap.add_argument("--cp", type=int, help="Class Points (with --char)")
+        ap.add_argument("--playtime", metavar="H:MM",
+                        help="elapsed play time, as the load screen shows it")
+        ap.add_argument("--learn", action="append", metavar="SKILL",
+                        help="learn a skill by name or catalog index "
+                             "(repeatable; see `skills`)")
+        ap.add_argument("--forget", action="append", metavar="SKILL")
+        ap.add_argument("--learn-all-ethers", action="store_true",
+                        help="set every bit in the ether mask for --char")
+        ap.add_argument("--item", action="append", metavar="NAME=QTY",
+                        help="set a consumable's count by name or slot "
+                             "(repeatable; see `items`)")
         ap.add_argument("--slot", type=int, default=0,
                         help="which save inside a memory-card image (see `slots`)")
+        ap.add_argument("--secret-keys", action="store_true",
+                        help="grant all 31 Secret Keys, so every \"???\" secret "
+                             "skill becomes purchasable")
+        ap.add_argument("--key-item", action="append", metavar="ID",
+                        help="grant one key item by id (repeatable; see `keyitems`)")
         ap.add_argument("--no-backup", action="store_true")
         a = ap.parse_args(sys.argv[2:])
         edits = {"characters": {}}
         if a.gold is not None:
             edits["gold"] = a.gold
+        if a.playtime:
+            h, _, m = a.playtime.partition(":")
+            edits["playtime"] = {"hours": int(h), "minutes": int(m or 0)}
         if a.char is not None:
             cf = {}
             if a.level is not None: cf["Level"] = a.level
             if a.hp is not None:    cf["HP"] = a.hp; cf["Current HP"] = a.hp  # base + live
+            if a.exp is not None:   cf["EXP"] = a.exp
+            if a.sp is not None:    cf["Skill Points"] = a.sp
+            if a.cp is not None:    cf["Class Points"] = a.cp
+            if a.learn or a.forget or a.learn_all_ethers:
+                # the masks are absolute, so start from what this save holds and
+                # add/remove — a delta the user typed must not wipe the rest
+                cur = decode_save(a.file, slot=a.slot)["characters"][a.char]
+                ether, skills = set(cur["ether"]), set(cur["skills"])
+                if a.learn_all_ethers:
+                    ether |= set(range(F.ETHER_MASK_TEXT0,
+                                       F.ETHER_MASK_TEXT0 + F.ETHER_MASK_COUNT))
+                for name in a.learn or []:
+                    (ether if _is_ether(_skill_index(name)) else skills).add(
+                        _skill_index(name))
+                for name in a.forget or []:
+                    ether.discard(_skill_index(name))
+                    skills.discard(_skill_index(name))
+                cf["ether"], cf["skills"] = sorted(ether), sorted(skills)
             edits["characters"][a.char] = cf
+        items = {}
+        for raw in a.item or []:
+            name, _, qty = raw.partition("=")
+            items[_consumable_slot(name)] = int(qty or 0)
+        if items:
+            edits.setdefault("inventory", {})["consumables"] = items
+        keys = {}
+        if a.secret_keys:
+            keys.update({i: 1 for i in F.secret_key_ids()})
+        for raw in a.key_item or []:
+            keys[int(raw, 0)] = 1
+        if keys:
+            edits.setdefault("inventory", {})["keyItems"] = keys
         if not CHECKSUM_KNOWN:
             print("! note: save checksum not yet cracked — the game *may* reject the "
                   "edited save. A .bak is kept. Test one in your emulator.\n")
         d = write_save(a.file, edits, make_backup=not a.no_backup, slot=a.slot)
         print("written + round-trip verified:\n")
+        if keys:
+            held = d["inventory"]["keyItems"]
+            print(f"key items: {sum(1 for v in held if v)} held, of which "
+                  f"{sum(1 for i in F.secret_key_ids() if held[i])}/31 Secret Keys\n")
         _print_decode(d)
+        return
+
+    if len(sys.argv) > 2 and sys.argv[1] == "items":
+        d = decode_save(sys.argv[2], slot=_slot_arg())
+        cat = F.item_catalog()
+        for title, key, first, count in (
+                ("consumables", "consumables", F.INV_CONSUMABLE_ITEM0,
+                 F.INV_CONSUMABLE_COUNT),
+                ("E.S. accessories", "esGear", F.INV_ES_GEAR_ITEM0,
+                 F.INV_ES_GEAR_COUNT)):
+            print(f"\n{title}\n{'slot':>4}  {'qty':>3}  name")
+            for slot in range(count):
+                entry = cat.get(first + slot) or {}
+                if entry.get("placeholder"):
+                    continue
+                print(f"{slot:>4}  {d['inventory'][key][slot]:>3}  "
+                      f"{entry.get('name', '?')}")
+        return
+
+    if len(sys.argv) > 2 and sys.argv[1] == "skills":
+        d = decode_save(sys.argv[2], slot=_slot_arg())
+        names = F.skill_names()
+        for i, c in enumerate(d["characters"]):
+            if not c["active"]:
+                continue
+            print(f"\n{c['name']}  ({len(c['ether'])} ethers, "
+                  f"{len(c['skills'])} auto/equip skills)")
+            equipped = [v for v in c["equip"] if v]
+            if equipped:
+                print("  equipped: " + ", ".join(
+                    names.get(F.skill_cost_catalog_index(1, v), f"id {v}")
+                    for v in equipped))
+            for label, idxs in (("ether", c["ether"]), ("skill", c["skills"])):
+                if idxs:
+                    print(f"  {label}: " + ", ".join(
+                        names.get(k, f"#{k}") for k in idxs))
+        return
+
+    if len(sys.argv) > 2 and sys.argv[1] == "keyitems":
+        d = decode_save(sys.argv[2], slot=_slot_arg())
+        names = F.keyitem_names()
+        held = d["inventory"]["keyItems"]
+        print(f"{'id':>4}  {'have':>4}  name")
+        for i, v in enumerate(held):
+            print(f"{i:>4}  {v:>4}  {names.get(i, '?')}")
+        print(f"\n{sum(1 for v in held if v)}/{len(held)} held · "
+              f"{sum(1 for i in F.secret_key_ids() if held[i])}/31 Secret Keys")
         return
 
     if len(sys.argv) > 2 and sys.argv[1] == "slots":

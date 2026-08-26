@@ -200,7 +200,7 @@ PAGE ="""<!doctype html><html><head><meta charset="utf-8">
 <div id="toast"></div>
 <script>
 const COLS = %%COLS%%;
-const ES_COLS = %%ESCOLS%%;   // E.S. mech gear slots (experimental, raw ids)
+const ES_COLS = %%ESCOLS%%;   // E.S. accessory slots (1-based item-catalog ids)
 const ES_EQUIP = %%ESEQUIP%%; // id -> E.S. accessory name (ISO catalog, ids 0-30)
 const CAPS = %%CAPS%%;        // per-field caps, from x2fields.CHAR_CAPS
 const $ = s => document.querySelector(s);
@@ -497,8 +497,13 @@ def render():
             .replace("%%COLS%%", json.dumps(F.SHEET_COLS))
             .replace("%%CAPS%%", json.dumps(F.CHAR_CAPS))
             .replace("%%ESCOLS%%", json.dumps([[l, l] for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS]))
-            .replace("%%ESEQUIP%%", json.dumps({str(i): v["name"]
-                     for i, v in F.es_equip_catalog().items()}))
+            # An E.S. slot stores a ONE-BASED item-catalog index, so the name
+            # map is keyed by the stored value, not by a compacted es_equip id
+            # — keying it the old way named the wrong accessory for every slot
+            # past the catalog's first 予備 placeholder.
+            .replace("%%ESEQUIP%%", json.dumps({str(i + 1): v["name"]
+                     for i, v in F.item_catalog().items()
+                     if i < F.INV_ES_GEAR_COUNT and not v["placeholder"]}))
             .replace("%%ENEMYUI%%", enemy_ui)
             .replace("%%ENEMYFLDS%%", json.dumps([f[0] for f in F.ENEMY_FIELDS + F.REWARD_FIELDS])))
 
