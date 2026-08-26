@@ -313,14 +313,31 @@ No public source has equipment ids: the disc-1 pnach AND almarsguides CodeBreake
 pages only cover stats + consumables + key items (checked exhaustively). The ISO is
 the sole source.
 
-### E.S. weapon/frame ids 31+ (blocked on menu-code disassembly)
-Attempted to map ids 31-37 to names via the equipment data table. A base-independent
-delta search (match the accessory name-offset delta sequence, any base K, word-strides
-1-23) over ISO 0x2000000-0x2040000 found **no pointer/record array** — so equipment
-names are resolved by **string index in the menu code**, not a scannable file-offset
-table. The weapon/frame names exist (~0x20107F0: MINIGUN, MICRO MISSILE, DRAGON BLADE,
-X-BUSTER, Moonlight Blade, Corona/Odin Buster, ...) but their id↔name mapping needs
-either ELF disassembly of the equip menu or a ground-truth save. Left raw in the editor.
+### E.S. weapon/frame ids 31+ — RETRACTED 2026-08-25: there is no such gear
+
+This entry chased equipment that does not exist. Three things settle it:
+
+- **The unified item table has no weapon or frame entries.** Ids 0..36 are the 31
+  accessories interleaved with 予備 placeholders, 37..39 are placeholders, and 40+ are
+  consumables (Med Kit S...). There is no id band left for weapons or frames.
+- **The names at `0x20107F0` are ATTACK names, not item names.** That pool is
+  `TECH_NAME_POOL`'s E.S. weapon-tech group — MINIGUN, DRAGON BLADE and friends are the
+  E.S. attack/special *skills*, already mapped as verified 32-byte records in
+  `SKILL_BLOCKS` and editable on the Skills tab. Reading them as equippable items is what
+  created a phantom id band.
+- **The game has no such equipment.** The skills FAQ is explicit that on-foot characters
+  "don't equip any equipment at all (no weapons, armor, accessories, nothing!)", and the
+  walkthrough's own E.S. loadout advice lists only accessories (Auto Recover, Charge
+  Recover, Tuned Circuit, Power Shield, Anti-Fire Armor).
+
+So the game's entire equipment system is two lists, and both are now solved and editable:
+the **64 equip/passive skills** at `0x200B304` (on-foot) and the **31 E.S. accessories**
+at `0x200B604`. The "accessories are 0-30" note that seeded this was using
+`x2_es_equip.json`'s compacted numbering; in unified item ids the same 31 run 0..36.
+
+Still genuinely open on the save side: which id space the save's four gear slots
+(`+0x86/+0x88/+0x8A/+0x90`) use — the observed 34..37 are Quick Charge / EMAX300 /
+Auto Recover / placeholder under unified ids, which is plausible, but unconfirmed.
 
 ### ISO ENEMY table (VERIFIED — disc 1)
 **97 enemy stat records** at raw offset **0x2000000**, stride **0x5C** (92 B), directly
@@ -366,19 +383,18 @@ Open, in the order they are worth attempting:
   Until it is, a renamed skill keeps its retail battle caption.
 - [x] **Passive / equip skill effects.** Done 2026-08-25 — 12-byte records at `0x200B304`,
   64 exposed (catalog 110..173). See the section above.
-- [~] **Skill / class learning costs.** Attempted and ruled out of the flat data region —
-  four hypotheses, zero matches, written up above. Blocked behind `XENOSAGA.01` with
-  character growth and shops. The 110 published costs are still the right ground truth
-  whenever that archive is opened.
+- [x] **Skill / class learning costs.** Done 2026-08-25 — they were in the flat data region
+  after all, at `0x35E958`. The earlier "ruled out" write-up searched for the wrong thing
+  with the wrong ground truth; see the solved section. The class *tier* half (which level a
+  skill sits at) is still unread — likely the `slot` field.
 - [x] **Equip abilities / E.S. accessory effects.** Done 2026-08-25. Both halves: the
   passives at `0x200B304` and the 40-record E.S. accessory tail at `0x200B604`, verified
   three ways each (see the sections above). Effects editable on both; accessory *names* stay
   read-only because they resolve through menu code.
-- [~] **`0x35E958` — a 112-record cost table** (the old "`0x35EA60` unidentified" entry, with
-  the base corrected). Layout fully decoded — `[category][id][cost u16][slot][pad]`, three
-  categories, a 1..31 slot run — and the costs are on the Skill Point scale, but which list
-  the ids index is still open and the guide's cost *sequence* does not align. Disc 1 only.
-  Written up above; one in-game cost reading would settle it.
+- [x] **Skill purchase costs — `0x35E958`, 112 records, SOLVED** (the old "`0x35EA60`
+  unidentified" entry, base corrected). `[type][id][SPTS u16][slot][pad]`; type = Auto /
+  Equip / Ether skill, id = rank within type in catalog order, 112/112 against the
+  walkthrough's class tree. Disc 1 only. Not yet exposed for editing.
 - [ ] Blocked on runtime (PCSX2) or deep static RE: character growth curves, global battle
   constants, field-enemy placement/detection.
 
@@ -1499,6 +1515,12 @@ EF Circuit A, three more before Anti-Fire Armor, three trailing), so
 `F.GEAR_ES_ID` maps record index → catalog id with `None` for a spare. Same
 shape as the E.S. item ids and the skill table.
 
+**A fourth confirmation, found afterwards and worth recording because it is
+free:** record index equals the **unified item id** directly. `x2_items.json`
+holds 予備 at ids 2, 3, 4, 7, 8, 9 and 37, 38, 39 — precisely the nine spare
+positions derived independently from the effect bytes. Two sources that know
+nothing about each other agreeing on where the holes are.
+
 **The stat mask is now all eight bits.** The six `+2` skills name their own stat
 (STR `0x80`, VIT `0x40`, DEX `0x20`, EVA `0x10`, EATK `0x08`, EDEF `0x04`), and
 the last two come from the only records using them — Tuned Circuit
@@ -1534,7 +1556,55 @@ copy is the same packed-pool problem as the name pool). Until that exists, a
 renamed skill keeps its retail name in battle captions — which is the only
 user-visible consequence of the 13.
 
-#### 4 of them: a 112-record cost table at `0x35E958` (structure solved, semantics open)
+#### 4 of them: the SKILL PURCHASE COST table at `0x35E958` — SOLVED, 112/112
+
+**112 records of 6 bytes: `[type u8][id u8][cost u16 = SPTS][slot u8][pad u8=0]`.**
+This is what a skill costs to learn, and it retires both the "`0x35EA60`
+unidentified" TODO *and* this file's "skill/class learning costs are not in the
+flat data region" negative result.
+
+`type` is the skill's **type**, and each type's cost multiset is *identical* to
+the walkthrough's class-tree listing for that type:
+
+| type | meaning | records |
+|---|---|---|
+| 0 | Auto skill | 28 |
+| 1 | Equip skill | 34 |
+| 2 | Ether skill | 50 |
+
+`id` is the skill's rank **within its type, ordered by skill-catalog index**.
+Under that mapping every record's cost equals the SPTS the walkthrough publishes
+for that skill — **112 of 112, all three types, zero mismatches**. 31 records
+also carry a nonzero `slot` forming a clean 1..31 run; unread, but it tracks the
+expensive skills, so it is probably the class-tree tier.
+
+**Why the first attempt at this failed, and it is a ground-truth lesson, not a
+search lesson.** The initial check used `Guides/skills.rtf`, whose "N Skill
+Points" column disagrees with the disc (it gives STR+2 and VIT+2 100 each; the
+disc says 100 and 150). The cost *histogram* still matched well enough to look
+promising while every per-skill check failed, which reads exactly like a wrong
+table — so the table was nearly written off. The right source was
+`Guides/walkthru.rtf`'s class tree (`NAME | type | target | N SPTS`), and it
+agrees with the disc perfectly. **When a histogram matches but the sequence does
+not, suspect the ground truth before suspecting the table** — the same shape as
+the "map guide rows by signature, not by name" lesson above.
+
+The disc arbitrates between the two guides: `skills.rtf` is wrong on VIT+2.
+
+What the mod does here is now fully legible: it **swaps two pairs of Ether-skill
+entries** — id 19 (500 SPTS, slot 7) with id 5 (800), and id 35 (400) with id 38
+(1200) — re-pricing four ethers rather than editing any value.
+
+The table is **disc 1 only**: no copy on disc 2 at `0`, `-0x800` or `+0x800`, and
+the mod's disc-2 patch does not touch it, while that same patch does carry the
+nine captions at `-0x800`.
+
+This also answers issue #5's research target 4 (skill gating) on its cost axis:
+"make Heaven's Rain expensive" is now a two-byte edit. The *level* axis — which
+class tier a skill sits in — is likely the `slot` field or the class-tree data,
+and is not yet read.
+
+#### The original write-up (kept — the structure it derived was right)
 
 This retires the "`0x35EA60` — unidentified" TODO entry, which had the base
 wrong by 0x108 and mistook part of the table for a bare u16 array.
@@ -1553,27 +1623,12 @@ own. **31 records carry a nonzero `slot`, and those form a clean 1..31 run**
 across all three categories — an ordering over a subset, and the slotted records
 skew expensive (300..9600).
 
-The costs are on the **Skill Point scale**: the multiset matches the 110 costs
-the skills guide publishes remarkably well — 15 of 21 buckets exact, and every
-rare high bucket exact (1800×2, 2400×3, 2800×2, 3200×3, 3600×5, 4000×2, 4800×1,
-7200×2, 8000×1, 9600×1). **But the sequence does not align** (best contiguous
-match 19/50), and per-skill checks fail: the table gives the STR+2/VIT+2 pair
-300 each where the guide says 100, and the DEX/EVA/EATK/EDEF quartet 200 where
-the guide says 150. The *shape* is right — pairs and quartets sharing a value —
-so it is plausibly a second cost axis (Class Points to unlock, versus Skill
-Points to learn) rather than the guide's column. **Not claimed as solved.**
+The costs are on the **Skill Point scale** — confirmed against the right guide
+above. (This paragraph originally read the cost column against `skills.rtf`,
+matched 15 of 21 histogram buckets but no per-skill value, and concluded the
+table might be a second cost axis. It is not: the ground truth was wrong.)
 
-It is also **disc 1 only**: no copy on disc 2 at `0`, `-0x800` or `+0x800`, and
-the mod's disc-2 patch does not touch it at all — while that same patch does
-carry the nine captions at `-0x800`. So whatever indexes it is disc-1 content.
-
-What the mod does here is narrow and legible: it **swaps two pairs of entries**
-within category 2 — id 19 (cost 500, slot 7) with id 5 (cost 800), and id 35
-(cost 400) with id 38 (cost 1200) — re-pricing four things rather than editing
-any value. Consistent with its readme rebalancing Equip Abilities.
-
-Next step if anyone wants it pinned: read one known cost in-game against a
-specific record. One observation collapses the remaining ambiguity.
+Disc-1-only, and the mod's two swaps, are covered above.
 
 #### RETRACTED — the negative result this replaced (kept for the method)
 
