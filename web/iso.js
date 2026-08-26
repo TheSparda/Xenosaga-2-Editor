@@ -25,6 +25,7 @@
   let KFIELDS, KSTRIDE, KBLOCKS, KSPAN, KELEM, KTARGETS, KTGT_ALL, SKILLS=null;
   // the skill/tech name pool, so names can be renamed in place
   let KTEXT=null;
+  let PFIELDS, PSTRIDE, PTABLES, PCOUNT, PTEXT0, PKINDOFF, PKINDS, PSTATBITS;
   // player units: 15 records before the enemy table, same 0x5C layout
   let UFIELDS, UAFIELDS, USTRIDE, UCOUNT, UTAIL, UTABLES, UNITS=null;
   let TABLES=null;
@@ -65,6 +66,10 @@
     KELEM=(t.skill||{}).elementBits||{};
     KTARGETS=(t.skill||{}).targetNames||{}; KTGT_ALL=(t.skill||{}).targetAll||8;
     KTEXT=(t.skill||{}).textSpan||null;
+    PFIELDS=(t.passive||{}).fields||[]; PSTRIDE=(t.passive||{}).stride||12;
+    PTABLES=(t.passive||{}).tables||{}; PCOUNT=(t.passive||{}).count||0;
+    PTEXT0=(t.passive||{}).text0||0; PKINDOFF=(t.passive||{}).kindOff;
+    PKINDS=(t.passive||{}).kindNames||{}; PSTATBITS=(t.passive||{}).statBits||{};
     UFIELDS=(t.unit||{}).fields||[]; USTRIDE=(t.unit||{}).stride||92;
     UAFIELDS=(t.unit||{}).affinityFields||[];
     // the affinity block overhangs the record, so the LAST unit's Ice/Pierce/
@@ -249,6 +254,27 @@
     for(const [n,,count,text0] of kBlocks()) if(i>=text0 && i<text0+count) return n;
     return "";
   };
+  // ---- passive / equip skills ----------------------------------------------
+  // 12-byte records that live INSIDE the skill text span, so they are read and
+  // written through the TX buffer rather than a buffer of their own.
+  const passiveKeys=()=>{
+    const out=[]; for(let n=0;n<PCOUNT;n++) out.push(PTEXT0+n); return out;
+  };
+  // byte offset of a passive's record WITHIN the TX buffer
+  function passiveOff(i){
+    if(!TX||!PCOUNT) return -1;
+    const base=PTABLES[String(PRIMARY||1)];
+    if(base===undefined) return -1;
+    if(i<PTEXT0||i>=PTEXT0+PCOUNT) return -1;
+    const at=base-TX.base+(i-PTEXT0)*PSTRIDE;
+    return (at<0||at+PSTRIDE>TX.buf.length)?-1:at;
+  }
+  const passiveKind=(i)=>{const o=passiveOff(i); return o<0?0:getAt(TX,o+PKINDOFF,1);};
+  const passiveKindText=(k)=>PKINDS[String(k)]||("0x"+k.toString(16).toUpperCase());
+  // What the Param byte MEANS depends on the kind — a magnitude for the scalar
+  // kinds, a bitmask for the typed ones. Showing a mask as a number is how a
+  // user ends up typing 25 into a field where 25 means Ice|Thunder|Beam.
+  const PARAM_IS_MASK={0x40:"element",0x20:"status"};
   const skillInfo=(i)=>(SKILLS&&SKILLS[String(i)])||null;
   const skillName=(i)=>{const v=skillInfo(i); return v&&v.name?v.name:("skill "+i);};
   // retail value of one numeric field, from the shipped catalog
@@ -558,13 +584,16 @@
     const show=(el,yes)=>{ if(el) el.hidden=!yes; };
     show($("#pane-enemy"), which==="enemy");
     show($("#pane-skill"), which==="skill");
+    show($("#pane-passive"), which==="passive");
     show($("#pane-unit"),  which==="unit");
     on($("#ptab-enemy"), which==="enemy");
     on($("#ptab-skill"), which==="skill");
+    on($("#ptab-passive"), which==="passive");
     on($("#ptab-unit"),  which==="unit");
     // the patch/JSON/retail actions describe the enemy tables specifically
     show($("#enemyActions"), which==="enemy");
     if(which==="skill") loadSkill();
+    if(which==="passive") loadPassive();
     if(which==="unit") loadUnit();
   }
 
@@ -574,6 +603,7 @@
       '<nav class="modebar panetabs">'+
       '<button id="ptab-enemy" class="mtab on">Enemies</button>'+
       '<button id="ptab-skill" class="mtab">Skills</button>'+
+      '<button id="ptab-passive" class="mtab">Passives</button>'+
       '<button id="ptab-unit" class="mtab">Units</button>'+
       '</nav>'+
       '<div id="pane-enemy">'+
@@ -682,11 +712,14 @@
       '<button id="htNormal" class="btn">⚡ HardType (Normal)</button>'+
       '<button id="htHard" class="btn">⚡ HardType (Hard)</button>'+
       '<span id="htStat" class="muted small"></span></div>'+
-      '<p class="note">Stages exactly what the mod writes into tables this editor maps — review and '+
-      'Save like any other edit; Revert all undoes it. Deliberately left out: the mod’s skill '+
-      'renames (it does them with a disc-wide text replace that also truncates “Miracle '+
-      'Star” — rename cleanly in the Skills tab instead) and a few code patches outside any '+
-      'mapped table.</p></div>'+
+      '<p class="note">Stages what the mod writes into the tables this editor maps — enemy stats '+
+      'and rewards, skill numbers, unit stats, its skill <b>renames and rewritten descriptions</b>, '+
+      'and its <b>passive/equip effect</b> changes (Ice Coat becomes STR+4, and so on). Review it '+
+      'on the Enemies, Skills and Passives tabs before saving; Revert all undoes the lot.</p>'+
+      '<p class="note">13 of the mod’s 661 records are left out: nine duplicate copies of a '+
+      'renamed skill’s <i>battle caption</i> that sit outside every located table, and four bytes '+
+      'in an unidentified table. Writing those means writing at offsets nothing has confirmed. '+
+      'The practical effect is that a renamed skill keeps its retail name in battle captions.</p></div>'+
       '<div class="card"><h2>5 · Patch files, bulk JSON &amp; retail values</h2>'+
       '<input type="file" id="pFile" accept=".json,application/json" hidden>'+
       '<input type="file" id="tFile" accept=".json,application/json" hidden>'+
@@ -729,6 +762,35 @@
       '0); Power, Element and Target work exactly as for ethers.</p></details>'+
       '</div>'+
       '</div>'+                              // /pane-skill
+      '<div id="pane-passive" hidden>'+
+      '<div class="card"><h2>2 · Passive &amp; equip skills</h2>'+
+      '<div class="toolbar"><label>Passive</label> <select id="qsel"></select>'+
+      '<span class="findbox"><input type="search" id="qsearch" placeholder="find by name, text or index" '+
+        'autocomplete="off" spellcheck="false"><button type="button" id="qclear" '+
+        'class="chip mini" title="Clear search" aria-label="Clear search">✕</button></span>'+
+      '<span id="qcount" class="muted small"></span></div>'+
+      '<div id="qdesc" class="note"></div>'+
+      '<div id="qname" class="kctl"></div>'+
+      '<div id="qparam" class="kctl"></div>'+
+      '<div id="qstat" class="kctl"></div>'+
+      '<div id="qnote" class="note"></div>'+
+      '<details class="help"><summary>About these fields</summary>'+
+      '<p class="note">These are the skills you <b>equip</b> rather than cast — the Guards, the '+
+      'Coats, HP/ST Mind, the +2 stat skills, Break B10/B15, Rare+10/+30. Each is a 12-byte '+
+      'record, and the field that matters is <b>Param</b>. What it means depends on the record\'s '+
+      'kind: for a scalar passive it is the magnitude (Break B10 really does hold 10), and for a '+
+      'typed one — the Coats and Guards — it is a bitmask naming which element or status the '+
+      'skill resists, shown here as checkboxes rather than a number.</p>'+
+      '<p class="note">Roughly a quarter of the passives read <b>zero across the whole effect '+
+      'field</b>: Inner Peace, Damage-10, Revenge Power, Combo Boost, Samurai Soul, Rebound and '+
+      'others. Their behaviour lives in battle code, not in this table, so there is no number '+
+      'here to change and the editor says so instead of offering one that does nothing.</p>'+
+      '<p class="note">Verified two independent ways: the Param byte equals the number in the '+
+      'skill\'s own description on 20 of the 20 scalar passives that publish one, and on the '+
+      'eight Coats it matches the same element bit order the enemy damage affinities use, 8 of '+
+      '8. Names are rewritten in place under the same length rule as the Skills tab.</p></details>'+
+      '</div>'+
+      '</div>'+                              // /pane-passive
       '<div id="pane-unit" hidden>'+
       '<div class="card"><h2>2 · Unit</h2>'+
       '<div class="toolbar"><label>Unit</label> <select id="usel"></select>'+
@@ -789,7 +851,16 @@
     $("#eclear").onclick=()=>{ $("#esearch").value=""; paintEnemyList(); $("#esearch").focus(); };
     $("#ptab-enemy").onclick=()=>showPane("enemy");
     $("#ptab-skill").onclick=()=>showPane("skill");
+    $("#ptab-passive").onclick=()=>showPane("passive");
     $("#ptab-unit").onclick=()=>showPane("unit");
+    $("#qsel").onchange=loadPassive;
+    $("#qsearch").addEventListener("input",paintPassiveList);
+    $("#qsearch").addEventListener("keydown",e=>{
+      if(e.key==="Escape"){ $("#qsearch").value=""; paintPassiveList(); }
+      if(e.key==="Enter"){ e.preventDefault(); loadPassive(); }
+    });
+    $("#qclear").onclick=()=>{ $("#qsearch").value=""; paintPassiveList(); $("#qsearch").focus(); };
+    paintPassiveList();
     $("#usel").onchange=loadUnit;
     paintUnitList();
     $("#ksel").onchange=loadSkill;
@@ -804,7 +875,7 @@
     // undo them all or the button would lie about its scope.
     $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);K.buf.set(K.orig);
       U.buf.set(U.orig);TX.buf.set(TX.orig);
-      loadEnemy();loadSkill();loadUnit();epending();};
+      loadEnemy();loadSkill();loadPassive();loadUnit();epending();};
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
@@ -1004,6 +1075,38 @@
     return true;
   }
 
+  // A passive record carries BOTH its name and description pointers, so its
+  // real budget is the gap between them — which is what the game itself uses,
+  // and is usually more room than the retail name's length. That difference is
+  // not academic: the HardType mod renames Damage-10 to "Prism Coat", one byte
+  // longer than the retail name, and shortens the description to pay for it.
+  // Under the catalog-length budget that name reads back as "Prism Coa".
+  const passivePtrs=(i)=>{
+    const at=passiveOff(i);
+    if(at<0) return null;
+    const nOff=getAt(TX,at,2), dOff=getAt(TX,at+2,2);
+    const base=PTABLES[String(PRIMARY||1)];
+    if(dOff<=nOff) return null;                 // never trust a crossed pair
+    return {at:base+nOff-TX.base, budget:dOff-nOff};
+  };
+  function readPassiveName(i,src){
+    const p=passivePtrs(i); if(!p) return null;
+    const buf=src||TX.buf;
+    if(p.at<0||p.at+p.budget>buf.length) return null;
+    let out="";
+    for(let k=0;k<p.budget-1;k++){ const c=buf[p.at+k]; if(!c) break; out+=String.fromCharCode(c); }
+    return out;
+  }
+  function writePassiveName(i,text){
+    const p=passivePtrs(i); if(!p) return false;
+    const bytes=[];
+    for(const ch of String(text)){ const c=ch.charCodeAt(0); bytes.push(c>255?63:c); }
+    if(bytes.length+1>p.budget) return false;
+    if(p.at<0||p.at+p.budget>TX.buf.length) return false;
+    for(let k=0;k<p.budget;k++) TX.buf[p.at+k] = k<bytes.length ? bytes[k] : 0;
+    return true;
+  }
+
   // ---- skills pane --------------------------------------------------------
   function skillMatches(i,q){
     if(!q) return true;
@@ -1011,6 +1114,112 @@
     const hay=[String(i),v.name||"",v.desc||"",v.target||"",skillBlockName(i)]
       .join(" ").toLowerCase();
     return q.split(/\s+/).filter(Boolean).every(t=>hay.indexOf(t)>=0);
+  }
+  function paintPassiveList(){
+    const sel=$("#qsel"); if(!sel) return;
+    const q=($("#qsearch").value||"").trim().toLowerCase();
+    const prev=sel.value;
+    const keys=passiveKeys().filter(i=>skillMatches(i,q));
+    $("#qcount").textContent=q?(keys.length+" of "+PCOUNT):(PCOUNT+" editable");
+    if(!keys.length){
+      sel.innerHTML='<option value="">no match</option>'; sel.disabled=true;
+      $("#qdesc").textContent="No passive matches “"+q+"”.";
+      $("#qname").innerHTML=$("#qparam").innerHTML=$("#qstat").innerHTML="";
+      $("#qnote").textContent=""; return;
+    }
+    sel.disabled=false;
+    sel.innerHTML=keys.map(i=>'<option value="'+i+'">'+String(i).padStart(3,"0")+
+      " · "+esc(skillName(i))+'</option>').join("");
+    if(keys.indexOf(+prev)>=0) sel.value=prev; else loadPassive();
+  }
+  function loadPassive(){
+    const sel=$("#qsel"); if(!sel||sel.disabled||sel.value==="") return;
+    const i=+sel.value, base=passiveOff(i);
+    const v=skillInfo(i)||{};
+    if(base<0){
+      $("#qdesc").textContent="No passive record addressable — open a disc first.";
+      $("#qname").innerHTML=$("#qparam").innerHTML=$("#qstat").innerHTML="";
+      $("#qnote").textContent=""; return;
+    }
+    const kind=passiveKind(i);
+    $("#qdesc").innerHTML='<div class="rechead"><b>'+esc(v.name||("skill "+i))+'</b>'+
+      ' <span class="sub">'+esc(passiveKindText(kind))+'</span></div>'+
+      (v.target?'<div class="note">'+esc(v.target)+'</div>':'');
+
+    const ptrs=passivePtrs(i);
+    const cur=readPassiveName(i), budget=ptrs?ptrs.budget-1:0;
+    $("#qname").innerHTML = cur===null
+      ? '<div class="fl">Name</div><span class="muted small">not renameable</span>'
+      : '<div class="fl">Name</div><input type="text" id="qnameIn" maxlength="'+budget+
+        '" value="'+esc(cur)+'"><span class="muted small" id="qnameHint"></span>';
+    if(cur!==null){
+      const inp=$("#qnameIn"), hint=$("#qnameHint"), was=readPassiveName(i,TX.orig);
+      const paint=()=>{
+        const left=budget-inp.value.length;
+        hint.textContent=left+" of "+budget+" left"+
+          (was!==null&&inp.value!==was?"  ·  on disc: "+was:"");
+        inp.classList.toggle("changed", inp.value!==was);
+      };
+      inp.oninput=()=>{ if(writePassiveName(i,inp.value)){ paint(); epending(); } };
+      paint();
+    }
+
+    // A record with a zero effect field has its behaviour in battle code, so
+    // offering a Param box would be offering a number that changes nothing.
+    if(kind===0){
+      $("#qparam").innerHTML=''; $("#qstat").innerHTML='';
+      $("#qnote").innerHTML='<b>No numeric effect on this record.</b> This passive\'s '+
+        'behaviour lives in battle code rather than the table, so there is nothing here to '+
+        'tune. Its name is still editable above.';
+      return;
+    }
+    const PP=PFIELDS.find(f=>f[0]==="Param"), PS=PFIELDS.find(f=>f[0]==="StatMask");
+    const maskKind=PARAM_IS_MASK[kind];
+    const pv=getAt(TX,base+PP[1],1), pdef=getOrigAt(TX,base+PP[1],1);
+    if(maskKind==="element"){
+      $("#qparam").innerHTML='<div class="fl">Resists</div><div class="ebits">'+
+        Object.keys(KELEM).sort((a,b)=>KELEM[a]-KELEM[b]).map(n=>
+          '<label class="ebit"><input type="checkbox" data-bit="'+KELEM[n]+'"'+
+          ((pv&KELEM[n])?' checked':'')+'>'+esc(n)+'</label>').join("")+
+        '<span class="muted small">0x'+pv.toString(16).toUpperCase()+'</span></div>'+
+        (pv!==pdef?' <span class="pill dirty">changed</span>':'');
+      document.querySelectorAll("#qparam input").forEach(cb=>cb.onchange=()=>{
+        let m=getAt(TX,base+PP[1],1);
+        m = cb.checked ? (m | +cb.dataset.bit) : (m & ~(+cb.dataset.bit));
+        putAt(TX,base+PP[1],1,m&0xFF); loadPassive(); epending();
+      });
+    }else{
+      $("#qparam").innerHTML='<div class="fl">'+
+        (maskKind==="status"?'Status mask':'Param')+'</div>'+
+        '<input type="number" id="qparamIn" min="0" max="255" value="'+pv+'" style="width:8ch">'+
+        '<span class="muted small">'+(maskKind==="status"
+          ? '0x'+pv.toString(16).toUpperCase()+' — a status bitmask, not a percentage'
+          : 'retail '+pdef)+'</span>'+
+        (pv!==pdef?' <span class="pill dirty">changed</span>':'');
+      $("#qparamIn").oninput=()=>{
+        const n=Math.max(0,Math.min(255,+$("#qparamIn").value||0));
+        putAt(TX,base+PP[1],1,n); epending();
+      };
+      $("#qparamIn").onchange=()=>loadPassive();
+    }
+    // the stat bitmask only means anything on the stat-bonus kind
+    if(kind===0x80 && PS){
+      const sv=getAt(TX,base+PS[1],1), sdef=getOrigAt(TX,base+PS[1],1);
+      $("#qstat").innerHTML='<div class="fl">Applies to</div><div class="ebits">'+
+        Object.keys(PSTATBITS).map(n=>
+          '<label class="ebit"><input type="checkbox" data-bit="'+PSTATBITS[n]+'"'+
+          ((sv&PSTATBITS[n])?' checked':'')+'>'+esc(n)+'</label>').join("")+
+        '<span class="muted small">0x'+sv.toString(16).toUpperCase()+'</span></div>'+
+        (sv!==sdef?' <span class="pill dirty">changed</span>':'');
+      document.querySelectorAll("#qstat input").forEach(cb=>cb.onchange=()=>{
+        let m=getAt(TX,base+PS[1],1);
+        m = cb.checked ? (m | +cb.dataset.bit) : (m & ~(+cb.dataset.bit));
+        putAt(TX,base+PS[1],1,m&0xFF); loadPassive(); epending();
+      });
+    }else $("#qstat").innerHTML='';
+    $("#qnote").textContent = maskKind
+      ? "Param is a bitmask on this kind, so it is shown as checkboxes."
+      : "Param is this passive's magnitude — the number its own description publishes.";
   }
   function paintSkillList(){
     const sel=$("#ksel"); if(!sel) return;
@@ -1637,10 +1846,15 @@
     }
     return recs;
   }
-  // the edit buffers with their on-disc extents under disc `d`'s layout
+  // The edit buffers with their on-disc extents under disc `d`'s layout.
+  // TX is LAST on purpose: the skill text span is a bounding box wide enough to
+  // contain the enemy and skill tables, so a record may only be attributed to it
+  // after every precise table has declined it. With it present, a patch's skill
+  // renames, rewritten descriptions and passive-effect edits all stage — the
+  // passive/equip table lives inside that span.
   function bufferMap(d){
     const t=ETABLES[String(d)];
-    return [[S,t.stats],[R,t.rewards],[K,kBase(d)],[U,UTABLES[String(d)]]];
+    return [[S,t.stats],[R,t.rewards],[K,kBase(d)],[U,UTABLES[String(d)]],[TX,TX?TX.base:0]];
   }
   // Stage raw byte records (PPF or embedded preset) into whichever edit
   // buffers they land in, and repaint. Shared by importPPF and applyHardtype.
@@ -1656,7 +1870,7 @@
       if(hit){ staged++; stagedBytes+=data.length; }
       else { skipped++; skippedBytes+=data.length; }
     }
-    loadEnemy(); loadSkill(); loadUnit(); checkBrkPlan(); paintBrkOpts(); epending();
+    loadEnemy(); loadSkill(); loadPassive(); loadUnit(); checkBrkPlan(); paintBrkOpts(); epending();
     return {staged,stagedBytes,skipped,skippedBytes};
   }
 
@@ -1690,12 +1904,14 @@
     toastFn(msg);
     if(window.openInfo) await window.openInfo("HardType preset",
       '<div class="note"><b>'+esc(ht.source||"HardType")+'</b> — '+esc(v.label)+'. '+
-      staged+' record(s) staged into the enemy, skill and unit tables — nothing is written '+
-      'until you review and Save; Revert all undoes it.</div>'+
-      (v.skippedRecords?'<div class="note">Not included, on purpose: '+v.skippedRecords+
-        ' record(s) ('+v.skippedBytes+' bytes) of the mod\'s patch that fall outside the mapped '+
-        'tables — its skill renames (done with a disc-wide text replace that corrupts '+
-        '“Miracle Star”) and a few code patches. Renames can be made cleanly in the Skills tab.</div>':'')+
+      staged+' record(s) staged across the enemy, skill, passive and unit tables — including '+
+      'the mod\'s renames and its passive effect changes. Nothing is written until you review '+
+      'and Save; Revert all undoes it.</div>'+
+      (v.skippedRecords?'<div class="note">Not included: '+v.skippedRecords+
+        ' record(s) ('+v.skippedBytes+' bytes) that fall outside every located table — duplicate '+
+        'copies of a renamed skill\'s battle caption, and four bytes in an unidentified table. '+
+        'Writing those would mean writing at unconfirmed offsets, so a renamed skill keeps its '+
+        'retail name in battle captions.</div>':'')+
       (v.discNotes&&v.discNotes.length?'<div class="note">⚠ '+v.discNotes.map(esc).join("<br>")+'</div>':''));
   }
   function ppfCoverage(recs,d){
@@ -1875,7 +2091,7 @@
       // only clear the pending state once every target actually took the write
       S.orig=S.buf.slice();R.orig=R.buf.slice();K.orig=K.buf.slice();U.orig=U.buf.slice();
       TX.orig=TX.buf.slice();
-      loadEnemy();loadSkill();loadUnit();
+      loadEnemy();loadSkill();loadPassive();loadUnit();
       st.textContent="✓ wrote disc "+done.join(", disc ");st.className="status ok";
       toastFn("✓ Saved to "+(done.length>1?"both discs":"disc "+targets[0]));
     }

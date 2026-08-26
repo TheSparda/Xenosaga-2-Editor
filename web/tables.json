@@ -191,6 +191,47 @@
   "game": "Xenosaga Episode II - Jenseits von Gut und Boese",
   "gamedataSize": 20832,
   "majorHpThreshold": 20000,
+  "passive": {
+    "count": 64,
+    "elementBits": {
+      "Aura": 2,
+      "Beam": 1,
+      "Fire": 8,
+      "Hit": 128,
+      "Ice": 16,
+      "Pierce": 32,
+      "Slash": 64,
+      "Thunder": 4
+    },
+    "fields": [
+      ["Param", 10, 1],
+      ["StatMask", 11, 1]
+    ],
+    "kindNames": {
+      "0": "coded (no numeric effect)",
+      "128": "stat bonus",
+      "2": "EP/stock",
+      "32": "status resist",
+      "4": "reward gain",
+      "64": "element/type resist",
+      "8": "percentage"
+    },
+    "kindOff": 9,
+    "statBits": {
+      "DEX": 32,
+      "EATK": 8,
+      "EDEF": 4,
+      "EVA": 16,
+      "STR": 128,
+      "VIT": 64
+    },
+    "stride": 12,
+    "tables": {
+      "1": 33600260,
+      "2": 33598212
+    },
+    "text0": 110
+  },
   "profiles": {
     "deeper": {
       "label": "Deeper challenge",

@@ -357,22 +357,29 @@ Done since this list was written — kept short, the sections above have the det
 - [x] Schemas in `x2fields.py`, each gated on a disc cross-check and a ground-truth match
 
 Open, in the order they are worth attempting:
-- [ ] **Skill/tech description + name text.** Located (`0x200A..0x200C` pool, plus the
-  menu-string pool at `0x1D86349`) but not editable. Closes 119 of the 133 records PPF
-  import cannot stage. Two constraints, both known: strings are packed and NUL-terminated,
-  so a replacement must fit the existing budget; and several strings exist in ~9 duplicate
-  copies across the disc that must be kept in step.
+- [x] **Skill/tech description + name text.** Done 2026-08-25. The text span is a staged
+  buffer (`TX`), so names and descriptions are editable and a patch's text records stage
+  like any other. Coverage of the HardType patch went 528 → 648 of 661 records. What is
+  left is the ~9 duplicate copies of a renamed skill's *battle caption* out at
+  `0x2F..0x33`: real, but outside every located table, so writing them would mean writing
+  at unconfirmed offsets. Consequence: a renamed skill keeps its retail battle caption.
+- [x] **Passive / equip skill effects.** Done 2026-08-25 — 12-byte records at `0x200B304`,
+  64 exposed (catalog 110..173). See the section above.
 - [~] **Skill / class learning costs.** Attempted and ruled out of the flat data region —
   four hypotheses, zero matches, written up above. Blocked behind `XENOSAGA.01` with
   character growth and shops. The 110 published costs are still the right ground truth
   whenever that archive is opened.
-- [ ] **Equip abilities / E.S. accessory effects.** Still unlocated, and HardType gives no
-  anchor: its readme names exact values (+4 Str, Masamune +10, Gorgon Frame +60) but no
-  patched bytes carry them, so it re-points ids rather than editing effect values. Needs
-  different ground truth.
+- [~] **Equip abilities / E.S. accessory effects.** Half answered. The claim that "HardType
+  gives no anchor — no patched bytes carry its readme's values" is **retracted**: the mod's
+  +4 Str is a passive record, and it is patched (Ice Coat's record becomes kind `0x80`,
+  param 4, stat mask STR). The remaining unlocated piece is the *equipment* side, and the
+  best lead is now concrete: the 40-record tail at `0x200B604`, same layout, mirrored
+  effect set, names not yet resolved. Find what names those and this closes.
 - [ ] `0x35EA60` — 6-byte entries, u16s of 200/400/500/600/800/1000/1200/1500. The "shop
   price table" reading is **dead**: Episode II has no shops, money, weapons or armour (the
-  walkthrough is explicit). Unidentified.
+  walkthrough is explicit). Unidentified — but HardType patches exactly four bytes here
+  (`0x35EA9D`+), swapping the pairs 0x13↔0x05 and 0x26↔0x23, which reads like re-pointing
+  two ids rather than changing values. Whatever this table indexes, the mod cares about it.
 - [ ] Blocked on runtime (PCSX2) or deep static RE: character growth curves, global battle
   constants, field-enemy placement/detection.
 
@@ -1411,11 +1418,61 @@ data — the same table already shown NOT to be in the flat data region
 (2026-08-24 negative result), so it joins the #4 runtime bundle. Until then the
 spare slots are storage without a doorway.
 
-### 2026-08-25 — Passive/equip skill numerics: NOT in the data region (NEGATIVE RESULT, four ways)
+### 2026-08-25 (later) — PASSIVE/EQUIP TABLE SOLVED — and the negative result below is RETRACTED
 
-Issue #5 step 2 proposed finding the passive band (catalog 110..172 — the
-Guards, HP/ST Minds, Coats, Inner Peace, Double Power, Combo Boost...) by the
-self-naming `+0x16` field. Four independent searches, all empty:
+**64 records of 12 bytes at ISO `0x200B304` (disc 1) / `-0x800` (disc 2),
+covering skill catalog indices 110..173** — HP/ST Mind, the ten Guards, the
+eight Coats, Break B10/B15, the +2 stat skills, Inner Peace, Double Power.
+Exposed as `F.PASSIVE_*` and editable in the web editor's new Passives tab.
+
+| offset | field | verification |
+|---|---|---|
+| `+0x00` u16 | name offset, relative to the table base | **64/64** resolve to the record's own catalog entry |
+| `+0x02` u16 | description offset, same base | the gap to `+0x00` is the game's real rename budget |
+| `+0x04` u32 | flags | unverified |
+| `+0x08` u8 | sub-selector | unverified |
+| `+0x09` u8 | effect **kind** (see `PASSIVE_KIND_NAMES`) | groups cleanly by passive family |
+| `+0x0A` u8 | **parameter** — magnitude, or a mask on typed kinds | **20/20** vs the number in each skill's own description; **8/8** element bits on the Coats |
+| `+0x0B` u8 | stat mask on kind `0x80` | STR/VIT/DEX/EVA/EATK/EDEF bits |
+
+Verified two independent ways, neither of which was used to find it: the
+parameter equals the number the skill's own description publishes on every
+scalar passive that publishes one (Break B10 → 10, Guard → 20, Rare+30 → 30,
+the six stat skills → 2), and on the eight Coats it is an element mask matching
+the bit order the enemy damage affinities use — a table reached from a
+completely different direction.
+
+**Why the four searches below missed it, which is the lesson worth keeping:**
+every one of them assumed the *active* skill layout. The scans looked for
+32-byte records and for a magnitude column at a uniform stride. These records
+are **12 bytes**, and their magnitude is one byte inside a packed 4-byte effect
+field whose meaning changes with the kind — so there is no uniform column to
+find, and `+0x16` (the active blocks' self-naming field) does not exist here.
+The negative result was not wrong about the evidence; it was wrong to
+generalise "not findable under the layout I assumed" into "not in the data
+region". A shape assumption inherited from the last table is exactly what made
+the two earlier skill-table searches fail too.
+
+**What is genuinely still code:** ~18 of the 64 read zero across the whole
+effect field — Inner Peace, Damage-10, Revenge Power, Combo Boost, Samurai and
+Knight Soul, Rebound, First Combo, Ether Burst. Those remain #4 material, and
+the editor says so rather than offering a number that does nothing.
+
+**The tail — a strong lead for the accessory table.** Records 64..103 (40 of
+them) continue with the identical layout and a mirrored effect set (their own
+run of Coats and Guards), but their name pointers land in a numeric string pool
+instead of the skill catalog, so nothing names them yet. Equipment names are
+already known to resolve through menu code rather than a pointer table, which
+is exactly the shape this has. Not exposed until something names them; this is
+research target 2 of issue #5, now with an address to start from.
+
+#### RETRACTED — the negative result this replaced (kept for the method)
+
+~~Issue #5 step 2 proposed finding the passive band by the self-naming `+0x16`
+field. Four independent searches, all empty:~~ *(All four ran as described and
+found nothing; the conclusion drawn from them was too strong. Retained because
+the searches themselves are reusable and because the failure mode — carrying a
+record shape across table boundaries — is the recurring one in this file.)*
 
 1. **`+0x16` run scan**, `0x1FF0000..0x2018000` at 32-byte alignment: every
    ascending run is already accounted for by the block map above. No run covers
@@ -1431,12 +1488,13 @@ self-naming `+0x16` field. Four independent searches, all empty:
    nothing matches the name-offset deltas — consistent with the earlier finding
    that no pointer table into the pool exists.
 
-Conclusion: passive equip effects almost certainly have **no numeric records in
-the flat data region** — they are implemented in code (ELF or a battle/menu
-overlay) with immediate values, the same shape as the learning-cost negative
-result. **Moved to the #4 PCSX2 bundle**, with a concrete entry point: equip
-`HP Mind 10`, breakpoint the max-HP recompute, and the +10% source falls out;
-`Inner Peace` / `Double Power` should land in the same routine family.
+~~Conclusion: passive equip effects almost certainly have no numeric records in
+the flat data region.~~ **Wrong — see the section above.** They are 12-byte
+records at `0x200B304`, and every search here missed them by assuming the
+32-byte active-skill shape. The part that survives: the ~18 passives whose
+effect field is all zeroes really are coded, and for those the PCSX2 entry
+point still stands — equip `HP Mind 10`, breakpoint the max-HP recompute, and
+`Inner Peace` / `Combo Boost` should land in the same routine family.
 
 The counter-boost hunt (issue #5 step 3) also resolves by reasoning rather than
 scanning: the downed-counter-boost mechanic applies to every enemy uniformly,
