@@ -115,5 +115,49 @@ class TestPassiveTableGeometry(unittest.TestCase):
         self.assertEqual(F.passive_record_off(1, F.PASSIVE_TEXT0), F.passive_base(1))
 
 
+class TestGearTable(unittest.TestCase):
+    """The E.S. accessory tail. Its risk is the id map: a wrong record->catalog
+    id would show the user one accessory's name over another's effect bytes,
+    which is worse than showing nothing."""
+
+    def test_starts_where_the_passive_records_end(self):
+        for disc in (1, 2):
+            self.assertEqual(F.gear_base(disc),
+                             F.passive_base(disc) + F.PASSIVE_COUNT * F.PASSIVE_STRIDE)
+
+    def test_sits_inside_the_skill_text_span(self):
+        for disc in (1, 2):
+            lo, length = F.skill_text_span(disc)
+            end = F.gear_base(disc) + F.GEAR_COUNT * F.PASSIVE_STRIDE
+            self.assertGreaterEqual(F.gear_base(disc), lo)
+            self.assertLessEqual(end, lo + length)
+
+    def test_es_id_map_is_dense_and_ordered(self):
+        ids = [F.GEAR_ES_ID[k] for k in range(F.GEAR_COUNT)]
+        named = [i for i in ids if i is not None]
+        self.assertEqual(named, sorted(named), "catalog ids must ascend with the records")
+        self.assertEqual(named, list(range(len(named))), "ids must be dense from 0")
+        self.assertEqual(len(F.GEAR_ES_ID), F.GEAR_COUNT)
+
+    def test_every_named_slot_exists_in_the_shipped_catalog(self):
+        path = os.path.normpath(os.path.join(FX.HERE, "..", "Editor", "x2_es_equip.json"))
+        with open(path) as f:
+            es = json.load(f)
+        for k in F.gear_indices():
+            self.assertIn(str(F.GEAR_ES_ID[k]), es,
+                          f"gear record {k} maps to a catalog id that does not exist")
+        self.assertEqual(len(F.gear_indices()), len(es),
+                         "every catalog entry should have exactly one record")
+
+    def test_record_offsets_are_bounded(self):
+        self.assertIsNone(F.gear_record_off(1, -1))
+        self.assertIsNone(F.gear_record_off(1, F.GEAR_COUNT))
+        self.assertEqual(F.gear_record_off(1, 0), F.gear_base(1))
+
+    def test_does_not_overlap_the_passive_records(self):
+        p_end = F.passive_base(1) + F.PASSIVE_COUNT * F.PASSIVE_STRIDE
+        self.assertGreaterEqual(F.gear_record_off(1, 0), p_end)
+
+
 if __name__ == "__main__":
     unittest.main()

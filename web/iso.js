@@ -26,6 +26,7 @@
   // the skill/tech name pool, so names can be renamed in place
   let KTEXT=null;
   let PFIELDS, PSTRIDE, PTABLES, PCOUNT, PTEXT0, PKINDOFF, PKINDS, PSTATBITS;
+  let GFIELDS_G, GTABLES, GCOUNT, GESIDS, GSTATBITS, ESGEAR=null;
   // player units: 15 records before the enemy table, same 0x5C layout
   let UFIELDS, UAFIELDS, USTRIDE, UCOUNT, UTAIL, UTABLES, UNITS=null;
   let TABLES=null;
@@ -70,6 +71,9 @@
     PTABLES=(t.passive||{}).tables||{}; PCOUNT=(t.passive||{}).count||0;
     PTEXT0=(t.passive||{}).text0||0; PKINDOFF=(t.passive||{}).kindOff;
     PKINDS=(t.passive||{}).kindNames||{}; PSTATBITS=(t.passive||{}).statBits||{};
+    GFIELDS_G=(t.gear||{}).fields||[]; GTABLES=(t.gear||{}).tables||{};
+    GCOUNT=(t.gear||{}).count||0; GESIDS=(t.gear||{}).esIds||{};
+    GSTATBITS=(t.gear||{}).statBits||{};
     UFIELDS=(t.unit||{}).fields||[]; USTRIDE=(t.unit||{}).stride||92;
     UAFIELDS=(t.unit||{}).affinityFields||[];
     // the affinity block overhangs the record, so the LAST unit's Ice/Pierce/
@@ -227,6 +231,7 @@
     try{SKILLS=await (await fetch("../Editor/x2_skills.json")).json();}catch(e){SKILLS={};}
     // names + retail values for the player units
     try{UNITS=await (await fetch("../Editor/x2_units.json")).json();}catch(e){UNITS={};}
+    try{ESGEAR=await (await fetch("../Editor/x2_es_equip.json")).json();}catch(e){ESGEAR={};}
     return cat; }
 
   // ---- skills -------------------------------------------------------------
@@ -275,6 +280,30 @@
   // kinds, a bitmask for the typed ones. Showing a mask as a number is how a
   // user ends up typing 25 into a field where 25 means Ice|Thunder|Beam.
   const PARAM_IS_MASK={0x40:"element",0x20:"status"};
+
+  // ---- E.S. accessories (the passive table's tail) --------------------------
+  // Same 12-byte layout, also inside the text span. Names are read-only: these
+  // records' pointers do not resolve into the skill name pool, which matches the
+  // standing finding that equipment names come from menu code. So the record ->
+  // catalog id map is shipped instead, with nulls for the 予備 placeholders.
+  const gearEsId=(k)=>{const v=GESIDS[String(k)]; return (v===null||v===undefined)?null:v;};
+  const gearKeys=()=>{
+    const out=[];
+    for(let k=0;k<GCOUNT;k++) if(gearEsId(k)!==null) out.push(k);
+    return out;
+  };
+  const gearInfo=(k)=>{
+    const id=gearEsId(k);
+    return (id!==null&&ESGEAR&&ESGEAR[String(id)])||null;
+  };
+  const gearName=(k)=>{const v=gearInfo(k); return v&&v.name?v.name:("gear "+k);};
+  function gearOff(k){
+    if(!TX||!GCOUNT) return -1;
+    const base=GTABLES[String(PRIMARY||1)];
+    if(base===undefined||k<0||k>=GCOUNT) return -1;
+    const at=base-TX.base+k*PSTRIDE;
+    return (at<0||at+PSTRIDE>TX.buf.length)?-1:at;
+  }
   const skillInfo=(i)=>(SKILLS&&SKILLS[String(i)])||null;
   const skillName=(i)=>{const v=skillInfo(i); return v&&v.name?v.name:("skill "+i);};
   // retail value of one numeric field, from the shipped catalog
@@ -585,15 +614,18 @@
     show($("#pane-enemy"), which==="enemy");
     show($("#pane-skill"), which==="skill");
     show($("#pane-passive"), which==="passive");
+    show($("#pane-gear"), which==="gear");
     show($("#pane-unit"),  which==="unit");
     on($("#ptab-enemy"), which==="enemy");
     on($("#ptab-skill"), which==="skill");
     on($("#ptab-passive"), which==="passive");
+    on($("#ptab-gear"), which==="gear");
     on($("#ptab-unit"),  which==="unit");
     // the patch/JSON/retail actions describe the enemy tables specifically
     show($("#enemyActions"), which==="enemy");
     if(which==="skill") loadSkill();
     if(which==="passive") loadPassive();
+    if(which==="gear") loadGear();
     if(which==="unit") loadUnit();
   }
 
@@ -604,6 +636,7 @@
       '<button id="ptab-enemy" class="mtab on">Enemies</button>'+
       '<button id="ptab-skill" class="mtab">Skills</button>'+
       '<button id="ptab-passive" class="mtab">Passives</button>'+
+      '<button id="ptab-gear" class="mtab">Gear</button>'+
       '<button id="ptab-unit" class="mtab">Units</button>'+
       '</nav>'+
       '<div id="pane-enemy">'+
@@ -714,8 +747,9 @@
       '<span id="htStat" class="muted small"></span></div>'+
       '<p class="note">Stages what the mod writes into the tables this editor maps — enemy stats '+
       'and rewards, skill numbers, unit stats, its skill <b>renames and rewritten descriptions</b>, '+
-      'and its <b>passive/equip effect</b> changes (Ice Coat becomes STR+4, and so on). Review it '+
-      'on the Enemies, Skills and Passives tabs before saving; Revert all undoes the lot.</p>'+
+      'its <b>passive/equip effect</b> changes (Ice Coat becomes STR+4), and its <b>E.S. '+
+      'accessory</b> rebalance (Anti-Fire Armor becomes a +20 POW part). Review it on the '+
+      'Enemies, Skills, Passives and Gear tabs before saving; Revert all undoes the lot.</p>'+
       '<p class="note">13 of the mod’s 661 records are left out: nine duplicate copies of a '+
       'renamed skill’s <i>battle caption</i> that sit outside every located table, and four bytes '+
       'in an unidentified table. Writing those means writing at offsets nothing has confirmed. '+
@@ -791,6 +825,35 @@
       '8. Names are rewritten in place under the same length rule as the Skills tab.</p></details>'+
       '</div>'+
       '</div>'+                              // /pane-passive
+      '<div id="pane-gear" hidden>'+
+      '<div class="card"><h2>2 \u00b7 E.S. accessories</h2>'+
+      '<div class="toolbar"><label>Accessory</label> <select id="gsel"></select>'+
+      '<span class="findbox"><input type="search" id="gsearch" placeholder="find by name or text" '+
+        'autocomplete="off" spellcheck="false"><button type="button" id="gclear" '+
+        'class="chip mini" title="Clear search" aria-label="Clear search">\u2715</button></span>'+
+      '<span id="gcount" class="muted small"></span></div>'+
+      '<div id="gdesc" class="note"></div>'+
+      '<div id="gparam" class="kctl"></div>'+
+      '<div id="gstat" class="kctl"></div>'+
+      '<div id="gnote" class="note"></div>'+
+      '<details class="help"><summary>About these fields</summary>'+
+      '<p class="note">The gear your E.S. units equip \u2014 Auxiliary Armor, the EF Circuits, the '+
+      'four Anti-element Armors, the thirteen G-guards. Same 12-byte record as a passive, so '+
+      '<b>Param</b> works the same way: a magnitude for the scalar ones, a bitmask for the '+
+      'typed ones. Turn Auxiliary Armor A\u2019s +30 Arm into +90, or repoint an Anti-Fire Armor '+
+      'at Ice.</p>'+
+      '<p class="note"><b>Names are read-only here.</b> These records point into a numeric pool '+
+      'rather than the skill name pool \u2014 E.S. equipment names resolve through menu code, which '+
+      'is why the name shown comes from the shipped catalog. Change an effect and the item keeps '+
+      'its old name in game; that is exactly what the HardType mod does when it turns Anti-Fire '+
+      'Armor into a +20 POW accessory.</p>'+
+      '<p class="note">Verified three ways: the retail effects match what the catalog\u2019s own '+
+      'descriptions predict (Arm +30, Edef +20, Agility +1, the four element armors) on 9 of 9 '+
+      'anchors; the thirteen G-guards carry the same status mask <i>and</i> kind byte as their '+
+      'non-G passive twins, 10 of 10 checkable; and every one of the 11 records HardType patches '+
+      'here matches the exact values its readme publishes for its rebalanced accessories.</p>'+
+      '</details></div>'+
+      '</div>'+                              // /pane-gear
       '<div id="pane-unit" hidden>'+
       '<div class="card"><h2>2 · Unit</h2>'+
       '<div class="toolbar"><label>Unit</label> <select id="usel"></select>'+
@@ -861,6 +924,15 @@
     });
     $("#qclear").onclick=()=>{ $("#qsearch").value=""; paintPassiveList(); $("#qsearch").focus(); };
     paintPassiveList();
+    $("#ptab-gear").onclick=()=>showPane("gear");
+    $("#gsel").onchange=loadGear;
+    $("#gsearch").addEventListener("input",paintGearList);
+    $("#gsearch").addEventListener("keydown",e=>{
+      if(e.key==="Escape"){ $("#gsearch").value=""; paintGearList(); }
+      if(e.key==="Enter"){ e.preventDefault(); loadGear(); }
+    });
+    $("#gclear").onclick=()=>{ $("#gsearch").value=""; paintGearList(); $("#gsearch").focus(); };
+    paintGearList();
     $("#usel").onchange=loadUnit;
     paintUnitList();
     $("#ksel").onchange=loadSkill;
@@ -875,7 +947,7 @@
     // undo them all or the button would lie about its scope.
     $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);K.buf.set(K.orig);
       U.buf.set(U.orig);TX.buf.set(TX.orig);
-      loadEnemy();loadSkill();loadPassive();loadUnit();epending();};
+      loadEnemy();loadSkill();loadPassive();loadGear();loadUnit();epending();};
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
@@ -1164,62 +1236,98 @@
       paint();
     }
 
-    // A record with a zero effect field has its behaviour in battle code, so
-    // offering a Param box would be offering a number that changes nothing.
-    if(kind===0){
-      $("#qparam").innerHTML=''; $("#qstat").innerHTML='';
-      $("#qnote").innerHTML='<b>No numeric effect on this record.</b> This passive\'s '+
-        'behaviour lives in battle code rather than the table, so there is nothing here to '+
-        'tune. Its name is still editable above.';
+    renderEffect({base:base, kind:kind, prefix:"q", what:"passive",
+                  renameable:true, reload:loadPassive});
+  }
+
+  // Shared by the Passives and Gear panes: both are the same 12-byte record, so
+  // one renderer means the two panes cannot drift in how they read a mask.
+  function renderEffect(o){
+    const P=$("#"+o.prefix+"param"), S=$("#"+o.prefix+"stat"), N=$("#"+o.prefix+"note");
+    // A zero effect field means the behaviour is in battle code, so offering a
+    // Param box would be offering a number that changes nothing.
+    if(o.kind===0){
+      P.innerHTML=''; S.innerHTML='';
+      N.innerHTML='<b>No numeric effect on this record.</b> This '+o.what+'\'s behaviour '+
+        'lives in battle code rather than the table, so there is nothing here to tune.'+
+        (o.renameable?' Its name is still editable above.':'');
       return;
     }
+    const base=o.base;
     const PP=PFIELDS.find(f=>f[0]==="Param"), PS=PFIELDS.find(f=>f[0]==="StatMask");
-    const maskKind=PARAM_IS_MASK[kind];
+    const maskKind=PARAM_IS_MASK[o.kind];
     const pv=getAt(TX,base+PP[1],1), pdef=getOrigAt(TX,base+PP[1],1);
-    if(maskKind==="element"){
-      $("#qparam").innerHTML='<div class="fl">Resists</div><div class="ebits">'+
-        Object.keys(KELEM).sort((a,b)=>KELEM[a]-KELEM[b]).map(n=>
-          '<label class="ebit"><input type="checkbox" data-bit="'+KELEM[n]+'"'+
-          ((pv&KELEM[n])?' checked':'')+'>'+esc(n)+'</label>').join("")+
-        '<span class="muted small">0x'+pv.toString(16).toUpperCase()+'</span></div>'+
-        (pv!==pdef?' <span class="pill dirty">changed</span>':'');
-      document.querySelectorAll("#qparam input").forEach(cb=>cb.onchange=()=>{
-        let m=getAt(TX,base+PP[1],1);
+    const statMap=o.statBits||PSTATBITS;
+    const bits=(box,cur,map,off)=>{
+      box.innerHTML='<div class="fl">'+(map===KELEM?'Resists':'Applies to')+'</div><div class="ebits">'+
+        Object.keys(map).sort((a,b)=>map[a]-map[b]).map(n=>
+          '<label class="ebit"><input type="checkbox" data-bit="'+map[n]+'"'+
+          ((cur&map[n])?' checked':'')+'>'+esc(n)+'</label>').join("")+
+        '<span class="muted small">0x'+cur.toString(16).toUpperCase()+'</span></div>'+
+        (cur!==getOrigAt(TX,base+off,1)?' <span class="pill dirty">changed</span>':'');
+      box.querySelectorAll("input").forEach(cb=>cb.onchange=()=>{
+        let m=getAt(TX,base+off,1);
         m = cb.checked ? (m | +cb.dataset.bit) : (m & ~(+cb.dataset.bit));
-        putAt(TX,base+PP[1],1,m&0xFF); loadPassive(); epending();
+        putAt(TX,base+off,1,m&0xFF); o.reload(); epending();
       });
+    };
+    if(maskKind==="element"){
+      bits(P,pv,KELEM,PP[1]);
     }else{
-      $("#qparam").innerHTML='<div class="fl">'+
-        (maskKind==="status"?'Status mask':'Param')+'</div>'+
-        '<input type="number" id="qparamIn" min="0" max="255" value="'+pv+'" style="width:8ch">'+
+      P.innerHTML='<div class="fl">'+(maskKind==="status"?'Status mask':'Param')+'</div>'+
+        '<input type="number" id="'+o.prefix+'paramIn" min="0" max="255" value="'+pv+
+        '" style="width:8ch">'+
         '<span class="muted small">'+(maskKind==="status"
           ? '0x'+pv.toString(16).toUpperCase()+' — a status bitmask, not a percentage'
           : 'retail '+pdef)+'</span>'+
         (pv!==pdef?' <span class="pill dirty">changed</span>':'');
-      $("#qparamIn").oninput=()=>{
-        const n=Math.max(0,Math.min(255,+$("#qparamIn").value||0));
-        putAt(TX,base+PP[1],1,n); epending();
-      };
-      $("#qparamIn").onchange=()=>loadPassive();
+      const inp=$("#"+o.prefix+"paramIn");
+      inp.oninput=()=>{ putAt(TX,base+PP[1],1,Math.max(0,Math.min(255,+inp.value||0))); epending(); };
+      inp.onchange=()=>o.reload();
     }
-    // the stat bitmask only means anything on the stat-bonus kind
-    if(kind===0x80 && PS){
-      const sv=getAt(TX,base+PS[1],1), sdef=getOrigAt(TX,base+PS[1],1);
-      $("#qstat").innerHTML='<div class="fl">Applies to</div><div class="ebits">'+
-        Object.keys(PSTATBITS).map(n=>
-          '<label class="ebit"><input type="checkbox" data-bit="'+PSTATBITS[n]+'"'+
-          ((sv&PSTATBITS[n])?' checked':'')+'>'+esc(n)+'</label>').join("")+
-        '<span class="muted small">0x'+sv.toString(16).toUpperCase()+'</span></div>'+
-        (sv!==sdef?' <span class="pill dirty">changed</span>':'');
-      document.querySelectorAll("#qstat input").forEach(cb=>cb.onchange=()=>{
-        let m=getAt(TX,base+PS[1],1);
-        m = cb.checked ? (m | +cb.dataset.bit) : (m & ~(+cb.dataset.bit));
-        putAt(TX,base+PS[1],1,m&0xFF); loadPassive(); epending();
-      });
-    }else $("#qstat").innerHTML='';
-    $("#qnote").textContent = maskKind
+    if(o.kind===0x80 && PS) bits(S,getAt(TX,base+PS[1],1),statMap,PS[1]);
+    else S.innerHTML='';
+    N.textContent = maskKind
       ? "Param is a bitmask on this kind, so it is shown as checkboxes."
-      : "Param is this passive's magnitude — the number its own description publishes.";
+      : "Param is this "+o.what+"'s magnitude — the number its own description publishes.";
+  }
+
+  // ---- gear pane ----------------------------------------------------------
+  function gearMatches(k,q){
+    if(!q) return true;
+    const v=gearInfo(k)||{};
+    const hay=[String(k),v.name||"",v.desc||""].join(" ").toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(t=>hay.indexOf(t)>=0);
+  }
+  function paintGearList(){
+    const sel=$("#gsel"); if(!sel) return;
+    const q=($("#gsearch").value||"").trim().toLowerCase();
+    const prev=sel.value;
+    const all=gearKeys(), keys=all.filter(k=>gearMatches(k,q));
+    $("#gcount").textContent=q?(keys.length+" of "+all.length):(all.length+" editable");
+    if(!keys.length){
+      sel.innerHTML='<option value="">no match</option>'; sel.disabled=true;
+      $("#gdesc").textContent="No accessory matches \u201c"+q+"\u201d.";
+      $("#gparam").innerHTML=$("#gstat").innerHTML=""; $("#gnote").textContent=""; return;
+    }
+    sel.disabled=false;
+    sel.innerHTML=keys.map(k=>'<option value="'+k+'">'+String(gearEsId(k)).padStart(2,"0")+
+      " \u00b7 "+esc(gearName(k))+'</option>').join("");
+    if(keys.indexOf(+prev)>=0) sel.value=prev; else loadGear();
+  }
+  function loadGear(){
+    const sel=$("#gsel"); if(!sel||sel.disabled||sel.value==="") return;
+    const k=+sel.value, base=gearOff(k);
+    if(base<0){
+      $("#gdesc").textContent="No gear record addressable — open a disc first.";
+      $("#gparam").innerHTML=$("#gstat").innerHTML=""; $("#gnote").textContent=""; return;
+    }
+    const v=gearInfo(k)||{}, kind=getAt(TX,base+PKINDOFF,1);
+    $("#gdesc").innerHTML='<div class="rechead"><b>'+esc(v.name||("gear "+k))+'</b>'+
+      ' <span class="sub">'+esc(passiveKindText(kind))+'</span></div>'+
+      (v.desc?'<div class="note">'+esc(v.desc)+'</div>':'');
+    renderEffect({base:base, kind:kind, prefix:"g", what:"accessory",
+                  renameable:false, reload:loadGear, statBits:GSTATBITS});
   }
   function paintSkillList(){
     const sel=$("#ksel"); if(!sel) return;
@@ -1870,7 +1978,7 @@
       if(hit){ staged++; stagedBytes+=data.length; }
       else { skipped++; skippedBytes+=data.length; }
     }
-    loadEnemy(); loadSkill(); loadPassive(); loadUnit(); checkBrkPlan(); paintBrkOpts(); epending();
+    loadEnemy(); loadSkill(); loadPassive(); loadGear(); loadUnit(); checkBrkPlan(); paintBrkOpts(); epending();
     return {staged,stagedBytes,skipped,skippedBytes};
   }
 
@@ -1904,14 +2012,14 @@
     toastFn(msg);
     if(window.openInfo) await window.openInfo("HardType preset",
       '<div class="note"><b>'+esc(ht.source||"HardType")+'</b> — '+esc(v.label)+'. '+
-      staged+' record(s) staged across the enemy, skill, passive and unit tables — including '+
+      staged+' record(s) staged across the enemy, skill, passive, gear and unit tables — including '+
       'the mod\'s renames and its passive effect changes. Nothing is written until you review '+
       'and Save; Revert all undoes it.</div>'+
       (v.skippedRecords?'<div class="note">Not included: '+v.skippedRecords+
         ' record(s) ('+v.skippedBytes+' bytes) that fall outside every located table — duplicate '+
-        'copies of a renamed skill\'s battle caption, and four bytes in an unidentified table. '+
-        'Writing those would mean writing at unconfirmed offsets, so a renamed skill keeps its '+
-        'retail name in battle captions.</div>':'')+
+        'copies of a renamed skill\'s battle caption, and four bytes in a cost table whose ids '+
+        'are not pinned down yet. Both are identified but not yet written, so a renamed skill '+
+        'keeps its retail name in battle captions.</div>':'')+
       (v.discNotes&&v.discNotes.length?'<div class="note">⚠ '+v.discNotes.map(esc).join("<br>")+'</div>':''));
   }
   function ppfCoverage(recs,d){
@@ -2091,7 +2199,7 @@
       // only clear the pending state once every target actually took the write
       S.orig=S.buf.slice();R.orig=R.buf.slice();K.orig=K.buf.slice();U.orig=U.buf.slice();
       TX.orig=TX.buf.slice();
-      loadEnemy();loadSkill();loadPassive();loadUnit();
+      loadEnemy();loadSkill();loadPassive();loadGear();loadUnit();
       st.textContent="✓ wrote disc "+done.join(", disc ");st.className="status ok";
       toastFn("✓ Saved to "+(done.length>1?"both discs":"disc "+targets[0]));
     }
