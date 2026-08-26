@@ -55,7 +55,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   counted and named rather than skipped quietly, so an unanswerable field never looks like
   a matching one.
 - **Reference** — searchable bestiary (verified stats & rewards, filter by ID band or major
-  fights, sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc.
+  fights, sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc,
+  plus **Damage** — the damage formula itself, read statically out of the battle overlay:
+  what STR/EATK, skill power, Break, Air/Down, zone hits, criticals, elemental chains and
+  affinities each do to the number. Every claim is marked verified or inferred, and the one
+  place the code contradicts the community guide is stated rather than smoothed over.
 - **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
   tap. On desktop the writable file handle is kept too, so a reopened file still saves **in
   place**. Stored locally in your browser (IndexedDB); the ISO entry keeps only a file
@@ -79,7 +83,10 @@ Working today:
   [`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md) for both derivations).
 - **ISO skill editing** — EP, element, power and the status-effect fields for the 86 Ether
   and Double skills, in the web editor as well as the CLI.
-- **Reference** — bestiary + item / key-item / E.S.-gear catalogs.
+- **Reference** — bestiary + item / key-item / E.S.-gear catalogs, and the **damage
+  formula** (attack category 1) derived statically from the disc-1 battle overlay — no
+  emulator. Full derivation in [`Research/DAMAGE.md`](Research/DAMAGE.md); the Reference
+  tab carries the same verified/inferred labels.
 
 Two things worth stating plainly:
 
@@ -231,6 +238,12 @@ These were previously shipped as eight unnamed, unverified slots — and they we
 wrong bytes entirely, so editing them did nothing. Both the location and the element order
 are now verified against a strategy guide: 71 of 71 enemies with complete published data
 match the disc exactly.
+
+The battle overlay agrees, from a direction that knows nothing about the guide: the damage
+routine multiplies by `affinity / 20`, and `byte × 5 / 100` **is** `byte / 20`. It also
+turned up something no guide mentions — each element carries its own **proc chance**, so an
+affinity is rolled, not always applied. See the Reference tab's **Damage** section, or
+[`Research/DAMAGE.md`](Research/DAMAGE.md).
 
 ### Battle pacing (the combo system)
 
