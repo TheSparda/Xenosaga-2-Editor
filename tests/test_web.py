@@ -151,7 +151,7 @@ class TestDomReferences(unittest.TestCase):
         iso = read("iso.js")
         for fn, needs in (("stageRestore", "allFields()"),
                           ("buildPatch", "allFields()"),
-                          ("showRetailDiff", "retailDiffs(")):
+                          ("retailRows", "retailDiffs(")):
             m = re.search(r"function " + fn + r"\b.*?\n  \}", iso, re.S)
             with self.subTest(fn):
                 self.assertTrue(m, f"could not find {fn} in iso.js")
@@ -159,6 +159,47 @@ class TestDomReferences(unittest.TestCase):
                               f"{fn} must compare against every writable field")
                 self.assertNotIn("SFIELDS.concat(RFIELDS)", m.group(0),
                                  f"{fn} is back to comparing stats and rewards only")
+
+    def test_retail_comparison_answers_for_every_pane(self):
+        # It used to cover the enemy tables and say nothing whatsoever about the
+        # other five — not "these match", nothing — which reads as "there is
+        # nothing to report" while a changed equip-skill magnitude sits there.
+        iso = read("iso.js")
+        m = re.search(r"function retailRows\(\)\{.*?\n  \}", iso, re.S)
+        self.assertTrue(m, "retailRows is gone")
+        body = m.group(0)
+        for pane, marker in (("enemies", "retailDiffs("), ("units", "unitInfo("),
+                             ("skills", "skillRetail("), ("passives", "passiveKeys()"),
+                             ("gear", "gearKeys()"), ("costs", "COSTS[")):
+            with self.subTest(pane):
+                self.assertIn(marker, body,
+                              f"the retail comparison no longer covers {pane}")
+        # a field with no baseline must be counted, never quietly skipped
+        self.assertIn("unknown", body,
+                      "fields with no retail baseline are not being reported")
+
+    def test_every_editable_pane_ships_a_retail_baseline(self):
+        # The three effect tables became editable before anything could say what
+        # their retail values were. gen_effect_catalog.py reads them off the
+        # discs; these assert the generated data is actually present.
+        here = os.path.dirname(os.path.abspath(__file__))
+        cat = lambda n: json.load(open(os.path.join(here, "..", "Editor", n),
+                                       encoding="utf-8"))
+        skills = cat("x2_skills.json")
+        passives = [i for i in range(110, 174) if str(i) in skills]
+        self.assertTrue(passives, "the passive band is missing from the catalog")
+        for i in passives:
+            with self.subTest(passive=i):
+                self.assertIsNotNone((skills[str(i)].get("numeric") or {}).get("kind"),
+                                     f"passive {i} has no retail baseline")
+        gear = cat("x2_es_equip.json")
+        self.assertTrue(all("numeric" in v for v in gear.values()),
+                        "an E.S. accessory has no retail effect baseline")
+        costs = cat("x2_costs.json")
+        self.assertEqual(len(costs), 112, "the cost baseline is not 112 records")
+        for k, v in costs.items():
+            with self.subTest(cost=k):
+                self.assertEqual(sorted(v), ["cost", "id", "slot", "type"])
 
     def test_break_shortening_shield_is_present_and_defaults_on(self):
         # Emptying a sequence removes the break instead of shortening it. With

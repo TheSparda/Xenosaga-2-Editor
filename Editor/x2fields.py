@@ -1516,6 +1516,14 @@ def web_tables():
         "skill": {
             "blocks": {str(d): [[n, b, c, t] for (n, b, c, t) in blocks]
                        for d, blocks in sorted(SKILL_BLOCKS.items())},
+            # Exported rather than left for a front-end to derive from `blocks`.
+            # It is NOT the lowest block base — it is four bytes lower, because
+            # Target lives at base-0x04 (see skill_base). A front-end that took
+            # min(blocks) instead read the first record's Target from outside its
+            # own buffer, which is exactly what the web editor did: it returned
+            # undefined, compared equal to nothing, and only surfaced once the
+            # retail comparison tried to format it.
+            "base": {str(d): skill_base(d) for d in sorted(SKILL_BLOCKS)},
             "span": skill_span(),
             "stride": SKILL_STRIDE,
             "fields": fields(SKILL_NUM_FIELDS),

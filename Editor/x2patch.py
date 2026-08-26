@@ -2075,6 +2075,50 @@ def write_skill(iso, i, edits):
             n += 1
     return n
 
+# ---------------------------------------------------------------------------
+# Passive / gear / cost record readers.
+#
+# All three are read-only here on purpose: the web editor writes them, and what
+# the CLI needs is a way to lift the RETAIL values off a pristine disc so the
+# editors have a baseline to compare against. Without one, "Compare to retail"
+# can only ever answer for the enemy, unit and skill tables, and quietly says
+# nothing about the other three.
+# ---------------------------------------------------------------------------
+def read_passive(iso, i):
+    """Named fields of the passive/equip record at catalog index `i`."""
+    base = F.passive_record_off(iso.disc, i)
+    out = {lbl: int.from_bytes(iso.read(base + o, w), "little")
+           for (lbl, o, w, _k) in F.PASSIVE_FIELDS}
+    out["Kind"] = iso.read(base + F.PASSIVE_KIND_OFF, 1)[0]
+    return out
+
+def read_gear(iso, k):
+    """Named fields of the E.S. accessory effect record at table index `k`.
+
+    Same 12-byte layout as a passive — the gear records are that table's tail —
+    so it reads through the same field list rather than a copy of it.
+    """
+    base = F.gear_record_off(iso.disc, k)
+    out = {lbl: int.from_bytes(iso.read(base + o, w), "little")
+           for (lbl, o, w, _k) in F.PASSIVE_FIELDS}
+    out["Kind"] = iso.read(base + F.PASSIVE_KIND_OFF, 1)[0]
+    return out
+
+def read_cost(iso, k):
+    """Named fields of the skill purchase-cost record at table index `k`.
+
+    Type/Id/Slot come back alongside Cost because the ids are data: the HardType
+    mod re-prices four ethers by SWAPPING id bytes, so a Cost-only baseline
+    reports "unchanged" on records it demonstrably rewrote.
+    """
+    base = F.skill_cost_record_off(iso.disc, k)
+    out = {lbl: int.from_bytes(iso.read(base + o, w), "little")
+           for (lbl, o, w, _k) in F.SKILL_COST_FIELDS}
+    for lbl, off in (("Type", F.SKILL_COST_TYPE_OFF), ("Id", F.SKILL_COST_ID_OFF),
+                     ("Slot", F.SKILL_COST_SLOT_OFF)):
+        out[lbl] = iso.read(base + off, 1)[0]
+    return out
+
 def sync_skills(src, dst):
     """Copy every verified skill block from one disc to the other."""
     moved = 0
