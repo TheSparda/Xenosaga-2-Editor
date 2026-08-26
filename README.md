@@ -16,7 +16,7 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   **`.sps`/`.xps`** (SharkPort), **`.cbs`** (CodeBreaker) and **`.max`** (AR Max / MAX
   Drive). Powered by the real Python engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
-  one**, in four tabs:
+  one**, in five tabs:
   - **Enemies** — **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle rewards**
     (EXP, SP, CP), **damage affinities**, **status resistances**, **item drops**, **Break
     sequences** and **breakable zones** for all 125 records, with search, one-click
@@ -32,6 +32,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
     rename it. About a quarter of them read zero across the effect field because their
     behaviour is battle code rather than table data; the editor says so instead of offering
     a number that does nothing.
+  - **Gear** — the **E.S. accessory effects**: Auxiliary Armor, the EF Circuits, the four
+    Anti-element Armors, the thirteen G-guards — all 31, each named from the disc's own
+    catalog. Turn Auxiliary Armor A's +30 Arm into +90, or repoint an Anti-Fire Armor at
+    Ice. Names are read-only here (E.S. equipment names resolve through menu code, not a
+    pointer table), so an accessory keeps its old name when you change what it does.
   - **Units** — the **new-game starting stats** (HP, EP, STR, VIT, EATK, EDEF, DEX, EVA,
     AGL) for every character and E.S. unit, plus their eight **damage affinities** — give a
     character a fire weakness or beam immunity. Verified against the save format, which
@@ -244,8 +249,9 @@ python3 x2patch.py xdelta-apply mymod.xdelta --pristine "…pristine.iso" --out 
 Difficulty mods for this game ship as **PPF** patches. Instead of applying one
 blind, the editor imports it: **⬆ Import .ppf** parses the patch, stages every
 byte that lands in a table it maps — enemy stats, rewards, drops, units, all 176
-skill/tech records, the 64 passive/equip records, and skill names and
-descriptions — and tells you exactly what it could not reach. Nothing writes
+skill/tech records, the 64 passive/equip records, the 31 E.S. accessory
+effects, and skill names and descriptions — and tells you exactly what it could
+not reach. Nothing writes
 until you review and Save, the
 staged values show up field-by-field in every tab with retail comparison intact,
 and you can tweak them before committing. The CLI equivalent:
@@ -255,11 +261,11 @@ python3 x2patch.py apply-ppf "…(Disc 1).iso" mod.ppf --dry-run
 ```
 
 On Landon Ray's XS2HT v3.9 Hard, that stages **648 of 661** records. The 13 it
-does not are nine duplicate copies of a renamed skill's *battle caption*, which
-sit outside every located table, and four bytes in an unidentified one — writing
-those would mean writing at offsets nothing has confirmed, so they are reported
-rather than silently skipped. The practical effect is that a renamed skill keeps
-its retail name in battle captions.
+does not are nine duplicate copies of a renamed skill's *battle caption* and four
+bytes in a cost table whose ids are not yet pinned down — both now identified
+(see [the notes](Editor/Xenosaga2_ISO_offsets.md)), neither yet written. The only
+user-visible effect is that a renamed skill keeps its retail name in battle
+captions.
 
 You do not need the `.ppf` to get this one: the ISO editor ships **HardType
 (Normal)** and **HardType (Hard)** as one-click presets, generated from the

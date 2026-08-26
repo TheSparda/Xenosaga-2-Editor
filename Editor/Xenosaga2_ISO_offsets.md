@@ -360,26 +360,25 @@ Open, in the order they are worth attempting:
 - [x] **Skill/tech description + name text.** Done 2026-08-25. The text span is a staged
   buffer (`TX`), so names and descriptions are editable and a patch's text records stage
   like any other. Coverage of the HardType patch went 528 → 648 of 661 records. What is
-  left is the ~9 duplicate copies of a renamed skill's *battle caption* out at
-  `0x2F..0x33`: real, but outside every located table, so writing them would mean writing
-  at unconfirmed offsets. Consequence: a renamed skill keeps its retail battle caption.
+  left is the 9 duplicate copies of a renamed skill's *battle caption*. Those are now
+  **locatable by content** (`$zoom13;<name>`, all occurrences found, disc 2 at the usual
+  `-0x800`) — see the write-up above; the scan-and-rewrite is specified but not built.
+  Until it is, a renamed skill keeps its retail battle caption.
 - [x] **Passive / equip skill effects.** Done 2026-08-25 — 12-byte records at `0x200B304`,
   64 exposed (catalog 110..173). See the section above.
 - [~] **Skill / class learning costs.** Attempted and ruled out of the flat data region —
   four hypotheses, zero matches, written up above. Blocked behind `XENOSAGA.01` with
   character growth and shops. The 110 published costs are still the right ground truth
   whenever that archive is opened.
-- [~] **Equip abilities / E.S. accessory effects.** Half answered. The claim that "HardType
-  gives no anchor — no patched bytes carry its readme's values" is **retracted**: the mod's
-  +4 Str is a passive record, and it is patched (Ice Coat's record becomes kind `0x80`,
-  param 4, stat mask STR). The remaining unlocated piece is the *equipment* side, and the
-  best lead is now concrete: the 40-record tail at `0x200B604`, same layout, mirrored
-  effect set, names not yet resolved. Find what names those and this closes.
-- [ ] `0x35EA60` — 6-byte entries, u16s of 200/400/500/600/800/1000/1200/1500. The "shop
-  price table" reading is **dead**: Episode II has no shops, money, weapons or armour (the
-  walkthrough is explicit). Unidentified — but HardType patches exactly four bytes here
-  (`0x35EA9D`+), swapping the pairs 0x13↔0x05 and 0x26↔0x23, which reads like re-pointing
-  two ids rather than changing values. Whatever this table indexes, the mod cares about it.
+- [x] **Equip abilities / E.S. accessory effects.** Done 2026-08-25. Both halves: the
+  passives at `0x200B304` and the 40-record E.S. accessory tail at `0x200B604`, verified
+  three ways each (see the sections above). Effects editable on both; accessory *names* stay
+  read-only because they resolve through menu code.
+- [~] **`0x35E958` — a 112-record cost table** (the old "`0x35EA60` unidentified" entry, with
+  the base corrected). Layout fully decoded — `[category][id][cost u16][slot][pad]`, three
+  categories, a 1..31 slot run — and the costs are on the Skill Point scale, but which list
+  the ids index is still open and the guide's cost *sequence* does not align. Disc 1 only.
+  Written up above; one in-game cost reading would settle it.
 - [ ] Blocked on runtime (PCSX2) or deep static RE: character growth curves, global battle
   constants, field-enemy placement/detection.
 
@@ -1465,6 +1464,116 @@ instead of the skill catalog, so nothing names them yet. Equipment names are
 already known to resolve through menu code rather than a pointer table, which
 is exactly the shape this has. Not exposed until something names them; this is
 research target 2 of issue #5, now with an address to start from.
+
+### 2026-08-25 — E.S. ACCESSORY EFFECTS SOLVED (the passive table's 40-record tail)
+
+**40 records at `0x200B604` (disc 1), same 12-byte layout as the passives**, one
+per entry of `x2_es_equip.json` plus 予備 placeholders. Exposed as `F.GEAR_*`
+and editable in the web editor's Gear tab. Effects only — names stay read-only,
+because these records' `+0x00`/`+0x02` pointers land in a numeric pool rather
+than the skill name pool, exactly as the standing "equipment names resolve
+through menu code" finding predicts.
+
+Three independent confirmations:
+
+1. **The shipped catalog's own descriptions predict the retail bytes** on 9 of 9
+   checkable anchors: Auxiliary Armor A "Arm +30" is (kind `0x80`, param 30,
+   mask ARM), Auxiliary Armor B +40, EF Circuit A/B "Edef +20/+30", the four
+   Anti-* Armors each carry precisely their element bit, Tuned Circuit
+   "Agility +1".
+2. **The thirteen G-guards carry the same status mask *and* kind byte as their
+   non-G passive twins** — G Slow Guard `0x0100` = Slow Guard `0x0100`, G Lost
+   Guard kind `0x52` = Lost Guard kind `0x52` — 10 of 10 checkable. Two tables
+   located separately, agreeing bit for bit.
+3. **HardType's readme names its rebalanced accessories with exact values, and
+   all 11 records it patches here match**: POW/EATK +20/+40/+60/+100 land as
+   (`0x80`, that number, POW or EATK), Gorgon Frame +60 and Prism Frame +100 as
+   ARM|EDEF, Fine Circuit +10 as DEX|EVA.
+
+Point 3 **retracts** this file's claim that "HardType gives no anchor — its
+readme names +4 Str and +60 Arm but no patched bytes carry them". It patches
+eleven; they were in a table nobody had located.
+
+Placeholders occupy index space here too (three between Auxiliary Armor B and
+EF Circuit A, three more before Anti-Fire Armor, three trailing), so
+`F.GEAR_ES_ID` maps record index → catalog id with `None` for a spare. Same
+shape as the E.S. item ids and the skill table.
+
+**The stat mask is now all eight bits.** The six `+2` skills name their own stat
+(STR `0x80`, VIT `0x40`, DEX `0x20`, EVA `0x10`, EATK `0x08`, EDEF `0x04`), and
+the last two come from the only records using them — Tuned Circuit
+"Agility +1" (`0x02`) and Limiter Up "Increase max HP & EP 10%" (`0x01`). Those
+two rest on one anchor each. The E.S. side names the top two POW and ARM for the
+same bits, which is why `GEAR_STAT_BITS` exists alongside `PASSIVE_STAT_BITS`.
+
+### 2026-08-25 — The 13 records no front end applies, both identified
+
+These are what `apply-ppf` and the presets report as unreachable. Neither is a
+mystery any more; both are characterised, and one now has a proven safe method.
+
+#### 9 of them: `$zoom13;` battle captions (a method exists, not yet built)
+
+The renamed skills' captions, duplicated per battle script: `$zoom13;Miracle
+Star` appears **7 times** and `$zoom13;Annihilation` **twice**, and the mod
+patches exactly those nine and no others. A content scan finds all of them, so
+these were never really "unconfirmed offsets" — they are locatable the same way
+`locate_enemy_table()` works, by signature rather than by a constant.
+
+Two facts that settle how to support them:
+- **The mod is precise, not blind.** "Annihilation" also occurs 6 more times
+  *without* the `$zoom13;` prefix, and the mod leaves every one alone. So this
+  file's older warning about a "disc-wide byte replace that truncates Miracle
+  Star" overstates it for these records: the mod targets only the caption pool.
+- **Disc 2 carries them at the usual `-0x800`** — confirmed from the mod's own
+  disc-2 patch, whose entries for these nine sit exactly `0x800` below.
+
+There are 1,221 `$zoom13;` strings on disc 1, so this is a general mechanism,
+not a special case for two skills. The safe implementation is a scan for
+`$zoom13;<retail name>\0` with the existing in-place length rule (the caption
+copy is the same packed-pool problem as the name pool). Until that exists, a
+renamed skill keeps its retail name in battle captions — which is the only
+user-visible consequence of the 13.
+
+#### 4 of them: a 112-record cost table at `0x35E958` (structure solved, semantics open)
+
+This retires the "`0x35EA60` — unidentified" TODO entry, which had the base
+wrong by 0x108 and mistook part of the table for a bare u16 array.
+
+**6-byte records: `[category u8][id u8][cost u16][slot u8][pad u8=0]`**, 112
+records with a real cost, followed by 7 more at cost 0 before the padding.
+
+| category | ids | records |
+|---|---|---|
+| 0 | 1..28 | 28 |
+| 1 | 29..62 | 34 |
+| 2 | 1..51 | 50 |
+
+Categories 0 and 1 share one contiguous id space (1..62); category 2 has its
+own. **31 records carry a nonzero `slot`, and those form a clean 1..31 run**
+across all three categories — an ordering over a subset, and the slotted records
+skew expensive (300..9600).
+
+The costs are on the **Skill Point scale**: the multiset matches the 110 costs
+the skills guide publishes remarkably well — 15 of 21 buckets exact, and every
+rare high bucket exact (1800×2, 2400×3, 2800×2, 3200×3, 3600×5, 4000×2, 4800×1,
+7200×2, 8000×1, 9600×1). **But the sequence does not align** (best contiguous
+match 19/50), and per-skill checks fail: the table gives the STR+2/VIT+2 pair
+300 each where the guide says 100, and the DEX/EVA/EATK/EDEF quartet 200 where
+the guide says 150. The *shape* is right — pairs and quartets sharing a value —
+so it is plausibly a second cost axis (Class Points to unlock, versus Skill
+Points to learn) rather than the guide's column. **Not claimed as solved.**
+
+It is also **disc 1 only**: no copy on disc 2 at `0`, `-0x800` or `+0x800`, and
+the mod's disc-2 patch does not touch it at all — while that same patch does
+carry the nine captions at `-0x800`. So whatever indexes it is disc-1 content.
+
+What the mod does here is narrow and legible: it **swaps two pairs of entries**
+within category 2 — id 19 (cost 500, slot 7) with id 5 (cost 800), and id 35
+(cost 400) with id 38 (cost 1200) — re-pricing four things rather than editing
+any value. Consistent with its readme rebalancing Equip Abilities.
+
+Next step if anyone wants it pinned: read one known cost in-game against a
+specific record. One observation collapses the remaining ambiguity.
 
 #### RETRACTED — the negative result this replaced (kept for the method)
 

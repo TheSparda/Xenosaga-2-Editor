@@ -471,8 +471,85 @@ PASSIVE_KIND_NAMES = {
     0x40: "element/type resist",
     0x80: "stat bonus",
 }
-PASSIVE_STAT_BITS = {"STR": 0x80, "VIT": 0x40, "DEX": 0x20,
-                     "EVA": 0x10, "EATK": 0x08, "EDEF": 0x04}
+# All EIGHT bits, each anchored on a record whose description names the stat it
+# raises: STR+2/VIT+2/DEX+2/EVA+2/EATK+2/EDEF+2 give the top six directly, and
+# the last two come from the only records that use them — Tuned Circuit
+# "Agility +1" (0x02) and Limiter Up "Increase max HP & EP 10%" (0x01). Those
+# two rest on a single anchor each, unlike the six that pair with a +2 skill.
+PASSIVE_STAT_BITS = {"STR": 0x80, "VIT": 0x40, "DEX": 0x20, "EVA": 0x10,
+                     "EATK": 0x08, "EDEF": 0x04, "AGL": 0x02, "HP/EP": 0x01}
+# Same bits, the names the E.S. side of the game uses for the first two —
+# "Arm +30" on Auxiliary Armor A is bit 0x40, the bit VIT+2 uses on foot.
+GEAR_STAT_BITS = {"POW": 0x80, "ARM": 0x40, "DEX": 0x20, "EVA": 0x10,
+                  "EATK": 0x08, "EDEF": 0x04, "AGL": 0x02, "HP/EP": 0x01}
+
+
+# E.S. ACCESSORY / GEAR EFFECTS (VERIFIED 2026-08-25) — the passive table's tail.
+#
+# The 40 records immediately after the 64 passives are the **E.S. accessory
+# effect table**: identical 12-byte layout, its own mirrored run of Coats and
+# Guards. What it is was settled by three independent checks:
+#
+#  1. Retail effects predicted by the shipped catalog's own descriptions —
+#     Auxiliary Armor A "Arm +30" is (kind 0x80, param 30, mask ARM), EF Circuit
+#     A "Edef +20", the four Anti-* Armors carry exactly their element bit,
+#     Tuned Circuit "Agility +1". Nine anchors, matched in catalog order.
+#  2. The thirteen G-guards carry the SAME status mask AND kind byte as their
+#     non-G passive twins (G Slow Guard 0x0100 = Slow Guard 0x0100, G Lost Guard
+#     kind 0x52 = Lost Guard kind 0x52, ...) — two tables agreeing that were
+#     located separately.
+#  3. **HardType's readme names its rebalanced E.S. accessories with exact
+#     values, and all eleven records it patches here match**: POW/EATK +20, +40,
+#     +60 and +100 land as (0x80, 20/40/60/100, POW or EATK), Gorgon Frame +60
+#     and Prism Frame +100 as ARM|EDEF, Fine Circuit +10 as DEX|EVA. 11/11.
+#
+# This retires the note that "HardType gives no anchor for accessory effects" —
+# it gives eleven, they were simply in an unlocated table.
+#
+# The id space is the UNIFIED item id space, so it carries 予備 placeholders:
+# three spares sit between Auxiliary Armor B and EF Circuit A, three more before
+# Anti-Fire Armor, and three trail the end. GEAR_ES_ID maps a record index to
+# its `x2_es_equip.json` id, or None for a placeholder — the same "placeholders
+# occupy index space" shape that solved the E.S. item ids and the skill table.
+#
+# Names are NOT editable here. These records' `+0x00`/`+0x02` pointers do not
+# resolve into the skill name pool (they land in a numeric pool), which matches
+# the standing finding that equipment names resolve through menu code rather
+# than a pointer table. Effects are editable; names are read from the catalog.
+GEAR_COUNT = 40
+GEAR_TEXT0 = PASSIVE_COUNT          # record index within the shared table
+_GEAR_SPARES = (2, 3, 4, 7, 8, 9, 37, 38, 39)
+
+
+def _gear_es_ids():
+    """record index -> x2_es_equip id, None for a 予備 placeholder slot."""
+    out, nxt = {}, 0
+    for k in range(GEAR_COUNT):
+        if k in _GEAR_SPARES:
+            out[k] = None
+        else:
+            out[k] = nxt
+            nxt += 1
+    return out
+
+
+GEAR_ES_ID = _gear_es_ids()
+
+
+def gear_base(disc):
+    """The tail starts immediately after the exposed passive records."""
+    return passive_base(disc) + PASSIVE_COUNT * PASSIVE_STRIDE
+
+
+def gear_record_off(disc, index):
+    if not (0 <= index < GEAR_COUNT):
+        return None
+    return gear_base(disc) + index * PASSIVE_STRIDE
+
+
+def gear_indices():
+    """Record indices that name a real accessory (placeholders excluded)."""
+    return [k for k in range(GEAR_COUNT) if GEAR_ES_ID.get(k) is not None]
 
 
 def passive_base(disc):
@@ -1337,6 +1414,21 @@ def web_tables():
             "kindNames": {str(k): v for k, v in sorted(PASSIVE_KIND_NAMES.items())},
             "statBits": PASSIVE_STAT_BITS,
             "elementBits": SKILL_ELEMENT_BITS,
+        },
+        # E.S. accessory effects: the passive table's 40-record tail, same
+        # layout. Effects editable, names read-only (they resolve through menu
+        # code, not a pointer table) — so this ships the record->catalog id map
+        # rather than a name offset. None = 予備 placeholder slot.
+        "gear": {
+            "tables": {str(d): gear_base(d) for d in sorted(PASSIVE_BASE)},
+            "stride": PASSIVE_STRIDE,
+            "count": GEAR_COUNT,
+            "fields": fields(PASSIVE_FIELDS),
+            "kindOff": PASSIVE_KIND_OFF,
+            "kindNames": {str(k): v for k, v in sorted(PASSIVE_KIND_NAMES.items())},
+            "statBits": GEAR_STAT_BITS,
+            "elementBits": SKILL_ELEMENT_BITS,
+            "esIds": {str(k): v for k, v in sorted(GEAR_ES_ID.items())},
         },
         # Player units: 15 records before the enemy table, same 0x5C layout.
         # Verified fields only; names come from Editor/x2_units.json.
