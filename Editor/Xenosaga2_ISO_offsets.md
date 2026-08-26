@@ -1531,6 +1531,60 @@ the last two come from the only records using them — Tuned Circuit
 two rest on one anchor each. The E.S. side names the top two POW and ARM for the
 same bits, which is why `GEAR_STAT_BITS` exists alongside `PASSIVE_STAT_BITS`.
 
+### 2026-08-26 — Compare-to-retail across all six panes, and two bugs it exposed
+
+`gen_effect_catalog.py` generates the retail baselines that did not exist: the 64
+passive/equip effect records, the 31 named E.S. accessory effects, and the 112
+skill purchase costs. Same contract as the other generators — read off the discs,
+write gated on **both discs agreeing record for record**. They do, on every value.
+
+The gap was real rather than cosmetic. Those three tables had been editable since
+v1.10.0/v1.11.0 with nothing able to say what their retail values were, so
+"Compare to retail" answered for enemies, units and skills and said **nothing at
+all** about the other three — not "these match", nothing — which reads as "there
+is nothing to report" while a changed equip-skill magnitude sits there.
+
+Two bugs surfaced only because something finally compared these fields:
+
+**1. The web editor's skill buffer started four bytes too late.** `x2fields.skill_base()`
+is `min(block bases) + SKILL_TARGET_OFF` and says why in its own docstring —
+Target lives at `base-0x04`, so the buffer must start below the first block. The
+web recomputed it as `min(block bases)` and dropped the four bytes, which put
+`undefined` in the first record's Target slot (skill 220, the first chaos tech).
+It stayed invisible for as long as nothing compared Target to anything:
+`undefined !== undefined` is false, so the write review reported no difference and
+never formatted the value. The first comparison against a real baseline threw a
+`TypeError` out of `targetText()`. `skill_base` is now exported through
+`web_tables()` so the two front ends cannot disagree about it again.
+
+**2. `Target` was never in the web's retail key map**, though the catalog has
+carried `numeric.target` since the skill table was decoded — so the one field that
+turns a skill into an AoE was the one field the comparison could not answer for.
+That alone was 176 of the 461 unanswerable fields.
+
+**A false positive worth recording as a rule.** The placeholder records are named
+`予備` in the catalog and are read back from the disc as latin1, so the two never
+match and every comparison opened with a permanent phantom difference. A name is
+only comparable when the **retail** name is representable in the encoding the
+buffers are read as; otherwise it is counted as unanswerable, not as an edit.
+
+**Verified against a retail image, both directions.** With the real disc-1 table
+bytes loaded, the comparison reports **every editable field across all six panes
+matches** with exactly **one** unanswerable field (the 予備 name above) — down
+from 461. Staging HardType then reports **252 records / 618 fields** across
+enemies (125), skills (101), passives (11), gear (11) and costs (4) — the gear and
+cost counts matching this file's own independent findings, 11 patched accessories
+and two swapped id pairs. `Stage restore` returns it to a clean match.
+
+`Stage restore` was extended to the same six panes at the same time. Leaving it
+enemies-only stopped being defensible once the button beside it could report 252
+records and this one could only fix 125.
+
+**What is still not compared, and is now said out loud in the dialog:** description
+*text*. It is not a field, so a patch that rewrites descriptions can show a clean
+field match while pending changes remain. That is two different questions rather
+than a contradiction, but it looks like one if nobody says so.
+
 ### 2026-08-26 — Web editor: a Templates tab, and the enemy card collapsed
 
 Not a data finding; recorded because two of the decisions constrain future work.
