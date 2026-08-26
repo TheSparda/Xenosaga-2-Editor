@@ -5,15 +5,22 @@ The web editor ships two one-click preset buttons that stage the HardType
 mod's table edits without the user supplying the .ppf. This script derives
 that data: it parses the mod's four patches (Normal/Hard difficulty x two
 discs, in the gitignored `Hard Mode Mod/` folder), keeps only the records
-that land wholly inside a table the editor maps (enemy stats, rewards,
-skill blocks, unit table — the same extents web bufferMap() stages into),
-and writes them as disc-1-layout records.
+that land wholly inside a buffer the editor maps (enemy stats, rewards,
+skill blocks, unit table, and the skill text span — the same extents web
+bufferMap() stages into), and writes them as disc-1-layout records.
 
-What is deliberately EXCLUDED, and why:
-  - the mod's text edits (skill renames like Miracle -> Flare): they are done
-    by a disc-wide byte replace that also truncates "Miracle Star" — the
-    offsets doc records this as corruption. Rename cleanly in the Skills tab.
-  - a handful of records outside any mapped table (code patches).
+Included since the passive/equip table was located: the mod's skill renames
+and rewritten descriptions, and its passive effect changes (Ice Coat -> STR+4
+and friends), both of which live inside the skill text span.
+
+What is still EXCLUDED, and why — 13 records, 64 bytes:
+  - 9 duplicate copies of a renamed skill's battle caption ("$zoom13;Miracle
+    Star") sitting far out in the disc, outside every located table. Applying
+    them means writing at raw offsets nothing has confirmed, which is exactly
+    what the notes forbid. Consequence: a renamed skill keeps its retail name
+    in battle captions.
+  - 4 bytes in an unidentified low table around 0x35EA9D (two id values
+    swapped). Not mapped, so not written.
 
 Per-disc nuance: the mod's D1 and D2 patches are the usual -0x800 shift of
 each other EXCEPT one byte per variant where the two discs get different
@@ -46,7 +53,8 @@ SOURCE = "Xenosaga Episode II HardType v3.9 by Landon Ray (1945)"
 
 
 def parse_ppf(path):
-    b = open(path, "rb").read()
+    with open(path, "rb") as fh:
+        b = fh.read()
     if b[:5] != b"PPF30":
         raise SystemExit(f"{path}: not a PPF3.0 patch")
     blockcheck, undo = b[57], b[58]
@@ -65,13 +73,21 @@ def parse_ppf(path):
 
 
 def extents():
-    """Disc-1 extents of every table the web editor stages into (bufferMap)."""
+    """Disc-1 extents of every buffer the web editor stages into (bufferMap).
+
+    `text` is last for the same reason bufferMap checks it last: the skill text
+    span is a bounding box wide enough to swallow the enemy and skill tables,
+    so a record is only attributed to it once every precise table has declined.
+    It carries the mod's skill renames and descriptions AND — because the
+    passive/equip table sits inside that span — its passive effect edits.
+    """
     et = F.ENEMY_TABLES[1]
     return {
         "stats": (et["stats"], 125 * 0x5C),
         "rewards": (et["rewards"], 125 * F.REWARD_STRIDE),
         "skills": (F.skill_base(1), F.skill_span(1)),
         "units": (F.UNIT_TABLES[1], F.UNIT_COUNT * 92),
+        "text": F.skill_text_span(1),
     }
 
 
@@ -89,7 +105,8 @@ def _describe(off, ext):
         rel = off - ext["stats"][0]
         i, fo = divmod(rel, 0x5C)
         try:
-            name = json.load(open(os.path.join(HERE, "x2_enemies.json")))[str(i)]["name"]
+            with open(os.path.join(HERE, "x2_enemies.json")) as fh:
+                name = json.load(fh)[str(i)]["name"]
         except Exception:
             name = f"enemy {i}"
         field = ""
@@ -158,7 +175,8 @@ def main(argv):
     text = render()
     if check:
         try:
-            committed = open(OUT).read()
+            with open(OUT) as fh:
+                committed = fh.read()
         except FileNotFoundError:
             print("web/hardtype.json is missing — run Editor/gen_hardtype.py")
             return 1

@@ -16,7 +16,7 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   **`.sps`/`.xps`** (SharkPort), **`.cbs`** (CodeBreaker) and **`.max`** (AR Max / MAX
   Drive). Powered by the real Python engine compiled to WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
-  one**, in two tabs:
+  one**, in four tabs:
   - **Enemies** — **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle rewards**
     (EXP, SP, CP), **damage affinities**, **status resistances**, **item drops**, **Break
     sequences** and **breakable zones** for all 125 records, with search, one-click
@@ -25,6 +25,13 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
   - **Skills** — **name, EP cost, target (single ↔ AoE), power and element** for all **176**
     verified skill records: Ether, Double and Dual skills, every character's single techs,
     E.S. attacks and Special attacks — each shown by its in-game name.
+  - **Passives** — the **equip skills**: the ten Guards, the eight Coats, HP/ST Mind,
+    Break B10/B15, Rare+10/+30, the +2 stat skills and the rest, across **64** verified
+    12-byte records. Retune what a passive is worth — its magnitude, or for the Coats and
+    Guards the element/status it resists, shown as checkboxes rather than a raw mask — and
+    rename it. About a quarter of them read zero across the effect field because their
+    behaviour is battle code rather than table data; the editor says so instead of offering
+    a number that does nothing.
   - **Units** — the **new-game starting stats** (HP, EP, STR, VIT, EATK, EDEF, DEX, EVA,
     AGL) for every character and E.S. unit, plus their eight **damage affinities** — give a
     character a fire weakness or beam immunity. Verified against the save format, which
@@ -236,9 +243,10 @@ python3 x2patch.py xdelta-apply mymod.xdelta --pristine "…pristine.iso" --out 
 
 Difficulty mods for this game ship as **PPF** patches. Instead of applying one
 blind, the editor imports it: **⬆ Import .ppf** parses the patch, stages every
-byte that lands in a table it maps — enemy stats, rewards, drops, units, and all
-176 skill/tech records — and tells you exactly what it could not reach
-(typically description text). Nothing writes until you review and Save, the
+byte that lands in a table it maps — enemy stats, rewards, drops, units, all 176
+skill/tech records, the 64 passive/equip records, and skill names and
+descriptions — and tells you exactly what it could not reach. Nothing writes
+until you review and Save, the
 staged values show up field-by-field in every tab with retail comparison intact,
 and you can tweak them before committing. The CLI equivalent:
 
@@ -246,9 +254,16 @@ and you can tweak them before committing. The CLI equivalent:
 python3 x2patch.py apply-ppf "…(Disc 1).iso" mod.ppf --dry-run
 ```
 
-On Landon Ray's XS2HT v3.9 Hard, that stages 528 of 661 records; the remaining
-133 are skill-description strings and one small unmapped table, reported rather
-than silently skipped.
+On Landon Ray's XS2HT v3.9 Hard, that stages **648 of 661** records. The 13 it
+does not are nine duplicate copies of a renamed skill's *battle caption*, which
+sit outside every located table, and four bytes in an unidentified one — writing
+those would mean writing at offsets nothing has confirmed, so they are reported
+rather than silently skipped. The practical effect is that a renamed skill keeps
+its retail name in battle captions.
+
+You do not need the `.ppf` to get this one: the ISO editor ships **HardType
+(Normal)** and **HardType (Hard)** as one-click presets, generated from the
+mod's own patches, staged for review exactly like an import.
 
 ### What does someone else's mod change?
 

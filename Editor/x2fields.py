@@ -407,6 +407,98 @@ SKILL_ELEMENT_BITS = {"Beam": 0x01, "Aura": 0x02, "Thunder": 0x04,
                       "Fire": 0x08, "Ice": 0x10,
                       "Pierce": 0x20, "Slash": 0x40, "Hit": 0x80}
 
+# PASSIVE / EQUIP SKILL TABLE (VERIFIED 2026-08-25) — 12-byte records.
+#
+# The band the notes long called "catalog-only" (Inner Peace, Double Power, the
+# ten Guards, the eight Coats, HP/ST Mind, the +2 stat skills) DOES have numeric
+# records. They were missed by every earlier scan because the search assumed the
+# 32-byte active-skill layout: these are **12 bytes**, and their magnitude is a
+# single byte inside a 4-byte packed effect field rather than a strided column.
+#
+#   +0x00 u16  NAME offset,  relative to the table base itself
+#   +0x02 u16  DESC offset,  same base — records name themselves, which is what
+#              pins the mapping to the skill catalog with no order assumption
+#   +0x04 u32  flags (0x80000000 on most; meaning unverified)
+#   +0x08 u8   sub-selector / secondary flags        [unverified name]
+#   +0x09 u8   EFFECT KIND — see PASSIVE_KIND_NAMES below
+#   +0x0A u8   PARAMETER — magnitude for scalar kinds, element/status MASK for
+#              the typed kinds (Coats, Guards). Polymorphic on purpose: this is
+#              the one byte a modder actually wants.
+#   +0x0B u8   target-stat mask on kind 0x80 (STR 0x80, VIT 0x40, DEX 0x20,
+#              EVA 0x10, EATK 0x08, EDEF 0x04)
+#
+# HOW IT WAS VERIFIED, two independent ways:
+#   1. The parameter byte equals the number in the skill's OWN description on
+#      20/20 of the scalar passives that publish one — Break B10/B15 -> 10/15,
+#      Experience Up 10/15, Skill Up 10/15, Focus 1/2 -> 10/15, Guard -> 20,
+#      CRTC+5 -> 5, Rare+10/+30 -> 10/30, Limiter Up -> 10, the six stat
+#      skills -> 2. Nothing was fitted; the text was never used to find them.
+#   2. On the eight Coats the parameter is an element MASK, and it matches the
+#      documented affinity bit order 8/8 — Flame 0x08, Ice 0x10, Thunder 0x04,
+#      Aura 0x02, Blade 0x40, Spear 0x20, Hammer 0x80, Beam 0x01. That is the
+#      same bit order AFFINITY_ELEMENTS uses, arrived at from a different table.
+# Byte-identical on disc 2 at the usual -0x800.
+#
+# WHAT IS NOT HERE: ~18 passives read 0 across the whole effect field (Inner
+# Peace, Damage-10, Revenge Power, Combo Boost, Samurai/Knight Soul, Rebound,
+# First Combo, Ether Burst...). Their behaviour is in battle code, not in this
+# record — so those remain #4 material and the editor says so rather than
+# offering a number that does nothing.
+#
+# THE TAIL (records 64..103) is real data with the same layout and a mirrored
+# effect set (its own run of Coats and Guards), but its name pointers land in a
+# numeric string pool rather than the skill catalog, so nothing names them yet.
+# Strong lead for the unlocated accessory/equipment effect table (they would be
+# equipment granting passive effects, and equipment names are already known to
+# resolve through menu code rather than a pointer table). Deliberately NOT
+# exposed until something names them — see the ISO TODO.
+PASSIVE_BASE = {1: 0x200B304, 2: 0x200B304 - 0x800}
+PASSIVE_STRIDE = 12
+PASSIVE_COUNT = 64                 # exposed: catalog text indices 110..173
+PASSIVE_TAIL_COUNT = 40            # located, unnamed — not exposed
+PASSIVE_TEXT0 = 110                # catalog index of record 0
+PASSIVE_FIELDS = [                 # exposed, editable
+    ("Param", 0x0A, 1, "num"),
+    ("StatMask", 0x0B, 1, "num"),
+]
+PASSIVE_KIND_OFF = 0x09
+PASSIVE_KIND_NAMES = {
+    0x00: "coded (no numeric effect)",
+    0x02: "EP/stock",
+    0x04: "reward gain",
+    0x08: "percentage",
+    0x20: "status resist",
+    0x40: "element/type resist",
+    0x80: "stat bonus",
+}
+PASSIVE_STAT_BITS = {"STR": 0x80, "VIT": 0x40, "DEX": 0x20,
+                     "EVA": 0x10, "EATK": 0x08, "EDEF": 0x04}
+
+
+def passive_base(disc):
+    try:
+        return PASSIVE_BASE[disc]
+    except KeyError:
+        raise KeyError(f"no passive table known for disc {disc!r}") from None
+
+
+def passive_span(disc=1):
+    """Bytes covering the exposed records only (the unnamed tail is excluded)."""
+    return PASSIVE_COUNT * PASSIVE_STRIDE
+
+
+def passive_record_off(disc, text_index):
+    """Absolute ISO offset of a passive's 12-byte record, or None."""
+    if not (PASSIVE_TEXT0 <= text_index < PASSIVE_TEXT0 + PASSIVE_COUNT):
+        return None
+    return passive_base(disc) + (text_index - PASSIVE_TEXT0) * PASSIVE_STRIDE
+
+
+def passive_indices():
+    """Every skill catalog index backed by a verified passive record."""
+    return list(range(PASSIVE_TEXT0, PASSIVE_TEXT0 + PASSIVE_COUNT))
+
+
 def skill_blocks(disc):
     try:
         return SKILL_BLOCKS[disc]
@@ -1231,6 +1323,20 @@ def web_tables():
             # the text pool the editable names live in — one span covering
             # every catalog nameOff, so a front-end can rename in place
             "textSpan": {str(d): list(skill_text_span(d)) for d in (1, 2)},
+        },
+        # Passive / equip skills: 12-byte records, catalog indices 110..173.
+        # These sit INSIDE the skill text span, so a front-end that already
+        # holds the text buffer can edit them without reading anything more.
+        "passive": {
+            "tables": {str(d): b for d, b in sorted(PASSIVE_BASE.items())},
+            "stride": PASSIVE_STRIDE,
+            "count": PASSIVE_COUNT,
+            "text0": PASSIVE_TEXT0,
+            "fields": fields(PASSIVE_FIELDS),
+            "kindOff": PASSIVE_KIND_OFF,
+            "kindNames": {str(k): v for k, v in sorted(PASSIVE_KIND_NAMES.items())},
+            "statBits": PASSIVE_STAT_BITS,
+            "elementBits": SKILL_ELEMENT_BITS,
         },
         # Player units: 15 records before the enemy table, same 0x5C layout.
         # Verified fields only; names come from Editor/x2_units.json.

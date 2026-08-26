@@ -983,13 +983,23 @@ def parse_ppf(path):
     return recs
 
 def _mapped_spans(disc):
-    """[(base, length), ...] of every table this editor understands."""
+    """[(base, length), ...] of every region this editor understands.
+
+    The skill text span is LAST and is deliberately the widest: it is a bounding
+    box, not a table, so a record may only be attributed to it once every
+    precise table has declined. It carries a patch's skill renames and rewritten
+    descriptions, and — because the passive/equip table sits inside it — the
+    passive effect records too. Kept in step with the web editor's bufferMap()
+    and Editor/gen_hardtype.py; all three must agree or a patch stages
+    differently depending on which front end you used.
+    """
     t = F.enemy_tables(disc)
     return [
         (F.unit_tables(disc), F.UNIT_COUNT * F.ENEMY_STRIDE),
         (t["stats"], F.ENEMY_COUNT * F.ENEMY_STRIDE + F.enemy_record_tail()),
         (t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE),
         (F.skill_base(disc), F.skill_span(disc)),
+        F.skill_text_span(disc),
     ]
 
 def cmd_apply_ppf(a):
@@ -1004,8 +1014,9 @@ def cmd_apply_ppf(a):
     rest = len(recs) - len(doable)
     print(f"{len(recs)} record(s) in the patch; {len(doable)} land in mapped "
           f"tables ({sum(len(d) for _o, d in doable)} bytes)"
-          + (f"; {rest} do NOT (text/unmapped regions — use a PPF tool for those)"
-             if rest else ""))
+          + (f"; {rest} do NOT — they fall outside every located table, so writing "
+             f"them would mean writing at unconfirmed offsets. Use a PPF tool on a "
+             f"pristine image if you need those too." if rest else ""))
     if a.dry_run:
         print("(dry run — nothing written)")
         return 0
