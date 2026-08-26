@@ -8,17 +8,9 @@
 // someone saves, so it gets covered here rather than by eye.
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const src = fs.readFileSync(path.join(WEB, "iso.js"), "utf8");
-
-function slice(startMarker, endMarker) {
-  const a = src.indexOf(startMarker);
-  if (a < 0) throw new Error("not found in iso.js: " + startMarker);
-  const b = src.indexOf(endMarker, a);
-  if (b < 0) throw new Error("no end marker after " + startMarker);
-  return src.slice(a, b);
-}
+import { between, isoSource, WEB } from "./extract.mjs";
+const src = isoSource();
+const slice = (startMarker, endMarker) => between(src, startMarker, endMarker);
 
 const runsAgainst = eval("(" + slice("function runsAgainst(T,base){", "\n  // Run `fn`") + ")");
 // withScratch closes over the six edit buffers; hand it a scope that has them
