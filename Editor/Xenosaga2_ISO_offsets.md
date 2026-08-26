@@ -1531,6 +1531,47 @@ the last two come from the only records using them — Tuned Circuit
 two rest on one anchor each. The E.S. side names the top two POW and ARM for the
 same bits, which is why `GEAR_STAT_BITS` exists alongside `PASSIVE_STAT_BITS`.
 
+### 2026-08-26 — Web editor: a Templates tab, and the enemy card collapsed
+
+Not a data finding; recorded because two of the decisions constrain future work.
+
+**Preview runs on scratch buffers.** `withScratch()` swaps every edit buffer for
+a throwaway copy, runs the caller, and restores in a `finally`. The Templates tab
+applies a template to the copies, renders the diff off them, and throws them
+away — so selecting a template stages nothing, and a preview that throws cannot
+strand the editor on scratch buffers. Anything else added to the pane must go
+through it; reading the live buffers would stage a template merely by displaying
+it, and the user's own pending edits would go with it.
+
+**`reviewRows()` became `changeRows(pick)`**, parameterised by which baseline
+each buffer is compared against — `T.orig` for the write confirmation, the
+current staged bytes for the template preview. Same rows, same grouping, one
+function. While generalising it, three panes turned out to be missing entirely:
+**passives, gear and skill costs were never listed in the write review**, so
+staging the HardType preset showed a confirmation dialog that silently omitted
+everything it did to those three tables. They are in now. A review that omits a
+pane is worse than no review, because it reads as "that is everything".
+
+The cost rows show **Type/Id/Slot as well as Cost** on purpose: the mod re-prices
+four ethers by *swapping id bytes*, which a Cost-only view renders as "nothing
+changed" on records whose cost is untouched.
+
+**What the preview cannot itemise**, and says so rather than hiding: rewritten
+skill *descriptions*. They are text in the same region as fields we model but
+belong to no field, so they are counted as byte runs instead of rendered as rows.
+
+**Composability was the open question and it is settled as: layer, but say so.**
+The preview counts how many of the user's own changed bytes a template would
+overwrite, Accept layers, and Replace reverts first. Silently layering (what the
+old preset buttons did) is wrong for something presented as a coherent whole; so
+is silently replacing.
+
+The enemy card's six control blocks are now `<details>`, closed by default, with
+the open set remembered in `localStorage` per SECTION rather than per enemy —
+`loadEnemy()` refills the tables inside them without replacing the elements, so a
+section stays open while paging through 125 enemies. Without that, a disclosure
+control is worse than none.
+
 ### 2026-08-25 — The 13 records no front end applies, both identified
 
 These are what `apply-ppf` and the presets report as unreachable. Neither is a
