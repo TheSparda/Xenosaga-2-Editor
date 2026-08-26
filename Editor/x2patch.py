@@ -999,6 +999,7 @@ def _mapped_spans(disc):
         (t["stats"], F.ENEMY_COUNT * F.ENEMY_STRIDE + F.enemy_record_tail()),
         (t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE),
         (F.skill_base(disc), F.skill_span(disc)),
+        (F.skill_cost_base(disc), F.skill_cost_span(disc)),
         F.skill_text_span(disc),
     ]
 
@@ -1011,12 +1012,27 @@ def cmd_apply_ppf(a):
     spans = _mapped_spans(disc)
     inside = lambda off, n: any(b <= off and off + n <= b + ln for b, ln in spans)
     doable = [(o, d) for o, d in recs if inside(o, len(d))]
-    rest = len(recs) - len(doable)
+    rest = [(o, d) for o, d in recs if not inside(o, len(d))]
+    # Battle captions have no table, so nothing above can claim them — but they
+    # are locatable by content, and a record that lands inside a caption THIS
+    # image's own scan just found is not a write at an unconfirmed offset. That
+    # is the whole difference, and it is why the scan has to happen here rather
+    # than a list of known caption offsets being hardcoded.
+    caps = []
+    if rest and a.captions:
+        with Iso(a.iso) as iso:
+            cspans = caption_spans(iso)
+        in_cap = lambda off, n: any(b <= off and off + n <= b + ln for b, ln in cspans)
+        caps = [(o, d) for o, d in rest if in_cap(o, len(d))]
+        rest = [(o, d) for o, d in rest if not in_cap(o, len(d))]
+        doable += caps
     print(f"{len(recs)} record(s) in the patch; {len(doable)} land in mapped "
           f"tables ({sum(len(d) for _o, d in doable)} bytes)"
-          + (f"; {rest} do NOT — they fall outside every located table, so writing "
-             f"them would mean writing at unconfirmed offsets. Use a PPF tool on a "
-             f"pristine image if you need those too." if rest else ""))
+          + (f", {len(caps)} of them inside battle captions located by scanning "
+             f"this image" if caps else "")
+          + (f"; {len(rest)} do NOT — they fall outside every located table, so "
+             f"writing them would mean writing at unconfirmed offsets. Use a PPF "
+             f"tool on a pristine image if you need those too." if rest else ""))
     if a.dry_run:
         print("(dry run — nothing written)")
         return 0
@@ -1759,8 +1775,196 @@ def write_skill_name(iso, i, new):
     iso.write(cur["off"], data.ljust(cur["budget"], b"\x00"))
     return cur
 
+# ---------------------------------------------------------------------------
+# BATTLE CAPTIONS — the label a skill flashes on screen when it fires, stored
+# per battle script as `$zoom13;<name>` and duplicated. See x2fields' BATTLE
+# CAPTIONS block for why these are safe to write despite having no table.
+#
+# Everything here is content-addressed, and that is the point. Nothing below
+# holds, caches or writes a constant offset: a caption is only ever written at an
+# offset a scan of THIS image just returned. That is what separates it from the
+# "writing at unconfirmed offsets" the notes forbid, and it means the code works
+# unchanged on an image whose files have moved.
+# ---------------------------------------------------------------------------
+CAPTION_MAX = 64            # longest caption text read back; retail's are < 20
+
+def scan_captions(iso, region=None, max_len=CAPTION_MAX):
+    """[(offset, text), ...] for EVERY `$zoom13;` caption on the image.
+
+    One pass for the whole disc, whatever the caller wanted out of it. Scanning
+    per skill is the obvious shape and the wrong one: a pass over a 4.6 GB image
+    costs about a minute, and putting 190 name needles in that pass costs 190
+    buffer searches per chunk. Harvesting the single prefix and matching the text
+    afterwards is one needle and one pass, and it yields the disc's whole caption
+    census for free.
+
+    `offset` points at the PREFIX, so a rewrite lands at offset + len(prefix).
+    """
+    start, end = region or (0, None)
+    # Materialise the offsets before reading any of them. find_multi streams
+    # through the same file handle this loop would seek, so reading mid-iteration
+    # derails the scan and silently loses hits.
+    offs = [off for off, _n in
+            iso.find_multi([F.CAPTION_PREFIX], start=start, end=end)]
+    n = len(F.CAPTION_PREFIX)
+    return [(off, iso.read(off + n, max_len).split(b"\x00", 1)[0].decode("latin1"))
+            for off in offs]
+
+def caption_owners(iso, captions=None, indices=None):
+    """Attribute captions to skills. Returns (owned, ambiguous).
+
+    `owned` is {skill index: [(offset, text), ...]}; `ambiguous` is
+    {text: [index, ...]} for captions more than one skill could claim.
+
+    A caption is matched against BOTH the skill's retail catalog name and the
+    name currently in the disc's name pool. Both are needed and neither is
+    sufficient on its own:
+
+      - retail alone stops finding a skill's captions the moment they have been
+        rewritten once, so a second rename would silently do nothing;
+      - current alone misses the half-applied disc a patch import leaves behind,
+        where the name pool already says "Flare" while seven captions still say
+        "Miracle Star".
+
+    A name two skills both claim is attributed to neither and reported through
+    `ambiguous` — the alternative is renaming somebody else's caption.
+    """
+    caps = scan_captions(iso) if captions is None else captions
+    want = set(indices) if indices is not None else None
+    claims = {}                                  # text -> {index, ...}
+    for i, e in F.skill_catalog().items():
+        if want is not None and i not in want:
+            continue
+        retail = e.get("name") or ""
+        if not retail:
+            continue
+        names = {retail}
+        cur = read_skill_text(iso, i)
+        if cur and cur["name"]:
+            names.add(cur["name"])
+        for nm in names:
+            claims.setdefault(nm, set()).add(i)
+    owned, ambiguous = {}, {}
+    for off, text in caps:
+        who = claims.get(text)
+        if not who:
+            continue
+        if len(who) > 1:
+            ambiguous[text] = sorted(who)
+            continue
+        owned.setdefault(next(iter(who)), []).append((off, text))
+    return owned, ambiguous
+
+def caption_spans(iso, captions=None):
+    """[(start, length), ...] of every caption blob on the image, prefix included.
+
+    These are content-confirmed extents, not table offsets: the span exists
+    because a scan of THIS image just found the string sitting there. That is
+    what lets a patch importer write inside one without breaking the rule that
+    nothing is written at an offset nothing has confirmed.
+    """
+    caps = scan_captions(iso) if captions is None else captions
+    n = len(F.CAPTION_PREFIX)
+    return [(off, n + len(text) + 1) for off, text in caps]
+
+def caption_fits(retail, new):
+    """(ok, needed, budget) for writing `new` into a caption of `retail`."""
+    budget = F.caption_budget(retail)
+    needed = len(new.encode("latin1", errors="replace")) + 1
+    return needed <= budget, needed, budget
+
+def write_caption(iso, off, retail, new):
+    """Rewrite ONE caption in place, at an offset a scan just returned.
+
+    `off` points at the prefix. The budget comes from `retail` — the caption's
+    original text — not from whatever is on the disc now.
+    """
+    ok, needed, budget = caption_fits(retail, new)
+    if not ok:
+        raise SystemExit(
+            f"caption {new!r} needs {needed} bytes but {retail!r} only allotted "
+            f"{budget} — the caption pool is packed and cannot grow")
+    data = new.encode("latin1", errors="replace") + b"\x00"
+    # pad the full budget for the same reason the name pool does: a shorter
+    # replacement must not leave a fragment of the previous caption behind
+    iso.write(off + len(F.CAPTION_PREFIX), data.ljust(budget, b"\x00"))
+
+def rename_captions(iso, i, new, hits=None):
+    """Write `new` into every located caption of skill `i`. Returns how many.
+
+    Raises before writing anything if the name does not fit, so a skill's copies
+    can never end up half-rewritten.
+    """
+    retail = (F.skill_catalog().get(i) or {}).get("name") or ""
+    if hits is None:
+        owned, _amb = caption_owners(iso, indices=[i])
+        hits = owned.get(i, [])
+    if not hits:
+        return 0
+    ok, needed, budget = caption_fits(retail, new)
+    if not ok:
+        raise SystemExit(
+            f"skill {i}: {new!r} needs {needed} caption bytes but the retail "
+            f"caption {retail!r} only allotted {budget}")
+    for off, _text in hits:
+        write_caption(iso, off, retail, new)
+    return len(hits)
+
+def find_captions(path, indices, note=True):
+    """(owned, ambiguous) for one image on disc, opened read-only.
+
+    Separate from the write step, and the separation is load-bearing. A caption
+    is attributed by the text it currently holds, so this has to run BEFORE the
+    name pool is rewritten: once "Flare" has been overwritten with "Fire", the
+    disc holds no string tying the seven captions still reading "Flare" to that
+    skill, and a second rename finds nothing. Locating first is what makes
+    renaming repeatable.
+    """
+    if note:
+        print(f"  scanning {os.path.basename(path)} for battle captions "
+              f"(one pass over the image)…")
+    with Iso(path) as iso:
+        return caption_owners(iso, indices=list(indices))
+
+def apply_captions(path, plan, located):
+    """Write {index: new name} into the captions `located` found. (skills, copies).
+
+    Reports per skill rather than in aggregate, including the skills whose name
+    fitted the name pool but will not fit the caption — the two budgets are
+    independent, so "renamed" does not imply "caption renamed".
+    """
+    owned, ambiguous = located
+    skills = copies = 0
+    with Iso(path, write=True) as iso:
+        for i, new in sorted(plan.items()):
+            hits = owned.get(i, [])
+            retail = (F.skill_catalog().get(i) or {}).get("name") or ""
+            if not hits:
+                print(f"  skill {i}: no battle caption on this image "
+                      f"(not every skill has one)")
+                continue
+            ok, needed, budget = caption_fits(retail, new)
+            if not ok:
+                print(f"  ! skill {i}: {len(hits)} caption(s) left unchanged — "
+                      f"{new!r} needs {needed} bytes, the caption budget is "
+                      f"{budget}. The name pool allowed it; the caption pool is "
+                      f"a separate, shorter space.")
+                continue
+            copies += rename_captions(iso, i, new, hits)
+            skills += 1
+            print(f"  skill {i}: {len(hits)} battle caption(s) -> {new!r}")
+    for text, who in sorted(ambiguous.items()):
+        print(f"  ! caption {text!r} is claimed by skills {who} — left alone")
+    return skills, copies
+
 def cmd_skill_rename(a):
-    """Rename one skill, in place, within its existing byte budget."""
+    """Rename one skill, in place, within its existing byte budget.
+
+    Battle captions are rewritten too unless --no-captions is given. That costs
+    one scan pass per image, and it is the default because the alternative is a
+    rename that is visibly half-applied: the menu says "Flare" and the attack
+    still flashes "Miracle Star".
+    """
     with Iso(a.iso) as iso:
         require_version(iso)
         cur = read_skill_text(iso, a.index)
@@ -1772,17 +1976,78 @@ def cmd_skill_rename(a):
               f"(up to {cur['budget'] - 1} characters){renamed}")
         if cur["meta"]:
             print(f"  {cur['meta']}")
+        if a.captions:
+            with Iso(a.iso) as iso:
+                owned, _amb = caption_owners(iso, indices=[a.index])
+            hits = owned.get(a.index, [])
+            print(f"  {len(hits)} battle caption(s) at " +
+                  (", ".join(f"0x{o:X}" for o, _t in hits) if hits else "(none)"))
         return 0
     if a.backup:
         print(f"backup -> {backup(a.iso)}")
+    # locate before writing — see find_captions() for why the order matters
+    here = find_captions(a.iso, [a.index]) if a.captions else None
+    there = (find_captions(a.also, [a.index])
+             if a.captions and a.also else None)
     with Iso(a.iso, write=True) as iso:
         write_skill_name(iso, a.index, a.name)
     print(f"skill {a.index}: {cur['name']!r} -> {a.name!r}")
+    if here:
+        apply_captions(a.iso, {a.index: a.name}, here)
     if a.also:
         with Iso(a.also, write=True) as other:
             require_version(other)
             write_skill_name(other, a.index, a.name)
         print(f"  also written to {a.also}")
+        if there:
+            apply_captions(a.also, {a.index: a.name}, there)
+    return 0
+
+
+def cmd_captions(a):
+    """Locate battle captions by content and report who owns them.
+
+    Read-only on purpose: this is the census and the audit. Writing lives in
+    skill-rename, where there is a new name to write.
+    """
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        print(f"scanning {os.path.basename(a.iso)} (one pass over the image)…")
+        caps = scan_captions(iso)
+        idx = [a.index] if a.index is not None else None
+        owned, ambiguous = caption_owners(iso, caps, indices=idx)
+        names = {i: (read_skill_text(iso, i) or {}) for i in owned}
+    print(f"{len(caps)} battle caption(s) on this image")
+    if a.census:
+        counts = collections.Counter(t for _o, t in caps)
+        print(f"{len(counts)} distinct caption text(s); most duplicated:")
+        for text, n in counts.most_common(a.show):
+            print(f"  {n:>3}x  {text!r}")
+    if a.index is not None and not owned:
+        print(f"skill {a.index} has no battle caption on this image")
+    for i, hits in sorted(owned.items()):
+        cat = F.skill_catalog().get(i) or {}
+        cur = names.get(i, {}).get("name") or cat.get("name") or "?"
+        retail = cat.get("name") or ""
+        tag = "" if cur == retail else f"  [retail: {retail!r}]"
+        print(f"skill {i:>3} {cur!r}: {len(hits)} caption(s), "
+              f"{F.caption_budget(retail) - 1} char budget{tag}")
+        if a.verbose or a.index is not None:
+            for off, text in hits:
+                print(f"    0x{off:X}  {text!r}")
+    for text, who in sorted(ambiguous.items()):
+        print(f"! caption {text!r} is claimed by skills {who} — attributed to none")
+    if a.grep:
+        # The recovery path for an orphaned caption. Attribution is by content,
+        # so a caption stops being attributable if its skill was renamed with
+        # --no-captions and then renamed again: the disc still says "Flare"
+        # while the name pool has moved on to "Fire", and nothing links them.
+        # Searching the census by text finds it anyway.
+        q = a.grep.lower()
+        hits = [(o, t) for o, t in caps if q in t.lower()]
+        print(f"{len(hits)} caption(s) matching {a.grep!r}:")
+        for off, text in hits[:a.show]:
+            print(f"    0x{off:X}  {text!r}")
     return 0
 
 def read_skill_at(iso, off):
@@ -2101,7 +2366,10 @@ def main():
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--backup", action="store_true")
     sp.add_argument("--also", metavar="OTHER_ISO")
-    sp.set_defaults(fn=cmd_apply_ppf)
+    sp.add_argument("--no-captions", dest="captions", action="store_false",
+                    help="don't scan for battle captions; records that land in "
+                         "one are then reported as unreachable")
+    sp.set_defaults(fn=cmd_apply_ppf, captions=True)
 
     sp = sub.add_parser("xdelta-make",
                         help="create an xdelta patch (pristine ISO -> edited ISO)")
@@ -2166,7 +2434,24 @@ def main():
     sp.add_argument("--name")
     sp.add_argument("--backup", action="store_true")
     sp.add_argument("--also", metavar="OTHER_ISO")
-    sp.set_defaults(fn=cmd_skill_rename)
+    sp.add_argument("--no-captions", dest="captions", action="store_false",
+                    help="skip the battle captions: the rename then shows in "
+                         "menus but not in battle, and renaming again will no "
+                         "longer find those captions (see `captions --grep`)")
+    sp.set_defaults(fn=cmd_skill_rename, captions=True)
+
+    sp = sub.add_parser("captions",
+                        help="locate battle captions ($zoom13;) by content")
+    sp.add_argument("iso")
+    sp.add_argument("--index", type=int, help="only this skill")
+    sp.add_argument("--census", action="store_true",
+                    help="also summarise every caption on the disc")
+    sp.add_argument("--show", type=int, default=15,
+                    help="how many rows --census prints (default 15)")
+    sp.add_argument("--verbose", action="store_true", help="list every offset")
+    sp.add_argument("--grep", metavar="TEXT",
+                    help="find captions by text, whoever owns them")
+    sp.set_defaults(fn=cmd_captions)
 
     sp = sub.add_parser("skills", help="list the skill/tech catalog read off the disc")
     sp.add_argument("--grep", help="filter by name, tag or description text")

@@ -137,6 +137,39 @@ block would read as sixteen identical 20-power skills under the ether layout. Th
 refuses to address anything outside the two verified blocks. The full 174-skill text catalog
 (targeting, range, element, descriptions) is browsable regardless.
 
+#### Renaming a skill, including its battle captions
+
+A skill's name lives in a packed pool, so a new one has to fit the retail name's
+bytes — the editor tells you the budget and refuses anything longer rather than
+eating whatever follows.
+
+```bash
+python3 x2patch.py skill-rename "…(Disc 1).iso" 34               # inspect: name, budget, captions
+python3 x2patch.py skill-rename "…(Disc 1).iso" 34 --name Flare --also "…(Disc 2).iso"
+```
+
+The name in the menu is not the only place the game spells it. The label that
+flashes on screen when the skill fires is a **separate** string, `$zoom13;<name>`,
+duplicated once per battle script — "Miracle Star" carries seven copies, and a
+rename that touched only the menu pool left every one of them saying the retail
+name. `skill-rename` now rewrites those too, and `--no-captions` opts out.
+
+They have no table and never needed one: a single scan of the image finds all
+1,221 captions by content, the same way `locate_enemy_table()` finds a shifted
+enemy table. Nothing is written at a guessed offset — only at one this image's
+own scan just returned, which is also why it works on a disc whose files have
+moved.
+
+```bash
+python3 x2patch.py captions "…(Disc 1).iso" --census      # every caption on the disc
+python3 x2patch.py captions "…(Disc 1).iso" --index 34    # one skill, every copy
+```
+
+Captions are matched on the text they currently hold, so renaming the same skill
+twice keeps finding them. The one way to orphan a caption is to rename with
+`--no-captions` and then rename again — `captions --grep` finds it by text if you
+do.
+
 ### Status resistances
 
 Every enemy carries a percentage per status effect — **Slow, Blind, Heavy, Weak, EthPD,
