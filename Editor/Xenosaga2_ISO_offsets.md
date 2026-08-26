@@ -44,7 +44,7 @@ The icon.sys title carries the save name + playtime, e.g. `XenosagaEPII-01[30:18
 
 ### gamedata payload (VERIFIED — 20,832 bytes, from 20 PSV slots)
 ```
-0x0000  header: +0x08 u32 checksum-ish ("muY+"); +0x10 u8 counter
+0x0000  header: +0x08 u64 CHECKSUM (SOLVED — see below); +0x10 u32 save counter
 0x00D0  u32  GOLD                     (rises/falls with earning+spending)
 0x0174..0x0D44  embedded JPEG thumbnail (per-save screenshot)
 0x0D44..0x1174  ~1 KB high-entropy block (2nd image / packed state)  [TODO]
@@ -131,19 +131,52 @@ rather than risking a save the console reads as damaged (`Ps2Card.ecc_mode()`).
 Writes are length-preserving in-place patches only — nothing allocates, frees, or
 creates, so the filesystem can never be reshaped under the console.
 
-### Inventory (item catalog mapped; save offset needs ground truth)
-From the disc-1 pnach: **36 consumables** at EE RAM `0x61C800` (u16 quantity per id,
-cap 99, id = (addr-0x61C800)/2) and **107 key items** at EE RAM `0x61CC00` (u16
-have-flag per id). Full id→name maps saved as `Editor/x2_consumables.json` /
-`x2_keyitems.json` and exposed via `x2fields.consumable_names()` / `keyitem_names()`.
+### Inventory — SOLVED (all three arrays, 2026-08-25)
 
-The SAVE-side inventory offset is **not confirmed**: the save re-serializes the work
-RAM (not a linear copy), the 36 local samples hold almost no consumables (so there's
-little signal), and there's no known-inventory reference to verify a candidate. Two
-0/1 flag tables that accumulate with story progress were located at gamedata `0x28BA`
-(len ~255) and `0x2AE4` (len ~452) — these are key-items and/or event flags, but which
-is which can't be confirmed without ground truth. Cheapest unblock: one PCSX2 save
-with a known set of items → diff pinpoints both the consumable array and key-item table.
+From the disc-1 pnach: **36 consumables** at EE RAM `0x61C800` (u16 quantity per id,
+cap 99) and **107 key items** at EE RAM `0x61CC00` (u16 have-flag per id).
+
+The save-side arrays are now located, and the thing that unblocked them was not a
+PCSX2 session — it was **using the disc's own item catalog** (`x2_items.json`, the
+139-entry text table the Reference tab already showed) instead of the pnach's id
+list. The catalog carries `予備` placeholder entries; the save's arrays carry zero
+in exactly those slots; matching the two patterns pins the base with no ground-truth
+save at all.
+
+| gamedata | slots | element | indexed by |
+| --- | --- | --- | --- |
+| `0x2674` | 40 | u16 quantity, cap 99 | item catalog **40..79** — Med Kit S .. Awakening IV |
+| `0x2872` | 40 | u16 quantity, cap 99 | item catalog **0..39** — the E.S. accessories |
+| `0x2A70` | 107 | u16 have-flag | key-item id, no shift (`x2_keyitems.json`) |
+
+Evidence, per array:
+
+* **Consumables.** The catalog's placeholders are at 57, 58, 59 and 75, i.e. slots
+  17, 18, 19 and 35 — and those four slots read zero in **22 of the 24** local saves.
+  The two exceptions hold 99 in all forty slots *including* the placeholders, which
+  is what a "max items" cheat does, not evidence against the layout.
+* **E.S. accessories.** Same test, much sharper: the catalog places **nine**
+  placeholders (2, 3, 4, 7, 8, 9, 37, 38, 39), and a scan of the whole 12 KB of
+  undecoded save for a 40-entry u16 window with those nine always zero and nothing
+  above 99 returns **exactly one** offset.
+* **Key items.** Indexed by the pnach's own ids with no shift: Decoder 01..18 at
+  0..17, ZAZA's Clue 1..7 at 19..25, Secret Key 1..31 at 76..106, each run
+  contiguous and in order. The completionist save holds nearly all of them; the
+  0:50 save holds exactly one.
+
+All three were then **independently corroborated from the boot ELF** while the save
+checksum was being cracked — the serializer at `0x22BCA4` and its loader twin at
+`0x22C728` copy these tables between save-struct `0x63F840 + <the offsets above>` and
+the work-RAM addresses the pnach pokes. Two methods, no shared assumption, same
+answer.
+
+**A catalog correction falls out of this.** `x2_consumables.json` (pnach-derived) is
+right up to *Skill Upgrade B* and drifts after it: it has no id for *Skill Upgrade C*
+in sequence and parks it at 95, so ids 23..39 are each one short of the disc's own
+ordering. The save array settles it — slot 22 is non-zero in ordinary saves, so it is
+a real item, and under the disc catalog it is Skill Upgrade C where it belongs. The
+editors name inventory slots from `x2_items.json` for that reason; the pnach map is
+kept for the RAM addresses it is actually authoritative about.
 
 ### Active party — needs ground truth (open)
 The active-party list could not be reliably identified from the 36 save samples: index
@@ -194,67 +227,89 @@ change) on a copied save.
 | 2 | 0x580000 | 0xA80000 | 0x3E28 | RWX | small |
 
 va→file for code: `off = va - 0x120000 + 0x1000`; for data: `off = va - 0x2B5D80 + 0x196D80`.
-The save RAM (char/stat tables 0x61xxxx) and the **gamedata work buffer @ VA 0x695160**
+The save RAM (char/stat tables 0x61xxxx) and the **gamedata buffer @ VA 0x63F840**
 all live in the initialized-data segment, so they exist at those fixed EE addresses at
 runtime. Two overlays (OV01/OV02.OVL) also present but the save code is in the main ELF.
 
 ### Save subsystem (located via disassembly — capstone MIPS)
-- Save-file registration passes `(ptr, size)` per file: `icon.sys`=0x3C4, **gamedata=0x5160**
-  (20,832), system.ico, etc. (around va 0x1EB190).
+- Save-file registration around va 0x1EB190 is a **debug printf**, not a registration
+  call: `sizeof(sceMcIconSys):%d` / `sizeof(sSaveData):%d` / `sizeof(carddata):%d`
+  (strings at 0x688B08/0x688B28/0x688B40), with `0x3C4` and `0x5160` as the printed
+  values. Useful anyway — it names the payload struct `sSaveData`.
+- **The gamedata buffer is a static at VA `0x63F840`**, not a runtime allocation:
+  `memset(0x63F840, 0, 0x5160)` at va 0x19F228. Menus write config bytes straight
+  into it (e.g. `sb $v1, 0x3a($s0)` at 0x1ECD64), and the memory-card write enqueues
+  `{index, 0x63F840, 0x5160}` at 0x1EB7E0.
+- **Save serializer @ va 0x22BCA4**, loader twin @ va 0x22C728. Both copy the work-RAM
+  tables in and out of the save struct with inlined memcpys whose bases are literals,
+  which is how the inventory offsets were corroborated: 0x6422B0 ↔ 0x61CC00 (key items,
+  save +0x2A70), and likewise +0x2674 and +0x2872.
 - Save path string `/BASLUS-20892Xeno2` @ va 0x68DF88, referenced at va 0x19DE8C.
 - Memcard file-I/O dispatcher (jump table by file index 1..9) @ va 0x19DE98.
-- Gamedata buffer pointer getter @ va 0x187D58 → returns **0x695160**.
-- **Save serializer region ≈ va 0x186000–0x188900** (50+ field writers over a common
-  primitive 0x1867A0) — the checksum is computed here, then stored to `buffer+8` (0x695168)
-  via a register offset (no absolute xref, so it's not directly greppable).
+- 64-bit signed multiply helper (`__muldi3`) @ va 0x2A4EE8.
 - Game RNG: 64-bit PCG/Knuth LCG (mult `0x5851F42D4C957F2D`) @ va 0x2AA130 — this is `rand`,
-  NOT the save checksum (the LCG-hash family was tested against +0x08 and did not match).
+  NOT the save checksum.
 
-### Checksum status (BLOCKER for guaranteed-valid writes)
-**Not cracked. Two of the three leads recorded here were WRONG and are corrected
-below** (2026-08-24, static pass over the boot ELF) — following them would have
-burned a PCSX2 session pointing at the wrong code.
+### Save checksum — SOLVED (2026-08-25), 44/44
+**`SaveMakeCheckSum` @ va `0x22BBF8`.** Called from the tail of the serializer at
+`0x22C6FC` as `f(a0 = 0x63F840, a1 = sp+0x10)`, and its result stored with a single
+**`sd $v0, 8($s1)`** at `0x22C70C`.
 
-* ~~EE write breakpoint on **0x695168**, "the gamedata buffer's checksum
-  word".~~ **`0x695160` is a string literal** — `cvFsMakeDir #1:illegal
-  directory name`. Its neighbours are `cvFsGetMaxByteRate #2:vtbl error`
-  (`0x695138`) and `cvFsMakeDir #3:device not found` (`0x6951B0`). The only two
-  static references to it pass it in `$a0` to an error-printing call.
-* ~~Disassemble the **0x186000–0x188900 serializer**.~~ That range is the
-  **`cvFs` memory-card filesystem library**, not the save serializer — the two
-  references above live inside it, at `0x187D70` and `0x187DA0`.
-* **There are ZERO static references to the checksum word**, which is the real
-  finding: the gamedata buffer is allocated at runtime, so it has no fixed
-  address to break on or to search for. A breakpoint session has to find the
-  buffer first (break on the memory-card write, walk back to its source), not
-  assume an address from these notes.
+That store is the whole answer to why this took so long: **the field is 8 bytes wide.**
+`+0x08` is the low half of a u64 and `+0x0C` is its high half. Every search recorded
+below treated `+0x08` as a u32 and `+0x0C` as an unrelated flag, so none of them could
+have matched no matter how right the algorithm was.
 
-**Plain sums are now ruled out over EVERY range, not just three.** The earlier
-pass tried `[0C:L]`, `[10:L]`, `[1174:L]`. Building prefix sums and *solving*
-for `(start, end)` covers all ranges at once, for u8, u16 and u32 words: across
-24 saves the only fits are degenerate ones that contain the checksum word itself
-(`[0x8,0xC)` is literally "the word equals itself"). Still standing from before:
-CRC-32 (16 variants, LE/BE), Adler/Fletcher, truncated MD5/SHA, the LCG family.
+The routine copies the whole `0x5160`-byte struct to the stack, **zeroes the 8 bytes at
+`+0x08` in that copy** (`sd $zero, 8($sp)`), then runs one byte loop:
 
-**One unexplained clue.** The 24 observed values are all distinct but *not*
-uniformly distributed: 21 of 24 sit below `0x2F000000`, with three outliers at
-`0xBBAEBFE0`, `0xDF2D0D7B` and `0xFB7B198E`. A good 32-bit hash would be
-uniform. Something about the low ~2/3 of the range is meaningful and is not yet
-accounted for — that is the thread to pull next.
+```
+acc = 0
+for i in 1 .. 0x5160:              # 1-based, every byte, nothing excluded
+    acc += data[i - 1] * i + 0x793
+```
 
-The first question in the list below is still the one that matters most: whether
-the game validates `+0x08` at all. If it does not, `fix_checksum()` staying a
-pass-through is already correct and none of this blocks anything.
-Until then, `x2save.fix_checksum()` preserves +0x08 as-is.
-gamedata `+0x08` is a 4-byte value that changes per save. It resisted **every** standard
-algorithm tried across all 20 slots: CRC-32 (all 16 init/reflect/xorout variants, LE/BE),
-byte/u16/u32 sums, negate-to-zero, sum-to-constant, Adler-32, Fletcher-32, and truncated
-MD5/SHA-1/SHA-256 — over ranges `[0C:L]`, `[10:L]`, `[1174:L]`, image-excluded
-concatenations, etc. So it's a **custom** routine (or possibly a value the game doesn't
-verify). `fix_checksum()` is the one hook to implement once cracked; today it's a
-pass-through and the `+0x08` field is preserved as-is.
-- [ ] Determine empirically whether the game validates `+0x08` (load an edited save in
-  PCSX2). If it loads → likely unchecked, writes are good as-is. If rejected → crack it.
+in 64-bit arithmetic (the multiply is `__muldi3` @ 0x2A4EE8), and stores `acc`
+little-endian at `+0x08`. It is **position-weighted**, so it catches transpositions.
+
+Implemented as `x2save.checksum()` / `fix_checksum()` / `checksum_ok()`;
+`CHECKSUM_KNOWN` is now `True` and `apply_edits()` recomputes on every write.
+Verified against **all 44 local gamedata blobs, exact**. The one local save that does
+*not* verify is `EDITED-TEST-slot20.PSV` — this editor's own output from before the
+crack, which is an independent check that the routine is discriminating.
+
+**Why the earlier searches failed, and what to keep from them.** Two lessons, both
+paid for:
+
+* **The width, not the algorithm.** Solving for a plain `(start, end)` sum over every
+  range (prefix sums, u8/u16/u32) correctly returned nothing — a position-weighted sum
+  is not a plain sum, and a 64-bit value is not a u32. When an exhaustive search over
+  the right space comes back empty, question the *shape of the target* before adding
+  more algorithms to the list.
+* **The "unexplained clue" was the answer in disguise.** The note below flagged that
+  21 of 24 values sat under `0x2F000000` with three outliers, and called the
+  non-uniformity "the thread to pull next". It was: `+0x0C` is `0` for exactly those
+  three saves and `1` for the rest, because it is the **carry** out of the low word.
+  A "non-uniform hash" is nearly always not a hash.
+
+Ruled out and still ruled out, for the record: CRC-32 (16 init/reflect/xorout variants,
+LE/BE), Adler-32, Fletcher-32, truncated MD5/SHA-1/SHA-256, the LCG family, and plain
+sums over all ranges.
+
+**Two earlier leads recorded here were WRONG** and are kept because following them
+would have burned a PCSX2 session:
+
+* ~~EE write breakpoint on **0x695168**, "the gamedata buffer's checksum word".~~
+  `0x695160` is a string literal — `cvFsMakeDir #1:illegal directory name`.
+* ~~Disassemble the **0x186000–0x188900 serializer**.~~ That range is the `cvFs`
+  memory-card filesystem library. The real serializer is at `0x22BCA4`.
+* ~~"There are ZERO static references to the checksum word... the gamedata buffer is
+  allocated at runtime, so it has no fixed address."~~ Also wrong, and it was the
+  costliest of the three: the buffer is the static `0x63F840`, and the checksum is
+  written through `$s1` inside the serializer. The searchable anchor was never the
+  buffer address — it was the *size*, `0x5160`, as an immediate.
+
+No emulator was needed for any of this.
 - [ ] PSV wrapper has a PS3 HMAC-SHA1 signature (header 0x08); editing gamedata
   invalidates it. Fine for emulator/mymc workflows; real-PS3 re-import needs re-signing.
 
@@ -262,10 +317,16 @@ pass-through and the `+0x08` field is preserved as-is.
 - [x] Container coverage: memcard / psu / psv / sharkport / cbs read+write (only
   payload; SharkPort layout is `magic → 0 → title → desc → dirname → datalen →
   McFsEntry files → u32 checksum`).
-- [ ] Pin the five stat names/order; decode EXP, current-vs-max HP, equipment, techs.
-- [ ] Decode the 0x0D44..0x1174 block and the header checksum at +0x08.
-- [ ] Crack/confirm the save checksum before enabling any write path.
-- [ ] Party / inventory / event-flag tables (item-slot tables seen at ~0x3030+).
+- [x] Pin the five stat names/order; decode EXP, current-vs-max HP, equipment, techs.
+  Done 2026-08-25 — EXP and both point pools live in a second per-character record
+  at `0x2274`, equipment is the four equip-skill slots at `+0x34` (characters) and
+  the three E.S. accessory slots at `+0x86`, and the techs are two learned-skill
+  bitmasks. See the solved section below.
+- [ ] Decode the 0x0D44..0x1174 block.
+- [x] **Crack the save checksum.** Done 2026-08-25 — u64 at +0x08, read off the boot
+  ELF; `fix_checksum()` recomputes it on every write. See the solved section above.
+- [x] Inventory: all three arrays solved 2026-08-25 (see "Inventory — SOLVED").
+- [ ] Party / event-flag tables (item-slot tables seen at ~0x3030+).
 
 ## Cheat codes as anchors (VERIFIED present)
 
@@ -1626,6 +1687,126 @@ the open set remembered in `localStorage` per SECTION rather than per enemy —
 section stays open while paging through 125 enemies. Without that, a disclosure
 control is worse than none.
 
+### 2026-08-25 — THE SAVE'S SECOND CHARACTER RECORD (EXP, both point pools, and every learned skill)
+
+The character table at `0x1174` was never the whole character. A **second**
+per-character record sits at gamedata **`0x2274`**, `0x40` bytes, indexed exactly
+the same way (15 slots, same roster order):
+
+```
++0x00 u32  EXP                 total, counted from the character's join point
++0x04 u32  EXP to next level
++0x08 u32  Skill Points        what the skill/ether shop spends
++0x0C u32  Class Points        what unlocking a class costs
++0x10 u16 x6  Str Vit Eatk Edef Dex Eva      (mirrors the 0x1174 record)
++0x1C u16  HP    +0x1E u16  EP               (likewise)
++0x20 12B  ETHER-skills-learned bitmask      bit i -> skill catalog index i
++0x2C  8B  AUTO/EQUIP-skills-learned bitmask bit i -> skill catalog index i+110
++0x34  8B  zero in all 24 samples            undecoded, unwritten
++0x3C u32  grows monotonically               UNIDENTIFIED (see below)
+```
+
+Four u32 counters in a row is exactly the shape that invites a guess, so each was
+pinned separately:
+
+* **EXP** is the only one of the four that never decreases, across the 14 saves of
+  one playthrough (0:50 → 22:30).
+* **EXP to next** — `EXP + this` is a function of level *for a given character*:
+  **79 of 79** (character, level) pairs in that progression yield a single value,
+  and it rises strictly with level for all seven. It is per-character rather than
+  global because a character joins with their EXP reset to zero (KOS-MOS and Shion
+  both sit at EXP 0 / next 2890 at level 16 in the earliest save).
+* **Skill vs Class Points** — the skills FAQ states that everyone gains EXP after a
+  battle but *"only the three active party members will gain any skill points"*, and
+  that *"generally only bosses will give Class Points"*. Over the short gaps in the
+  progression all seven characters gain EXP while **at most three** gain `+0x08`,
+  and `+0x0C` moves on fewer transitions still. The disc's reward table agrees from
+  the other side: CP is non-zero on 25 of 125 enemies, SP on 82. And the arithmetic
+  matches how each is spent — `+0x0C` is a multiple of 50 in 142 of 160 populated
+  records (class prices are), `+0x08` in only 52 (SP is earned in arbitrary amounts
+  and spent in multiples of 50).
+
+**The masks.** Both are monotone across all 14 saves — a bit that is set is never
+cleared, which is what "learned" means and what a live-state field would not do. The
+alignment proof is a **hole, not a match**: on a save with essentially every ether
+learned, the one clear bit inside the run is bit 25 — and catalog 25 is **Burst
+Veil**, recorded in the skill-cost notes months earlier as one of the two ethers the
+shop does not sell. Bits 51..53 being *set* on the same save is the other half: those
+are the Erde-family quest rewards, also absent from the cost table, set because they
+were granted rather than bought. So the mask and the ISO Costs tab are indexing the
+same catalog, and each independently explains the other's gaps.
+
+Decoded against the catalog the result reads like a character sheet — Shion, the
+ether specialist, carries 52 ethers including the whole Erde family; the E.S. units
+carry three to five skills and no ethers at all.
+
+`+0x3C` is **not** the class-unlock set, which was the obvious guess: a character
+with twenty skills learned has a single bit set there. It grows monotonically and is
+otherwise unidentified, so it is decoded-adjacent and left unwritten. Where the game
+records which classes a character has paid to unlock is still open.
+
+### 2026-08-25 — Equipped skills, E.S. accessories, and a wrong id base retired
+
+**Characters equip nothing** in Episode II — the skills FAQ is explicit about it —
+**except** up to four Equip Skills. Those are the four u8s at character-record
+`+0x34`, 0 = empty. Across the 24 local saves, all **255** non-empty slots hold a
+skill the same character has *learned*, and every one the cost table prices is a
+type-1 "equip skill" — **227 of 227**. The 28 that fall outside the priced range are
+all the same id, 63, held by KOS-MOS and Ziggy from their very first save: an id the
+shop does not sell, so it is granted.
+
+**E.S. units** carry three accessory slots at `+0x86`, `+0x88`, `+0x8A` — u16, 0 =
+empty, and the value is a **one-based** index into the disc item catalog. 132 of 132
+non-empty slots across the 24 saves land on a real accessory and **not one** lands on
+a 予備 placeholder, which is the test that picks this reading out of the
+alternatives: a 0-based read of the 31-entry E.S. accessory list puts the observed
+34..37 past the end of it.
+
+That retires two things recorded earlier:
+
+* `es_equip_catalog()`'s docstring claimed the base was confirmed 0-based and that
+  "higher gear ids (34-37 seen = weapon/frame items) aren't mapped yet". Under the
+  one-based catalog reading 34..37 are G ST Double, Quick Charge, EMAX300 and Auto
+  Recover — ordinary accessories. This is the same phantom the v1.10.0 notes already
+  retracted once from the ISO side; it survived on the save side because the web
+  picker was still resolving stored values through the compacted list, so a slot
+  holding 7 displayed "Anti-Beam Armor" when the disc calls it "EF Circuit B".
+* The old `ES_EQUIP_FIELDS` exposed **four** slots — `+0x86/+0x88/+0x8A/+0x90` — as
+  raw numbers. `+0x90` is not gear: it moves in the range 0..5. `+0x8C` is zero
+  everywhere and `+0x8E` is *constant per E.S. unit* across all 24 saves (Dinah 2,
+  Zebulun 6, Asher 7). All three look pilot- or identity-related; nothing verifies
+  any of them, so none is exposed.
+
+**Damage affinities are in the save too.** The character record is the disc unit
+record shifted by a constant `0x34`, so the unit table's `+0x58` affinity block is
+save `+0x24` — the same eight elements the ISO Units tab edits, on the character you
+already have. Retail writes a flat `0x14` (100%) on all eight in every save, exactly
+as the disc table does, and the Units tab's caveat travels with it: the offsets are
+verified, the behaviour for player characters is inferred from the shared record.
+
+**And a mislabel, corrected.** The save field the code called "Character id" was
+never an id — the unit-table notes above already identified it as the record's
+`+0x34` **name pointer**. It is now `Name ptr`, the real id is exposed as `Unit id`
+at `+0x1E` (1..7 characters, 101..103 E.S., matching `x2_units.json`), and both are
+read-only in the editors: the pointer aims into a packed pool and the id is what the
+game matches against the disc table, so editing either turns a save that loads into
+one that does not.
+
+### 2026-08-25 — Play time, verified against the game's own label
+
+Two PS2-style time structs sit in the save header: `0x60` is the real-world stamp of
+when the save was written (2005-02-17 in one SharkPort sample), and **`0x68` is
+elapsed play time**, the same struct counting from 2000-01-01. Layout, little-endian:
+`u8 pad, u8 sec, u8 min, u8 hour, u8 day, u8 month, u16 year`, so hours are
+`(day - 1) * 24 + hour` — a 27:36 save stores day 2, hour 3, and an hour-only read
+says 3:36.
+
+This one needed no inference at all: the game writes the number into the save's own
+`icon.sys` title (`XenosagaEPII-01[47:41]`), which the console shows on the load
+screen. Every container that carries a title agrees with the struct on hours **and**
+minutes, **16 of 16**, from 0:50 to 47:41. The eight `.max` samples carry no title,
+so they are outside the check rather than counted as passes.
+
 ### 2026-08-25 — The 13 records no front end applies, both identified
 
 These are what `apply-ppf` and the presets report as unreachable. Neither is a
@@ -1714,8 +1895,8 @@ the walkthrough's class-tree listing for that type:
 `id` is the skill's rank **within its type, ordered by skill-catalog index**.
 Under that mapping every record's cost equals the SPTS the walkthrough publishes
 for that skill — **112 of 112, all three types, zero mismatches**. 31 records
-also carry a nonzero `slot` forming a clean 1..31 run; unread, but it tracks the
-expensive skills, so it is probably the class-tree tier.
+also carry a nonzero `slot` forming a clean 1..31 run — **that is the Secret Key
+index**, solved below.
 
 **Why the first attempt at this failed, and it is a ground-truth lesson, not a
 search lesson.** The initial check used `Guides/skills.rtf`, whose "N Skill
@@ -1758,9 +1939,10 @@ check on the whole mapping, not just a consistency note: the two records it
 re-prices are, independently, the two skills it renames.
 
 This also answers issue #5's research target 4 (skill gating) on its cost axis:
-"make Heaven's Rain expensive" is now a two-byte edit. The *level* axis — which
-class tier a skill sits in — is likely the `slot` field or the class-tree data,
-and is not yet read.
+"make Heaven's Rain expensive" is now a two-byte edit. The *availability* axis is
+answered too — `slot` is the Secret Key gate, see below. The remaining unknown is
+the *level* axis, which class tier a skill sits in; that is the class-tree data,
+not `slot`, and is still unlocated.
 
 #### The original write-up (kept — the structure it derived was right)
 
@@ -1779,7 +1961,7 @@ records with a real cost, followed by 7 more at cost 0 before the padding.
 Categories 0 and 1 share one contiguous id space (1..62); category 2 has its
 own. **31 records carry a nonzero `slot`, and those form a clean 1..31 run**
 across all three categories — an ordering over a subset, and the slotted records
-skew expensive (300..9600).
+skew expensive (300..9600). It reads like a tier. It is not; see below.
 
 The costs are on the **Skill Point scale** — confirmed against the right guide
 above. (This paragraph originally read the cost column against `skills.rtf`,
@@ -1787,6 +1969,50 @@ matched 15 of 21 histogram buckets but no per-skill value, and concluded the
 table might be a second cost axis. It is not: the ground truth was wrong.)
 
 Disc-1-only, and the mod's two swaps, are covered above.
+
+#### The `slot` byte is the SECRET KEY INDEX — SOLVED, 31/31
+
+The earlier read ("probably the class-tree tier") was a plausible-looking guess
+off one correlation: the slotted records skew expensive, and so do high tiers.
+Naming them settles it.
+
+Decode the 31 slotted records through `skill_cost_catalog_index(type, id)` and
+sort by `slot`, and you get the skills FAQ's "Secret Key #N unlocks ..." list,
+**in order, 31 of 31**. Six of them are the check that makes it a proof rather
+than an ordering coincidence, because the FAQ leaves those romanized and the
+disc uses the localized names — no shared substring to match on by accident:
+
+| key | disc | FAQ |
+|---|---|---|
+| 3 | Focus 1 | Kikou 1 |
+| 5 | Stock 1 ("Increase Stock count by one") | Attack One ("Adds one stock") |
+| 7 | Junk Beam | Ponkotsu Beam |
+| 14 | Rapid Refresh | Kyuusoku Kaifuku |
+| 24 | Curse | Imashime |
+| 28 | Best Ally | Saiai no Kachi |
+
+Key 5 is the strongest of the six: the two names share nothing at all, and it is
+the *descriptions* that match, at the same 500 SP.
+
+So a secret skill is gated by **one byte on the disc**, and the "???" entries can
+be opened without ever finding a key. `x2patch.py secret-keys ISO --unlock`
+zeroes all 31; `--require` restores them from `F.SECRET_SKILL_GATES` (so it works
+on an already-patched disc), verified byte-for-byte against the retail image.
+`explain-diff` names them (`record 28 Secret Key gate (key 1)`).
+
+**Stated plainly, because it is the one inference in this file that has not been
+observed:** `slot` provably *encodes* the key requirement, but the game has not
+been watched *reading* it. Zeroing it is a hypothesis with 31/31 evidence behind
+its meaning and none behind its effect. The CLI says so on every write.
+
+Two other things this is not: it does not grant the skill (Class Points and Skill
+Points are still owed, and Levels 2-4 still need Class Complete below), and it is
+**per-disc** — the cost table lives at its own base on disc 2 (`0x410158`), so
+unlocking one disc alone reverts at the swap. `--also` handles that.
+
+The save-side counterpart is the other half of the same question: the 31 Secret
+Keys are key items 76..106 at gamedata `0x2A70`, so `x2save.py set SAVE
+--secret-keys` grants them all without touching the disc at all.
 
 #### RETRACTED — the negative result this replaced (kept for the method)
 

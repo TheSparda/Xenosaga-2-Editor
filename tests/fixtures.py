@@ -38,32 +38,55 @@ FILE_MODE = 0x8497            # DF_EXISTS|0x0400|DF_FILE|rwx
 # gamedata payload
 # ---------------------------------------------------------------------------
 def default_roster():
-    """15 character records: 7 on-foot, 3 empty, 5 E.S. units."""
+    """15 character records: 7 on-foot, 3 empty, 5 E.S. units.
+
+    `Name ptr` is the disc unit record's name-pool offset (what the save copies
+    in at join time) and `Unit id` is the real id — 1..7 on foot, 101..103 for
+    the E.S. units, matching x2_units.json.
+    """
     on_foot = [
-        (0x0564, "chaos",      41, 1200, 60, 210, 180, 240, 220, 55, 40, 45),
-        (0x056A, "KOS-MOS",    43, 1450, 55, 260, 230, 200, 190, 60, 35, 42),
-        (0x0570, "Shion",      40, 1050, 70, 150, 140, 280, 260, 50, 38, 40),
-        (0x0576, "Jin",        39, 1300, 45, 250, 220, 160, 150, 58, 41, 44),
-        (0x057C, "Ziggy",      38, 1380, 40, 240, 250, 140, 170, 52, 30, 36),
-        (0x0582, "MOMO",       37,  900, 80, 120, 130, 290, 250, 48, 44, 43),
-        (0x0588, "Jr.",        42, 1150, 60, 230, 190, 210, 200, 62, 46, 47),
+        (0x0564, 3, "chaos",   41, 1200, 60, 210, 180, 240, 220, 55, 40, 45),
+        (0x056A, 4, "KOS-MOS", 43, 1450, 55, 260, 230, 200, 190, 60, 35, 42),
+        (0x0570, 6, "Shion",   40, 1050, 70, 150, 140, 280, 260, 50, 38, 40),
+        (0x0576, 2, "Jin",     39, 1300, 45, 250, 220, 160, 150, 58, 41, 44),
+        (0x057C, 1, "Ziggy",   38, 1380, 40, 240, 250, 140, 170, 52, 30, 36),
+        (0x0582, 7, "MOMO",    37,  900, 80, 120, 130, 290, 250, 48, 44, 43),
+        (0x0588, 5, "Jr.",     42, 1150, 60, 230, 190, 210, 200, 62, 46, 47),
     ]
     recs = []
-    for (cid, _name, lvl, hp, ep, st, vit, ea, ed, dex, eva, agl) in on_foot:
-        recs.append({"Character id": cid, "Level": lvl, "HP": hp, "Current HP": hp,
+    for (ptr, uid, _name, lvl, hp, ep, st, vit, ea, ed, dex, eva, agl) in on_foot:
+        recs.append({"Name ptr": ptr, "Unit id": uid, "Level": lvl,
+                     "HP": hp, "Current HP": hp,
                      "EP": ep, "Str": st, "Vit": vit, "Eatk": ea, "Edef": ed,
                      "Dex": dex, "Eva": eva, "Agl": agl})
     recs += [{} for _ in range(3)]                    # unrecruited slots
-    for i, (cid, hp) in enumerate([(0x05A0, 14200), (0x05A6, 16800), (0x05AC, 21000)]):
-        recs.append({"Character id": cid, "Level": 40 + i, "HP": hp, "Current HP": hp,
+    for i, (ptr, hp) in enumerate([(0x05A0, 14200), (0x05A6, 16800), (0x05AC, 21000)]):
+        recs.append({"Name ptr": ptr, "Unit id": 101 + i, "Level": 40 + i,
+                     "HP": hp, "Current HP": hp,
                      "Str": 300, "Vit": 280, "Eatk": 220, "Edef": 210,
                      "Dex": 70, "Eva": 20, "Agl": 30,
-                     "Gear 1": 3 + i, "Gear 2": 12, "Gear 3": 0, "Gear 4": 27})
+                     "Slot 1": 3 + i, "Slot 2": 12, "Slot 3": 0})
     recs += [{} for _ in range(F.CHAR_COUNT - len(recs))]
     return recs[:F.CHAR_COUNT]
 
 
-def gamedata(gold=1234567, roster=None, checksum=0xDEADBEEF):
+def default_growth():
+    """15 growth records — EXP, the two point pools, and the learned masks.
+
+    chaos knows ethers 0, 2 and 5 and equip/auto skills 110 and 141; Shion
+    knows one ether. Everyone else's masks are empty, so a test that asserts a
+    mask changed cannot pass on someone else's bits.
+    """
+    recs = [{} for _ in range(F.GROWTH_COUNT)]
+    recs[0] = {"EXP": 250000, "EXP to next": 4200, "Skill Points": 3150,
+               "Class Points": 900, "ether": [0, 2, 5], "skills": [110, 141]}
+    recs[2] = {"EXP": 240000, "EXP to next": 5000, "Skill Points": 1200,
+               "Class Points": 450, "ether": [0], "skills": []}
+    return recs
+
+
+def gamedata(gold=1234567, roster=None, growth=None, checksum=0xDEADBEEF,
+             playtime=(30, 18), consumables=None, es_gear=None, key_items=None):
     """A well-formed 20,832-byte Xenosaga II save payload."""
     gd = bytearray(F.GAMEDATA_SIZE)
     struct.pack_into("<I", gd, 8, checksum)             # the un-cracked +0x08 field
@@ -71,11 +94,40 @@ def gamedata(gold=1234567, roster=None, checksum=0xDEADBEEF):
     struct.pack_into("<I", gd, F.GD_GOLD_OFF, gold)
     gd[0x174:0x17A] = b"\xff\xd8\xff\xe0\x00\x10"      # stand-in JPEG header
     gd[0xD40:0xD44] = b"\xff\xd9\x00\x00"
+    gd[F.GD_PLAYTIME_OFF:F.GD_PLAYTIME_OFF + F.PS2_TIME_SIZE] = F.encode_playtime(
+        playtime[0], playtime[1], 42)
     for i, rec in enumerate(roster if roster is not None else default_roster()):
         base = F.CHAR_TABLE_OFF + i * F.CHAR_STRIDE
-        for label, off, width, _kind in F.CHAR_FIELDS + F.ES_EQUIP_FIELDS:
+        for label, off, width, _kind in F.CHAR_FIELDS + F.ES_ACCESSORY_FIELDS:
             gd[base + off:base + off + width] = int(rec.get(label, 0)).to_bytes(
                 width, "little")
+        if not rec:
+            continue
+        # retail writes a flat 100% on all eight damage affinities
+        for k in range(F.CHAR_AFFINITY_COUNT):
+            gd[base + F.CHAR_AFFINITY_OFF + k] = F.ENEMY_AFFINITY_NORMAL // F.ENEMY_AFFINITY_SCALE
+        for k, v in enumerate(rec.get("equip", [])[:F.EQUIP_SLOT_COUNT]):
+            gd[base + F.EQUIP_SLOT_OFF + k] = int(v)
+    for i, rec in enumerate(growth if growth is not None else default_growth()):
+        base = F.GROWTH_TABLE_OFF + i * F.GROWTH_STRIDE
+        for label, off, width, _kind in F.GROWTH_FIELDS:
+            gd[base + off:base + off + width] = int(rec.get(label, 0)).to_bytes(
+                width, "little")
+        for idx in rec.get("ether", []):
+            F.set_learned_bit(gd, base + F.ETHER_MASK_OFF, F.ETHER_MASK_COUNT,
+                              F.ETHER_MASK_TEXT0, idx, True)
+        for idx in rec.get("skills", []):
+            F.set_learned_bit(gd, base + F.SKILL_MASK_OFF, F.SKILL_MASK_COUNT,
+                              F.SKILL_MASK_TEXT0, idx, True)
+    for off, count, vals in (
+            (F.INV_CONSUMABLE_OFF, F.INV_CONSUMABLE_COUNT,
+             consumables if consumables is not None else {0: 12, 4: 5, 13: 2}),
+            (F.INV_ES_GEAR_OFF, F.INV_ES_GEAR_COUNT,
+             es_gear if es_gear is not None else {0: 1, 19: 3}),
+            (F.INV_KEYITEM_OFF, F.INV_KEYITEM_COUNT,
+             key_items if key_items is not None else {0: 1, 76: 1, 77: 1})):
+        for slot, qty in vals.items():
+            struct.pack_into("<H", gd, off + 2 * int(slot), int(qty))
     return bytes(gd)
 
 

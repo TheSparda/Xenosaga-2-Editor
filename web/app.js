@@ -110,20 +110,75 @@ async function bootPyodide(){
   const py = await loadPyodide();
   bootProgress(55,"Loading save engine…");
   const grab = async u=>{const r=await fetch(u);if(!r.ok)throw new Error("fetch "+u+" ("+r.status+")");return r.text();};
-  for(const f of ["x2fields.py","x2mc.py","x2lzari.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json"])
+  for(const f of ["x2fields.py","x2mc.py","x2lzari.py","x2save.py","x2_consumables.json","x2_keyitems.json","x2_es_equip.json","x2_items.json","x2_skills.json","x2_costs.json"])
     py.FS.writeFile(f, await grab("../Editor/"+f));
   bootProgress(80,"Wiring adapters…");
   py.runPython(`
 import base64, json, x2save, x2fields as F
 def load_reference():
-    cat = F.es_equip_catalog()
+    items = F.item_catalog()
+    skills = F.skill_catalog()
+    costs = json.loads(F.res_text("x2_costs.json"))
+    def item_rows(first, count):
+        """[slot, name, desc] per inventory slot, placeholders dropped."""
+        out = []
+        for slot in range(count):
+            e = items.get(first + slot) or {}
+            if e.get("placeholder"):
+                continue
+            out.append({"slot": slot, "name": e.get("name", "?"),
+                        "desc": (e.get("desc") or "").replace(chr(92) + "n", " ")})
+        return out
+    def skill_rows(text0, count):
+        out = []
+        for k in range(text0, text0 + count):
+            e = skills.get(k) or {}
+            if e.get("placeholder"):
+                continue
+            out.append({"idx": k, "name": e.get("name", f"#{k}")})
+        return out
+    # equip-skill ids for the four slots: what the cost table prices as type 1,
+    # plus any id a save can hold that it does not (granted skills)
+    equip = {}
+    for v in costs.values():
+        if v["type"] == 1:
+            k = F.skill_cost_catalog_index(1, v["id"])
+            equip[str(v["id"])] = (skills.get(k) or {}).get("name", f"#{k}")
+    for extra in (63,):
+        k = F.skill_cost_catalog_index(1, extra)
+        equip.setdefault(str(extra), (skills.get(k) or {}).get("name", f"#{k}"))
     return json.dumps({
       "roster": F.ROSTER,
       "sheetCols": F.SHEET_COLS,
       "caps": F.CHAR_CAPS,
-      "esFields": [l for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS],
-      "esEquip": {str(i): v["name"] for i, v in cat.items()},
-      "esEquipList": [{"id": i, "name": v["name"], "desc": v.get("desc","")} for i, v in sorted(cat.items())],
+      "esFields": [l for (l, _o, _w, _k) in F.ES_ACCESSORY_FIELDS],
+      # E.S. accessory SLOTS store a 1-based item-catalog index, so the picker
+      # lists catalog entries offset by one — not the es_equip ids, which is
+      # what this used to show and why a slot could read the wrong accessory
+      "esSlotList": [{"id": i + 1, "name": v["name"],
+                      "desc": (v.get("desc") or "").replace(chr(92) + "n", " ")}
+                     for i, v in sorted(items.items())
+                     if i < F.INV_ES_GEAR_COUNT and not v.get("placeholder")],
+      "growthCols": [l for (l, _o, _w, _k) in F.GROWTH_FIELDS],
+      "growthCaps": F.GROWTH_CAPS,
+      "readonly": list(F.SAVE_READONLY_FIELDS),
+      "secretKeys": F.secret_key_ids(),
+      "affinity": {"elements": list(F.AFFINITY_ELEMENTS),
+                   "scale": F.ENEMY_AFFINITY_SCALE,
+                   "normal": F.ENEMY_AFFINITY_NORMAL,
+                   "min": F.AFFINITY_PCT_MIN, "max": F.AFFINITY_PCT_MAX},
+      "ethers": skill_rows(F.ETHER_MASK_TEXT0, F.ETHER_MASK_COUNT),
+      "skills": skill_rows(F.SKILL_MASK_TEXT0, F.SKILL_MASK_COUNT),
+      "equipIds": equip,
+      "inv": {
+        "consumables": {"count": F.INV_CONSUMABLE_COUNT, "max": F.INV_QTY_MAX,
+                        "rows": item_rows(F.INV_CONSUMABLE_ITEM0, F.INV_CONSUMABLE_COUNT)},
+        "esGear": {"count": F.INV_ES_GEAR_COUNT, "max": F.INV_QTY_MAX,
+                   "rows": item_rows(F.INV_ES_GEAR_ITEM0, F.INV_ES_GEAR_COUNT)},
+        "keyItems": {"count": F.INV_KEYITEM_COUNT, "max": 1,
+                     "rows": [{"slot": i, "name": n}
+                              for i, n in sorted(F.keyitem_names().items())]},
+      },
     })
 def load_slots(path):
     """Container format + every Xenosaga II save inside it (cards hold several)."""
@@ -150,6 +205,11 @@ def apply_edits(path, payload, slot=0):
     p = json.loads(payload)
     edits = {"characters": {int(k): v for k, v in (p.get("characters") or {}).items()}}
     if p.get("gold") is not None: edits["gold"] = p["gold"]
+    if p.get("playtime"): edits["playtime"] = p["playtime"]
+    inv = p.get("inventory") or {}
+    if inv:
+        edits["inventory"] = {k: {int(s): q for s, q in (v or {}).items()}
+                              for k, v in inv.items() if v}
     return json.dumps(x2save.write_save(path, edits, make_backup=False, slot=slot))
 `);
   REF = JSON.parse(py.runPython("load_reference()"));
@@ -200,15 +260,125 @@ function decorate(inp,onchange){
   inp.addEventListener("input",refresh);btn.onclick=()=>{inp.value=def;refresh();};refresh();
 }
 
+// ---- the three panes the ISO tables made nameable -------------------------
+// Everything below renders from REF (catalogs shipped once at boot) plus the
+// decoded save, and stages through the same data-def/.changed contract the
+// character sheet uses, so Revert / the badge / the review dialog need no
+// special case for them.
+
+const activeChars = (d)=>d.characters.map((c,idx)=>({c,idx})).filter(x=>x.c.active);
+
+function affinityHtml(d){
+  const A=REF.affinity||{}; const els=A.elements||[];
+  if(!els.length) return "";
+  const body = activeChars(d).map(({c,idx})=>
+    '<div class="affrow"><div class="fl">'+esc(c.name)+'</div>'+
+    els.map(e=>'<span class="affcell"><i>'+esc(e)+'</i>'+
+      '<input type="number" step="'+(A.scale||5)+'" min="'+A.min+'" max="'+A.max+'" '+
+      'data-idx="'+idx+'" data-aff="'+esc(e)+'" data-def="'+(c.affinity[e]*(A.scale||5))+
+      '" value="'+(c.affinity[e]*(A.scale||5))+'"></span>').join("")+
+    '</div>').join("");
+  return '<details class="sect"><summary>Damage affinities '+
+    '<span class="secthint">'+els.length+' elements · retail is a flat 100%</span></summary>'+
+    '<div class="sectbody"><p class="note">The same eight-element block the ISO <b>Units</b> '+
+    'tab edits — the save carries its own copy, so this changes the character you already '+
+    'have rather than a new game. 100% is normal; 0% is immune and 200% is a weakness. '+
+    'Every retail character reads a flat 100% on all eight, so nothing cross-checks that '+
+    'the game reads this block for players the way it demonstrably does for enemies — the '+
+    'offsets are verified, the behaviour is inferred.</p>'+body+'</div></details>';
+}
+
+function skillsHtml(d){
+  const ethers=REF.ethers||[], skills=REF.skills||[], eq=REF.equipIds||{};
+  if(!ethers.length) return "";
+  const eqList=Object.keys(eq).map(k=>({id:+k,name:eq[k]})).sort((a,b)=>a.name.localeCompare(b.name));
+  const chip=(idx,kind,row,on)=>'<label class="ebit"><input type="checkbox" data-idx="'+idx+
+    '" data-mask="'+kind+'" data-cat="'+row.idx+'" data-def="'+(on?1:0)+'"'+(on?" checked":"")+
+    '>'+esc(row.name)+'</label>';
+  const body = activeChars(d).map(({c,idx})=>{
+    const known=new Set(c.ether), sk=new Set(c.skills);
+    const slots = c.equip.map((v,k)=>
+      '<span class="affcell wide"><i>Slot '+(k+1)+'</i>'+
+      '<input type="number" min="0" max="255" data-idx="'+idx+
+      '" data-equip="'+k+'" data-def="'+v+'" value="'+v+'">'+
+      '<b class="gname gpick" data-eqname="'+idx+'-'+k+'"></b></span>').join("");
+    return '<details class="sect"><summary>'+esc(c.name)+
+      ' <span class="secthint">'+c.ether.length+' ethers · '+c.skills.length+
+      ' auto/equip skills</span></summary><div class="sectbody">'+
+      '<div class="fl">Equipped equip-skills (0 = empty)</div><div class="affrow eqrow" data-idx="'+idx+'">'+slots+'</div>'+
+      '<div class="fl">Ethers</div><div class="ebits">'+
+        ethers.map(r=>chip(idx,"ether",r,known.has(r.idx))).join("")+'</div>'+
+      '<div class="fl">Auto &amp; equip skills</div><div class="ebits">'+
+        skills.map(r=>chip(idx,"skills",r,sk.has(r.idx))).join("")+'</div>'+
+      '<div class="toolbar"><button type="button" class="btn learnall" data-idx="'+idx+
+        '">Learn everything</button><button type="button" class="btn forgetall" data-idx="'+idx+
+        '">Forget everything</button></div></div></details>';
+  }).join("");
+  return '<div class="card" id="skillPane"><h2>3 · Skills &amp; ethers</h2>'+
+    '<p class="sub">What each character has <b>learned</b> — one bit per skill, named from the '+
+    'disc\'s own catalog, the same records the ISO <b>Costs</b> and <b>Passives</b> tabs price and '+
+    'retune. Ticking one here does not spend Skill Points; untick to un-learn. The four '+
+    'equipped slots hold equip-skill ids — a character can only benefit from one it has learned.</p>'+
+    body+'</div>';
+}
+
+function itemsHtml(d){
+  const inv=REF.inv||{};
+  if(!inv.consumables) return "";
+  const pane=(key,title,hint)=>{
+    const spec=inv[key], have=d.inventory[key]||[];
+    const rows=spec.rows.map(r=>{
+      const v=have[r.slot]||0;
+      return spec.max===1
+        ? '<label class="ebit"><input type="checkbox" data-inv="'+key+'" data-slot="'+r.slot+
+          '" data-def="'+(v?1:0)+'"'+(v?" checked":"")+'>'+esc(r.name)+'</label>'
+        : '<span class="affcell wide"><i title="'+esc(r.desc||"")+'">'+esc(r.name)+'</i>'+
+          '<input type="number" min="0" max="'+spec.max+'" data-inv="'+key+'" data-slot="'+r.slot+
+          '" data-def="'+v+'" value="'+v+'"></span>';
+    }).join("");
+    const held=have.filter(x=>x).length;
+    return '<details class="sect"><summary>'+title+' <span class="secthint">'+held+
+      ' of '+spec.rows.length+' held</span></summary><div class="sectbody">'+
+      '<p class="note">'+hint+'</p>'+
+      (spec.max===1?'<div class="ebits">':'<div class="affrow cols">')+rows+'</div>'+
+      '<div class="toolbar"><button type="button" class="btn invfill" data-inv="'+key+
+        '">'+(spec.max===1?"Grant all":"Fill to "+spec.max)+'</button>'+
+      '<button type="button" class="btn invclear" data-inv="'+key+'">Clear all</button>'+
+      (key==="keyItems"?'<button type="button" class="btn" id="secretKeysBtn">Grant all 31 Secret Keys</button>':'')+
+      '</div></div></details>';
+  };
+  return '<div class="card" id="itemPane"><h2>4 · Items</h2>'+
+    '<p class="sub">All three of the save\'s inventories, each named from the disc\'s own item '+
+    'catalog. The catalog\'s spare slots are hidden rather than shown as blanks you could '+
+    'fill with something the game has no name for.</p>'+
+    pane("consumables","Items","Counts, capped at 99 — the game\'s own stack limit.")+
+    pane("esGear","E.S. accessories","The parts an E.S. unit equips in its three slots. "+
+      "An accessory that is equipped is not counted here.")+
+    pane("keyItems","Key items","Have-or-not flags: decoders, quest items and the 31 Secret "+
+      "Keys. A Secret Key makes its \u201c???\u201d skill <b>purchasable</b> — you still pay the "+
+      "Class Points and Skill Points for it.")+
+    '</div>';
+}
+
 function renderSheet(d){
   const GA=SHEET.slice(0,6), GB=SHEET.slice(6);
-  const cell=(c,idx,k)=>'<td><div class="fl">'+k[0]+'</div><span><input type="number" min="0" '+
-    'autocomplete="off" data-idx="'+idx+'" data-field="'+k[1]+'" data-def="'+(c[k[1]]??0)+'" value="'+(c[k[1]]??0)+'"></span></td>';
+  const RO=new Set(REF.readonly||[]);
+  const cell=(c,idx,k)=>{
+    // a read-only field must not become editable just because someone adds it
+    // to a column list — the name pointer and the unit id are both in the
+    // record and both break the save if written
+    if(RO.has(k[1]))
+      return '<td><div class="fl">'+k[0]+'</div><span class="muted">'+esc(c[k[1]]??0)+'</span></td>';
+    const cap=(CAPS[k[1]]??(REF.growthCaps||{})[k[1]]);
+    return '<td><div class="fl">'+k[0]+'</div><span><input type="number" min="0"'+
+      (cap!==undefined?' max="'+cap+'"':'')+
+      ' autocomplete="off" data-idx="'+idx+'" data-field="'+k[1]+'" data-def="'+(c[k[1]]??0)+
+      '" value="'+(c[k[1]]??0)+'"></span></td>';};
   let rows="";
   d.characters.forEach((c,idx)=>{
     if(!c.active) return;
     const es=c.is_es?" es":"";
-    rows+='<tr class="u1'+es+'"><td class="name" rowspan="'+(c.is_es?3:2)+'">'+esc(c.name)+'</td>'+GA.map(k=>cell(c,idx,k)).join("")+'</tr>';
+    rows+='<tr class="u1'+es+'"><td class="name" rowspan="'+(c.is_es?4:3)+'">'+esc(c.name)+'</td>'+GA.map(k=>cell(c,idx,k)).join("")+'</tr>';
     rows+='<tr class="u'+(c.is_es?"2m":"2")+es+'">'+GB.map(k=>cell(c,idx,k)).join("")+'<td></td>'+'</tr>';
     if(c.is_es){
       const gear=(REF.esFields||[]).map(l=>[l,l]);
@@ -216,6 +386,11 @@ function renderSheet(d){
       rows+='<tr class="u2 es gearrow">'+gear.map(k=>cell(c,idx,k)).join("")+
         '<td></td>'.repeat(pad)+'</tr>';
     }
+    // EXP and the two point pools live in a second per-character record; they
+    // are edited on the same row as the stats they pay for
+    const G=(REF.growthCols||[]).map(l=>[l,l]);
+    rows+='<tr class="u2 growthrow'+es+'">'+G.map(k=>cell(c,idx,k)).join("")+
+      '<td></td>'.repeat(Math.max(0,GA.length-G.length))+'</tr>';
   });
   const slotOpt = s=>esc(s.label||s.folder)+(s.playtime?"  ·  "+esc(s.playtime):"");
   const slotBar = curSlots.length>1
@@ -242,35 +417,48 @@ function renderSheet(d){
     slotBar+ident+
     '<div class="toolbar"><label>Gold</label> <input id="gold" type="number" min="0" max="4294967295" '+
       'autocomplete="off" data-def="'+d.gold+'" value="'+d.gold+'">'+
+      '<label>Played</label> <input id="ptH" type="number" min="0" max="9999" style="width:6ch" '+
+        'autocomplete="off" title="hours" data-def="'+d.playtime.hours+'" value="'+d.playtime.hours+'">'+
+      '<span class="muted">:</span> <input id="ptM" type="number" min="0" max="59" style="width:5ch" '+
+        'autocomplete="off" title="minutes" data-def="'+d.playtime.minutes+'" value="'+d.playtime.minutes+'">'+
       '<span style="flex:1"></span>'+
       '<button id="maxBtn" class="btn">Max stats</button>'+
       '<button id="revBtn" class="btn" disabled>Revert all</button>'+
       '<button id="saveBtn" class="btn primary" disabled>Save <span id="badge" class="badge"></span></button>'+
       '<span id="sstatus" class="status"></span></div>'+
     '<table id="sheet"><tbody>'+rows+'</tbody></table>'+
+    affinityHtml(d)+
     '<p class="note">Edits stage in memory (amber, with ↺). <b>Save</b> writes them and downloads the '+
       'edited file'+(SUPPORTS_FS?' (or overwrites in place if you opened via the picker)':'')+' — a .bak is not '+
-      'made here, so keep your original. The in-game save checksum isn\'t cracked yet, so an edited save '+
-      '<b>may be rejected by the game</b> until it is — test one in your emulator.</p></div>';
+      'made here, so keep your original. The save\'s own checksum is recomputed on write, so the game '+
+      'accepts an edited save.</p></div>'+
+    skillsHtml(d)+itemsHtml(d);
 
-  const gearNames = REF.esEquip || {};
+  const gearList = REF.esSlotList || [];
+  // an E.S. slot stores catalog index + 1, so the picker's ids are already
+  // offset — look the name up by the stored value, not by a compacted id
+  const gearNames = {};
+  gearList.forEach(g=>{ gearNames[g.id] = g.name; });
   document.querySelectorAll("#sheet input").forEach(i=>decorate(i,updatePending));
   decorate($("#gold"),updatePending);
-  const gearList = REF.esEquipList || [];
+  decorate($("#ptH"),updatePending); decorate($("#ptM"),updatePending);
   document.querySelectorAll("#sheet tr.gearrow input").forEach(inp=>{
     const lab=document.createElement("div");lab.className="gname gpick";lab.title="Pick from list";
     inp.parentElement.appendChild(lab);
-    const upd=()=>{const n=gearNames[inp.value];lab.textContent=(n||("id "+inp.value))+" ▾";
-      inp.title=n||("unknown id "+inp.value);};
+    const upd=()=>{const n=gearNames[inp.value];
+      lab.textContent=(+inp.value?(n||("id "+inp.value)):"— empty —")+" ▾";
+      inp.title=n||(+inp.value?("unknown id "+inp.value):"empty slot");};
     inp.addEventListener("input",upd);upd();
     lab.onclick=async()=>{ if(!gearList.length)return;
-      const id=await openPicker("E.S. gear", gearList, inp.value);
+      const id=await openPicker("E.S. accessory", gearList, inp.value);
       if(id!==null){inp.value=id;inp.dispatchEvent(new Event("input",{bubbles:true}));} };
   });
   $("#maxBtn").onclick=()=>{document.querySelectorAll("#sheet input").forEach(i=>{const c=CAPS[i.dataset.field];
     if(c!==undefined){i.value=c;i.dispatchEvent(new Event("input",{bubbles:true}));}});toast("Maxed stats — review, then Save");};
-  $("#revBtn").onclick=()=>{document.querySelectorAll("#sheet input, #gold").forEach(i=>{i.value=i.getAttribute("data-def");
+  $("#revBtn").onclick=()=>{document.querySelectorAll(EDITABLE).forEach(i=>{
+    if(i.type==="checkbox") i.checked=i.getAttribute("data-def")==="1"; else i.value=i.getAttribute("data-def");
     i.classList.remove("changed");const b=i.nextElementSibling;if(b&&b.classList.contains("restore"))b.classList.remove("show");});updatePending();};
+  wirePanes();
   $("#saveBtn").onclick=applyAndSave;
   const ss=$("#slotSel");
   if(ss) ss.onchange=async()=>{
@@ -283,7 +471,58 @@ function renderSheet(d){
   updatePending();
 }
 
-function changed(){return[...document.querySelectorAll("#sheet input.changed, #gold.changed")];}
+// every staged control, wherever it lives — the sheet, the toolbar, the skills
+// pane and the three inventories all share one staging/badge/revert path
+// .affrow catches the affinity boxes, which sit in the main card rather than
+// in either pane — leaving them out of this list silently dropped them from
+// the badge, Revert and the collected edits while still showing them staged
+const EDITABLE="#sheet input, #gold, #ptH, #ptM, #skillPane input, #itemPane input, .affrow input";
+function wirePanes(){
+  // checkboxes need their own "changed" test — decorate() compares .value,
+  // which never moves on a checkbox
+  document.querySelectorAll("#skillPane input, #itemPane input, .affrow input").forEach(i=>{
+    if(i.type!=="checkbox"){ decorate(i,updatePending); return; }
+    const def=i.getAttribute("data-def")==="1";
+    const refresh=()=>{ i.classList.toggle("changed", i.checked!==def);
+      i.closest("label").classList.toggle("dirty", i.checked!==def); updatePending(); };
+    i.addEventListener("change",refresh); refresh();
+  });
+  const fire=(i)=>i.dispatchEvent(new Event(i.type==="checkbox"?"change":"input",{bubbles:true}));
+  const setAll=(sel,on)=>{document.querySelectorAll(sel).forEach(i=>{
+    if(i.type==="checkbox"){i.checked=on;} else {i.value=on?(i.max||0):0;} fire(i);});};
+  document.querySelectorAll(".learnall").forEach(b=>b.onclick=()=>
+    setAll('#skillPane input[type=checkbox][data-idx="'+b.dataset.idx+'"]',true));
+  document.querySelectorAll(".forgetall").forEach(b=>b.onclick=()=>
+    setAll('#skillPane input[type=checkbox][data-idx="'+b.dataset.idx+'"]',false));
+  document.querySelectorAll(".invfill").forEach(b=>b.onclick=()=>
+    setAll('#itemPane input[data-inv="'+b.dataset.inv+'"]',true));
+  document.querySelectorAll(".invclear").forEach(b=>b.onclick=()=>
+    setAll('#itemPane input[data-inv="'+b.dataset.inv+'"]',false));
+  // an equipped slot holds a skill-cost id; show what it names, and let the
+  // same picker the E.S. accessory slots use pick one
+  const eqNames=REF.equipIds||{};
+  const eqList=Object.keys(eqNames).map(k=>({id:+k,name:eqNames[k]}))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  document.querySelectorAll(".eqrow input").forEach(inp=>{
+    const lab=inp.parentElement.querySelector("[data-eqname]");
+    const upd=()=>{const n=eqNames[inp.value];
+      lab.textContent=(+inp.value?(n||("id "+inp.value)):"— empty —")+" \u25BE";
+      inp.title=n||(+inp.value?("unknown id "+inp.value):"empty slot");};
+    inp.addEventListener("input",upd);upd();
+    lab.onclick=async()=>{const id=await openPicker("Equip skill",
+      [{id:0,name:"— empty —",desc:"clear the slot"}].concat(eqList),inp.value);
+      if(id!==null){inp.value=id;inp.dispatchEvent(new Event("input",{bubbles:true}));}};
+  });
+  const sk=$("#secretKeysBtn");
+  if(sk) sk.onclick=()=>{
+    const ids=(REF.secretKeys||[]);
+    ids.forEach(id=>{const i=document.querySelector('#itemPane input[data-inv="keyItems"][data-slot="'+id+'"]');
+      if(i&&!i.checked){i.checked=true;i.dispatchEvent(new Event("change",{bubbles:true}));}});
+    toast("All "+ids.length+" Secret Keys granted — review, then Save");
+  };
+}
+
+function changed(){return[...document.querySelectorAll(EDITABLE)].filter(i=>i.classList.contains("changed"));}
 function updatePending(){const n=changed().length;const b=$("#badge");if(b)b.textContent=n?"("+n+")":"";
   const s=$("#saveBtn"),r=$("#revBtn");if(s)s.disabled=!n;if(r)r.disabled=!n;}
 
@@ -291,21 +530,67 @@ function reviewHtml(){
   const g=$("#gold"); let html="";
   if(g.classList.contains("changed"))
     html+='<div class="revrow"><span class="rl">Gold</span><span class="ro">'+g.getAttribute("data-def")+'</span>→ <span class="rn">'+g.value+'</span></div>';
+  const pt=[$("#ptH"),$("#ptM")].filter(i=>i&&i.classList.contains("changed"));
+  if(pt.length)
+    html+='<div class="revrow"><span class="rl">Played</span><span class="ro">'+
+      $("#ptH").getAttribute("data-def")+':'+String($("#ptM").getAttribute("data-def")).padStart(2,"0")+
+      '</span>→ <span class="rn">'+$("#ptH").value+':'+String($("#ptM").value).padStart(2,"0")+'</span></div>';
+  const inv={};
+  changed().forEach(i=>{if(i.dataset.inv!==undefined)inv[i.dataset.inv]=(inv[i.dataset.inv]||0)+1;});
+  Object.keys(inv).forEach(k=>html+='<div class="revrow"><span class="rl">'+esc(k)+
+    '</span><span class="rn">'+inv[k]+' slot(s) changed</span></div>');
   const byChar={};
-  changed().forEach(i=>{if(i.id==="gold")return;(byChar[i.dataset.idx]=byChar[i.dataset.idx]||[]).push(i);});
+  changed().forEach(i=>{if(i.id==="gold"||i.id==="ptH"||i.id==="ptM"||i.dataset.inv!==undefined)return;
+    (byChar[i.dataset.idx]=byChar[i.dataset.idx]||[]).push(i);});
   Object.keys(byChar).forEach(idx=>{
     const nm=(curSave.characters[idx]||{}).name||("rec"+idx);
     html+='<div class="revgrp">'+esc(nm)+'</div>';
-    byChar[idx].forEach(i=>html+='<div class="revrow"><span class="rl">'+esc(i.dataset.field)+
-      '</span><span class="ro">'+i.getAttribute("data-def")+'</span>→ <span class="rn">'+i.value+'</span></div>');
+    byChar[idx].forEach(i=>{
+      const label=i.dataset.field||(i.dataset.aff&&i.dataset.aff+" affinity")||
+        (i.dataset.equip!==undefined&&"equip slot "+(+i.dataset.equip+1))||
+        ((i.dataset.mask==="ether"?"ether ":"skill ")+
+          (i.closest("label")?i.closest("label").textContent.trim():""));
+      const was=i.type==="checkbox"?(i.getAttribute("data-def")==="1"?"known":"—"):i.getAttribute("data-def");
+      const now=i.type==="checkbox"?(i.checked?"known":"—"):i.value;
+      html+='<div class="revrow"><span class="rl">'+esc(label)+'</span><span class="ro">'+
+        esc(was)+'</span>→ <span class="rn">'+esc(now)+'</span></div>';});
   });
   return html;
 }
-async function applyAndSave(){
-  const edits={characters:{}};
+// a mask/equip/inventory edit is absolute, not a delta, so a character whose
+// mask moved at all is sent with its FULL set read back off the DOM
+function collectEdits(){
+  const edits={characters:{}}, ch=(idx)=>(edits.characters[idx]=edits.characters[idx]||{});
   const g=$("#gold");if(g.classList.contains("changed"))edits.gold=+g.value;
-  changed().forEach(i=>{if(i.id==="gold")return;const idx=i.dataset.idx,f=i.dataset.field;
-    (edits.characters[idx]=edits.characters[idx]||{})[f]=+i.value;});
+  if($("#ptH").classList.contains("changed")||$("#ptM").classList.contains("changed"))
+    edits.playtime={hours:+$("#ptH").value,minutes:+$("#ptM").value};
+  const scale=(REF.affinity||{}).scale||5;
+  const masks=new Set(), equips=new Set();
+  changed().forEach(i=>{
+    if(i.id==="gold"||i.id==="ptH"||i.id==="ptM") return;
+    const idx=i.dataset.idx;
+    if(i.dataset.inv!==undefined){
+      const inv=(edits.inventory=edits.inventory||{});
+      (inv[i.dataset.inv]=inv[i.dataset.inv]||{})[i.dataset.slot]=
+        i.type==="checkbox"?(i.checked?1:0):+i.value;
+    } else if(i.dataset.aff!==undefined){
+      const a=(ch(idx).affinity=ch(idx).affinity||{});
+      a[i.dataset.aff]=Math.round(+i.value/scale)&0xFF;
+    } else if(i.dataset.equip!==undefined){ equips.add(idx);
+    } else if(i.dataset.mask!==undefined){ masks.add(idx+"|"+i.dataset.mask);
+    } else { ch(idx)[i.dataset.field]=+i.value; }
+  });
+  masks.forEach(key=>{const [idx,kind]=key.split("|");
+    ch(idx)[kind]=[...document.querySelectorAll(
+      '#skillPane input[data-idx="'+idx+'"][data-mask="'+kind+'"]:checked')]
+      .map(i=>+i.dataset.cat);});
+  equips.forEach(idx=>{ch(idx).equip=[...document.querySelectorAll(
+    '.eqrow[data-idx="'+idx+'"] input')].map(i=>+i.value);});
+  return edits;
+}
+
+async function applyAndSave(){
+  const edits=collectEdits();
   const dest = (fileHandle&&SUPPORTS_FS)?("Apply & save to "+origName):("Apply & download");
   const title = "Review changes — "+origName+
     (curSlots.length>1?(" · "+curSlots[curSlot].folder):"");
@@ -317,8 +602,11 @@ async function applyAndSave(){
     const bytes=PY.FS.readFile(SAVE_PATH);
     ok=true;
     // commit baseline
-    document.querySelectorAll("#sheet input, #gold").forEach(i=>{i.setAttribute("data-def",i.value);
-      i.classList.remove("changed");const b=i.nextElementSibling;if(b&&b.classList.contains("restore"))b.classList.remove("show");});
+    document.querySelectorAll(EDITABLE).forEach(i=>{
+      i.setAttribute("data-def", i.type==="checkbox"?(i.checked?"1":"0"):i.value);
+      i.classList.remove("changed");
+      const lab=i.closest("label"); if(lab) lab.classList.remove("dirty");
+      const b=i.nextElementSibling;if(b&&b.classList.contains("restore"))b.classList.remove("show");});
     await writeOut(bytes);
   }catch(e){st.textContent="✗ "+e;st.className="status err";toast("✗ "+e,true);}
   if(ok){st.textContent="✓ saved";st.className="status ok";}

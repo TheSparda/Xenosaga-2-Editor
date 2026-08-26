@@ -10,11 +10,16 @@ A save & disc editor for **Xenosaga Episode II: Jenseits von Gut und Böse** (PS
 Runs entirely **in your browser** — desktop or Android. Your files **never leave your
 device** (no server, no upload). It's a PWA, so you can **Install** it and use it offline.
 
-- **Save Editor** (works everywhere, incl. phones) — edit gold and every character's level,
-  HP, stats, and E.S. mech gear. Opens **PCSX2 memory-card images** (`.ps2`/`.mcd`) and lets
-  you pick which in-game slot to edit, plus **`.psu`** (EMS), **`.psv`** (PS3),
-  **`.sps`/`.xps`** (SharkPort), **`.cbs`** (CodeBreaker) and **`.max`** (AR Max / MAX
-  Drive). Powered by the real Python engine compiled to WebAssembly (Pyodide).
+- **Save Editor** (works everywhere, incl. phones) — gold, **play time**, and per
+  character: level, HP, stats, **damage affinities**, **EXP**, **Skill Points** and **Class
+  Points**, every **learned ether and skill** (one tick per skill, named), the four
+  **equipped equip-skills**, and an E.S. unit's three **accessory slots**. Plus all three
+  inventories — **items**, **E.S. accessories** and **key items**, each named from the
+  disc's own catalog, with one click to grant all 31 Secret Keys. Opens **PCSX2 memory-card
+  images** (`.ps2`/`.mcd`) and lets you pick which in-game slot to edit, plus **`.psu`**
+  (EMS), **`.psv`** (PS3), **`.sps`/`.xps`** (SharkPort), **`.cbs`** (CodeBreaker) and
+  **`.max`** (AR Max / MAX Drive). Powered by the real Python engine compiled to
+  WebAssembly (Pyodide).
 - **ISO Editor** (desktop Chrome/Edge/Brave/Opera) — **open both discs and edit them as
   one**, in six tabs:
   - **Enemies** — **stats** (HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL), **battle rewards**
@@ -71,9 +76,10 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
 
 Working today:
 
-- **Save editing** — gold + the full character sheet, across **every** common container:
-  PCSX2 memory-card images (one entry per in-game slot), `.psu`, `.psv`, SharkPort,
-  CodeBreaker and AR Max `.max`.
+- **Save editing** — gold, play time, the full character sheet, EXP and both point pools,
+  learned skills, equipped equip-skills, E.S. accessories, damage affinities and all three
+  inventories, across **every** common container: PCSX2 memory-card images (one entry per
+  in-game slot), `.psu`, `.psv`, SharkPort, CodeBreaker and AR Max `.max`.
 - **ISO enemy editing** — stats, rewards, drops, affinities, resistances and **Break
   sequences** for all 125 records, on **both discs**, plus battle-pacing profiles, patch
   files, and comparison against the retail values (with restore). The enemy tables are
@@ -83,6 +89,11 @@ Working today:
   [`Editor/Xenosaga2_ISO_offsets.md`](Editor/Xenosaga2_ISO_offsets.md) for both derivations).
 - **ISO skill editing** — EP, element, power and the status-effect fields for the 86 Ether
   and Double skills, in the web editor as well as the CLI.
+- **Secret skills, both ways** — grant all 31 **Secret Keys** in a save
+  (`x2save.py set SAVE --secret-keys`), or drop the key requirement on the disc entirely so
+  the 31 "???" skills are learnable from the start (`x2patch.py secret-keys ISO --unlock`,
+  31 bytes, reversible). The keys make those skills *purchasable*; Class Points and Skill
+  Points are still owed.
 - **Reference** — bestiary + item / key-item / E.S.-gear catalogs, and the **damage
   formula** (attack category 1) derived statically from the disc-1 battle overlay — no
   emulator. Full derivation in [`Research/DAMAGE.md`](Research/DAMAGE.md); the Reference
@@ -90,8 +101,10 @@ Working today:
 
 Two things worth stating plainly:
 
-- The in-game **save checksum isn't cracked yet**, so an edited *save* may be rejected by
-  the game until it is. ISO edits are unaffected. A `.bak` is always kept.
+- The in-game **save checksum is cracked** (2026-08-25) and recomputed on every write, so
+  edited saves carry the same value the game's own routine would have produced. It is a
+  64-bit position-weighted sum read straight out of the boot ELF — no emulator involved —
+  and it reproduces all 44 local saves exactly. A `.bak` is always kept.
 - Nothing is written to the undecoded bytes — which matters more than it sounds: the
   character and E.S. name table physically occupies the leading bytes of enemy record 0.
 - The enemy record now has **50 undecoded bytes**, down two: `+0x50` carries the enemy
@@ -100,9 +113,39 @@ Two things worth stating plainly:
   discs.
 
 Next reverse-engineering targets: pairing the **tech blocks** with their name pools and
-working out their record layout (mapped but unexposed), then the save checksum, party, and
-inventory, which need a PCSX2 session to anchor.
-**Every common save container is now supported**, `.max` included.
+working out their record layout (mapped but unexposed), and the active party, which still
+needs a PCSX2 session to anchor. The save checksum, the save-side inventory, EXP/SP/CP and
+the learned-skill masks are done. **Every common save container is now supported**, `.max`
+included.
+
+### What the disc taught the save editor
+
+The save side was stuck on the same thing for months — no ground-truth save to diff
+against. What unstuck it was the **ISO tables the editor already had**. Every new field
+below is named by a table the ISO editor also edits, and most were *proven* by one:
+
+- **Learned ethers and skills** are two bitmasks, one bit per skill, indexing the same
+  catalog the **Costs** and **Passives** tabs price and retune. The proof is a hole rather
+  than a match: on a save with essentially every ether learned, the single clear bit inside
+  the run is Burst Veil — the one ether the shop does not sell, recorded as unpurchasable in
+  the cost-table notes long before anyone looked at a save.
+- **Equipped equip-skills** — four slots per character (Episode II characters equip nothing
+  else). All 255 non-empty slots across 24 saves hold a skill that character has learned,
+  and 227 of 227 priced ones are type-1 equip skills.
+- **The three inventories** name themselves from the disc's item catalog, and the catalog's
+  `予備` placeholder slots are what located two of them: the array whose 40 slots read zero
+  in exactly the nine places the catalog says are spare is the E.S. accessory array, and
+  it is the only such array in the whole undecoded region.
+- **Damage affinities** turn out to be the *same eight bytes* the **Units** tab edits — the
+  save record is the disc unit record shifted by a constant `0x34` — so you can give a
+  character you already have a fire weakness without starting a new game.
+- **Play time** needed no inference: the game writes it into the save's own `icon.sys`
+  title, and the struct agrees with that label on hours and minutes, 16 of 16.
+
+Two things it also corrected. The field the code called "Character id" was never an id (it
+is the record's name pointer, and it is now read-only), and an E.S. accessory slot stores a
+**one-based** catalog index — so the old picker showed the wrong accessory name for any
+slot past the catalog's first placeholder.
 
 ### Both discs, edited as one
 
@@ -179,6 +222,40 @@ Captions are matched on the text they currently hold, so renaming the same skill
 twice keeps finding them. The one way to orphan a caption is to rename with
 `--no-captions` and then rename again — `captions --grep` finds it by text if you
 do.
+
+### Secret skills, without hunting the keys
+
+31 skills in the chart show as `???` and cannot be learned until you find the matching
+**Secret Key** — 31 of them, scattered across G2 Campaign quests, Segment Address doors and
+post-game dungeon chests, several of which are permanently missable. There are two ways to
+open them up, and they are independent:
+
+```bash
+python3 x2save.py set "…/BASLUS-….PSV" --secret-keys          # put all 31 keys in a save
+python3 x2patch.py secret-keys "…(Disc 1).iso"                # list the 31 and their state
+python3 x2patch.py secret-keys "…(Disc 1).iso" --unlock --also "…(Disc 2).iso"
+python3 x2patch.py secret-keys "…(Disc 1).iso" --require       # put the requirement back
+```
+
+The **save** route grants the keys themselves (key items 76–106) and is the faithful one —
+the game behaves exactly as if you had found them. The **disc** route removes the
+requirement instead: it zeroes one byte per secret skill, so the `???` entries are ordinary
+purchases from the first save file onward, on a fresh playthrough with no save to edit.
+
+Either way, a key only makes the skill *purchasable*. You still spend Class Points to open
+its class and Skill Points to learn it, and Levels 2–4 still need Class Complete on the tier
+below — so this removes the scavenger hunt, not the progression.
+
+Two caveats worth reading before you use the disc route:
+
+- The cost table lives at a different base on each disc, so unlocking disc 1 alone silently
+  reverts at the disc swap. Use `--also`, or run it on both.
+- This is the one edit in the project inferred from a field's *meaning* rather than watched
+  being used. The `slot` byte provably **encodes** the key requirement — decoding all 31 and
+  naming them reproduces the skills FAQ's Secret Key list 31/31, including six the FAQ leaves
+  romanized (Kikou 1 = Focus 1, Ponkotsu Beam = Junk Beam, Imashime = Curse, …) — but the
+  game has not been observed *reading* it. Try it in an emulator first. `--require` restores
+  the disc byte-for-byte.
 
 ### Status resistances
 
@@ -404,8 +481,11 @@ python3 x2patch.py export-patch "../ISO/...iso" --out mod.json
 python3 x2patch.py apply-patch "../ISO/...iso" mod.json      # share a rebalance
 python3 x2patch.py sync "../ISO/...(Disc 1).iso" "../ISO/...(Disc 2).iso"
 python3 x2patch.py restore "../ISO/...iso"                   # back to retail values
+python3 x2patch.py secret-keys "../ISO/...iso" --unlock      # secret skills need no key
 python3 x2save.py slots "…/Mcd001.ps2"                       # list a card's saves
 python3 x2save.py "…/Mcd001.ps2" --slot 2                    # decode one of them
+python3 x2save.py keyitems "…/BASLUS-….PSV"                  # what the save holds
+python3 x2save.py set "…/BASLUS-….PSV" --secret-keys         # grant all 31 Secret Keys
 python3 x2save.py set "…/BASLUS-….PSV" --gold 9999999 --char 0 --level 99 --hp 9999
 python3 x2selftest.py                                         # engine self-test, no game data
 ```

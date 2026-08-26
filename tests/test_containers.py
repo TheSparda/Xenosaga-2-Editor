@@ -184,7 +184,7 @@ class TestAllContainers(TempFileCase):
                 self.assertEqual(d["characters"][0]["Level"], 41)
                 self.assertEqual(d["characters"][1]["HP"], 1450)
                 self.assertTrue(d["characters"][10]["is_es"])
-                self.assertEqual(d["characters"][10]["Gear 1"], 3)
+                self.assertEqual(d["characters"][10]["Slot 1"], 3)
 
     def test_round_trip_write_then_read(self):
         edits = {"gold": 7654321,
@@ -237,18 +237,59 @@ class TestPayloadEdits(unittest.TestCase):
         self.assertEqual(d["characters"][0]["Dex"], 0)
 
     def test_edits_are_surgical(self):
-        gd = FX.gamedata()
+        """Only the targeted byte moves — plus the checksum, which must move."""
+        gd = SV.fix_checksum(FX.gamedata())
         new = SV.apply_edits(gd, {"characters": {4: {"Level": 77}}})
         self.assertEqual(len(new), len(gd))
+        ck = list(range(F.GD_CHECKSUM_OFF,
+                        F.GD_CHECKSUM_OFF + F.GD_CHECKSUM_WIDTH))
         diff = [i for i in range(len(gd)) if gd[i] != new[i]]
-        self.assertEqual(diff, [F.CHAR_TABLE_OFF + 4 * F.CHAR_STRIDE + 0x13])
+        target = F.CHAR_TABLE_OFF + 4 * F.CHAR_STRIDE + 0x13
+        self.assertEqual([i for i in diff if i not in ck], [target])
 
-    def test_checksum_field_is_preserved(self):
+    def test_checksum_is_recomputed(self):
         gd = FX.gamedata(checksum=0x12345678)
         new = SV.apply_edits(gd, {"gold": 9})
-        self.assertEqual(struct.unpack_from("<I", new, 8)[0], 0x12345678)
-        self.assertFalse(SV.CHECKSUM_KNOWN,
-                         "CHECKSUM_KNOWN flipped — fix_checksum() must now recompute")
+        self.assertTrue(SV.CHECKSUM_KNOWN)
+        self.assertNotEqual(struct.unpack_from("<Q", new, 8)[0], 0x12345678)
+        self.assertTrue(SV.checksum_ok(new))
+
+    def test_checksum_matches_the_game_on_retail_saves(self):
+        """Untouched saves must already verify — they were written by the game,
+        so a mismatch means our routine is wrong, not the save.
+
+        Saves/ is gitignored (personal + copyrighted), so this is a local-only
+        check and skips on CI rather than pretending to have run."""
+        root = Path(__file__).resolve().parent.parent / "Saves"
+        paths = [p for p in sorted(root.rglob("*.PSV"))
+                 if "EDITED" not in p.name.upper()]   # pre-crack editor output
+        if not paths:
+            self.skipTest("no local retail saves to check against")
+        for p in paths:
+            self.assertTrue(SV.checksum_ok(SV.extract_gamedata(str(p))),
+                            f"stored checksum disagrees with ours: {p.name}")
+
+    def test_checksum_is_position_weighted(self):
+        """Swapping two bytes must change it — the property a plain sum lacks,
+        and the reason the plain-sum searches all came back empty."""
+        gd = bytearray(SV.fix_checksum(FX.gamedata()))
+        a, b = F.GD_GOLD_OFF, F.GD_GOLD_OFF + 1
+        self.assertNotEqual(gd[a], gd[b])
+        gd[a], gd[b] = gd[b], gd[a]
+        self.assertFalse(SV.checksum_ok(bytes(gd)))
+
+    def test_granting_the_secret_keys_touches_only_their_flags(self):
+        gd = SV.fix_checksum(FX.gamedata())
+        new = SV.apply_edits(gd, {"inventory": {
+            "keyItems": {i: 1 for i in F.secret_key_ids()}}})
+        self.assertTrue(SV.checksum_ok(new))
+        held = SV.decode_gamedata(new)["inventory"]["keyItems"]
+        self.assertTrue(all(held[i] == 1 for i in F.secret_key_ids()))
+        ck = range(F.GD_CHECKSUM_OFF, F.GD_CHECKSUM_OFF + F.GD_CHECKSUM_WIDTH)
+        body = [i for i in range(len(gd)) if gd[i] != new[i] and i not in ck]
+        lo = F.INV_KEYITEM_OFF + 2 * F.SECRET_KEY_FIRST
+        hi = lo + 2 * F.SECRET_KEY_COUNT
+        self.assertTrue(all(lo <= i < hi for i in body), body[:8])
 
     def test_out_of_range_record_is_refused(self):
         with self.assertRaises(IndexError):
@@ -263,6 +304,162 @@ class TestPayloadEdits(unittest.TestCase):
             SV.decode_gamedata(b"\x00" * 100)
         with self.assertRaises(ValueError):
             SV.apply_edits(b"\x00" * 100, {"gold": 1})
+
+
+class TestPlaytime(unittest.TestCase):
+    """The elapsed-time struct at 0x68 — the number the load screen shows."""
+
+    def test_decodes_hours_and_minutes(self):
+        gd = FX.gamedata(playtime=(30, 18))
+        self.assertEqual(SV.decode_gamedata(gd)["playtime"]["text"], "30:18")
+
+    def test_hours_past_a_day_roll_into_the_day_byte(self):
+        # 27:36 is stored as day 2, hour 3 — the trap that makes a naive
+        # hour-only read say 3:36
+        gd = FX.gamedata(playtime=(27, 36))
+        self.assertEqual(gd[F.GD_PLAYTIME_OFF + 4], 2)      # day
+        self.assertEqual(gd[F.GD_PLAYTIME_OFF + 3], 3)      # hour
+        self.assertEqual(SV.decode_gamedata(gd)["playtime"]["hours"], 27)
+
+    def test_editing_it_keeps_the_seconds_the_save_had(self):
+        gd = FX.gamedata(playtime=(1, 2))                   # fixture sets sec=42
+        new = SV.apply_edits(gd, {"playtime": {"hours": 9, "minutes": 5}})
+        self.assertEqual(SV.decode_gamedata(new)["playtime"]["text"], "9:05")
+        self.assertEqual(new[F.GD_PLAYTIME_OFF + 1], 42)
+
+
+class TestGrowthBlock(unittest.TestCase):
+    """EXP, the two point pools and the learned-skill masks at 0x2274."""
+
+    def test_points_decode_per_character(self):
+        d = SV.decode_gamedata(FX.gamedata())
+        self.assertEqual(d["characters"][0]["EXP"], 250000)
+        self.assertEqual(d["characters"][0]["Skill Points"], 3150)
+        self.assertEqual(d["characters"][0]["Class Points"], 900)
+        self.assertEqual(d["characters"][1]["Skill Points"], 0)
+
+    def test_learned_masks_decode_to_catalog_indices(self):
+        d = SV.decode_gamedata(FX.gamedata())
+        self.assertEqual(d["characters"][0]["ether"], [0, 2, 5])
+        self.assertEqual(d["characters"][0]["skills"], [110, 141])
+
+    def test_learning_and_forgetting_are_both_writable(self):
+        gd = SV.apply_edits(FX.gamedata(), {"characters": {
+            0: {"ether": [0, 2, 5, 56], "skills": []}}})
+        c = SV.decode_gamedata(gd)["characters"][0]
+        self.assertEqual(c["ether"], [0, 2, 5, 56])          # 56 = last ether bit
+        self.assertEqual(c["skills"], [])
+
+    def test_a_mask_edit_touches_only_that_characters_bytes(self):
+        gd = FX.gamedata()
+        new = SV.apply_edits(gd, {"characters": {2: {"ether": [1]}}})
+        base = F.GROWTH_TABLE_OFF + 2 * F.GROWTH_STRIDE + F.ETHER_MASK_OFF
+        diff = [i for i in range(len(gd))
+                if gd[i] != new[i] and not (8 <= i < 16)]    # 8..15 = checksum
+        self.assertEqual(diff, [base])
+
+    def test_an_index_outside_the_mask_is_refused(self):
+        with self.assertRaises(IndexError):
+            SV.apply_edits(FX.gamedata(), {"characters": {0: {"ether": [57]}}})
+
+    def test_the_masks_index_the_same_catalog_the_iso_tabs_edit(self):
+        # the ether mask covers the ether numeric block, and the skill mask
+        # starts exactly where the ISO passive table starts
+        self.assertEqual(F.ETHER_MASK_TEXT0, 0)
+        self.assertEqual(F.SKILL_MASK_TEXT0, F.PASSIVE_TEXT0)
+        self.assertEqual(F.SKILL_MASK_COUNT, F.PASSIVE_COUNT)
+        # the mask's permanent hole: catalog 25 is Burst Veil, the one ether
+        # inside the run that the skill shop does not sell
+        self.assertEqual(F.skill_catalog()[25]["name"], "Burst Veil")
+        priced = {v["id"] for v in F.res_json("x2_costs.json").values()
+                  if v["type"] == 2}
+        self.assertNotIn(26, priced)                         # == catalog 25
+
+
+class TestEquippedSkills(unittest.TestCase):
+    def test_slots_decode_and_write(self):
+        gd = SV.apply_edits(FX.gamedata(), {"characters": {0: {"equip": [29, 45, 0, 0]}}})
+        self.assertEqual(SV.decode_gamedata(gd)["characters"][0]["equip"],
+                         [29, 45, 0, 0])
+
+    def test_a_short_list_clears_the_rest(self):
+        gd = SV.apply_edits(FX.gamedata(), {"characters": {0: {"equip": [7]}}})
+        self.assertEqual(SV.decode_gamedata(gd)["characters"][0]["equip"], [7, 0, 0, 0])
+
+    def test_an_equipped_id_names_a_skill_through_the_cost_table(self):
+        # id -> catalog index is the same mapping the ISO Costs tab uses
+        names = F.skill_names()
+        self.assertEqual(names[F.skill_cost_catalog_index(1, 29)], "STR+2")
+
+
+class TestAffinities(unittest.TestCase):
+    def test_retail_reads_a_flat_hundred_percent(self):
+        c = SV.decode_gamedata(FX.gamedata())["characters"][0]
+        self.assertEqual(set(c["affinity"].values()), {20})   # 20 * 5 == 100%
+        self.assertEqual(F.affinity_pct(20), 100)
+
+    def test_writing_one_element_leaves_the_other_seven(self):
+        gd = SV.apply_edits(FX.gamedata(), {"characters": {
+            0: {"affinity": {"Fire": F.affinity_byte(200)}}}})
+        c = SV.decode_gamedata(gd)["characters"][0]
+        self.assertEqual(F.affinity_pct(c["affinity"]["Fire"]), 200)
+        self.assertEqual(F.affinity_pct(c["affinity"]["Ice"]), 100)
+
+
+class TestInventories(unittest.TestCase):
+    def test_all_three_decode(self):
+        inv = SV.decode_gamedata(FX.gamedata())["inventory"]
+        self.assertEqual(len(inv["consumables"]), F.INV_CONSUMABLE_COUNT)
+        self.assertEqual(len(inv["esGear"]), F.INV_ES_GEAR_COUNT)
+        self.assertEqual(len(inv["keyItems"]), F.INV_KEYITEM_COUNT)
+        self.assertEqual(inv["consumables"][0], 12)
+        self.assertEqual(inv["keyItems"][76], 1)
+
+    def test_quantities_are_capped_at_the_stack_limit(self):
+        gd = SV.apply_edits(FX.gamedata(), {"inventory": {"consumables": {3: 5000}}})
+        self.assertEqual(SV.decode_gamedata(gd)["inventory"]["consumables"][3],
+                         F.INV_QTY_MAX)
+
+    def test_key_items_are_flags_not_counts(self):
+        gd = SV.apply_edits(FX.gamedata(), {"inventory": {"keyItems": {5: 99}}})
+        self.assertEqual(SV.decode_gamedata(gd)["inventory"]["keyItems"][5], 1)
+
+    def test_a_slot_outside_the_array_is_refused(self):
+        with self.assertRaises(IndexError):
+            SV.apply_edits(FX.gamedata(), {"inventory": {
+                "consumables": {F.INV_CONSUMABLE_COUNT: 1}}})
+
+    def test_slots_name_themselves_through_the_disc_item_catalog(self):
+        cat = F.item_catalog()
+        self.assertEqual(cat[F.INV_CONSUMABLE_ITEM0]["name"], "Med Kit S")
+        self.assertEqual(cat[F.INV_ES_GEAR_ITEM0]["name"], "Auxiliary Armor A")
+        # the four consumable slots that read zero in every retail save are
+        # exactly the catalog's placeholders
+        placeholders = [i for i in range(F.INV_CONSUMABLE_COUNT)
+                        if cat[F.INV_CONSUMABLE_ITEM0 + i]["placeholder"]]
+        self.assertEqual(placeholders, [17, 18, 19, 35])
+        # and the E.S. gear array's nine, which is the signature that located it
+        self.assertEqual([i for i in range(F.INV_ES_GEAR_COUNT)
+                          if cat[F.INV_ES_GEAR_ITEM0 + i]["placeholder"]],
+                         [2, 3, 4, 7, 8, 9, 37, 38, 39])
+
+    def test_es_accessory_slots_read_one_based(self):
+        # stored 1 is catalog 0; a stored 0 means the slot is empty
+        self.assertEqual(F.es_accessory_name(1), "Auxiliary Armor A")
+        self.assertIsNone(F.es_accessory_name(0))
+        self.assertIsNone(F.es_accessory_name(3))     # catalog 2 is a placeholder
+
+
+class TestReadOnlyFields(unittest.TestCase):
+    def test_the_name_pointer_and_unit_id_are_refused(self):
+        for label in F.SAVE_READONLY_FIELDS:
+            with self.assertRaises(KeyError):
+                SV.apply_edits(FX.gamedata(), {"characters": {0: {label: 1}}})
+
+    def test_they_still_decode(self):
+        c = SV.decode_gamedata(FX.gamedata())["characters"][0]
+        self.assertEqual(c["Name ptr"], 0x0564)
+        self.assertEqual(c["Unit id"], 3)
 
 
 class TestPsu(unittest.TestCase):
