@@ -1,12 +1,9 @@
 // PPF import tests. Builds synthetic PPF3.0 patches in-test (no game data) and
 // drives the parsePPF function extracted from the shipped web/iso.js source.
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const src = fs.readFileSync(path.join(WEB, "iso.js"), "utf8");
-const at = src.indexOf("function parsePPF");
-const parsePPF = eval("(" + src.slice(at, src.indexOf("\n  // the edit buffers", at)) + ")");
+import { between, isoSource } from "./extract.mjs";
+const src = isoSource();
+const parsePPF = eval("(" +
+  between(src, "function parsePPF", "\n  // The edit buffers") + ")");
 
 let fail = 0;
 const ok = (m) => console.log("  ✓ " + m);
