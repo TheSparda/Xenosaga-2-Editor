@@ -305,9 +305,20 @@ command line does apply those, so `apply-ppf` reaches all 661. The only
 user-visible difference is that a skill renamed in the web editor keeps its
 retail name in battle captions.
 
-You do not need the `.ppf` to get this one: the ISO editor ships **HardType
-(Normal)** and **HardType (Hard)** as one-click presets, generated from the
-mod's own patches, staged for review exactly like an import.
+You do not need the `.ppf` to get this one. The ISO editor opens on a
+**Templates** tab that ships **HardType (Normal)** and **HardType (Hard)**,
+generated from the mod's own patches.
+
+A template is previewed before it is accepted. Selecting one lists every record
+it would touch — grouped by pane, current → new, the same rendering the write
+confirmation uses — and stages *nothing* while you read it. Accepting is
+configuration, not application: the edits join your pending changes, so you can
+walk into any pane and tweak individual values on top before you Save.
+
+Because a template is presented as a coherent whole, layering one onto edits you
+have already made is offered explicitly rather than done silently. The preview
+counts how many of your own changed bytes it would overwrite, and **Replace**
+discards your pending changes first and stages the template alone.
 
 ### What does someone else's mod change?
 

@@ -368,3 +368,26 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
 .pickrow:hover,.pickrow.sel{background:var(--panel2)}
 .pickrow .pid{color:var(--mut);font:12px ui-monospace,monospace;min-width:2.5ch;text-align:right}
 .pickrow .pn{font-weight:600}.pickrow .pd{color:var(--mut);font-size:12px;margin-left:auto;max-width:50%;text-align:right}
+
+/* Templates preview: the same rows the write confirmation shows, but inline in
+   a pane rather than a modal, so it needs its own scroll box. Capped rather
+   than unbounded — a full template diff is hundreds of records and the Accept
+   buttons must stay reachable without scrolling past all of them. */
+.tplrows{max-height:46vh;overflow:auto;padding-right:6px;
+  border-top:1px solid var(--line);margin-top:8px}
+
+/* Collapsible sections in the editor panes. Distinct from details.help, which
+   is prose you rarely open — these hold live controls, so the summary carries a
+   hint of what is inside and the open state is remembered. */
+.sect{border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--panel2)}
+.sect>summary{cursor:pointer;padding:9px 12px;font-weight:600;font-size:14px;
+  color:var(--acc2);list-style:none;display:flex;align-items:baseline;gap:10px;
+  border-radius:10px;min-height:38px}
+.sect>summary::-webkit-details-marker{display:none}
+.sect>summary::before{content:"▸";color:var(--mut);font-weight:400;
+  transition:transform .12s ease;display:inline-block}
+.sect[open]>summary::before{transform:rotate(90deg)}
+.sect>summary:hover{background:var(--line)}
+.sect .secthint{color:var(--mut);font-weight:400;font-size:12px}
+.sect .sectbody{padding:0 12px 12px}
+.sect .sectbody>.fieldtable{margin-top:0}

@@ -617,7 +617,7 @@
   // Which pane the editor is showing. Both write to the same disc and share one
   // Save, so this is presentation only — switching tabs never discards staged
   // work, and the Save button's count covers every pane.
-  let PANE="enemy";
+  let PANE="tpl";
   // ids written out literally, not built from the pane name — a concatenated id
   // is invisible to anything that greps the source (tests/test_web.py checks it)
   function showPane(which){
@@ -630,12 +630,14 @@
     show($("#pane-gear"), which==="gear");
     show($("#pane-cost"), which==="cost");
     show($("#pane-unit"),  which==="unit");
+    show($("#pane-tpl"),   which==="tpl");
     on($("#ptab-enemy"), which==="enemy");
     on($("#ptab-skill"), which==="skill");
     on($("#ptab-passive"), which==="passive");
     on($("#ptab-gear"), which==="gear");
     on($("#ptab-cost"), which==="cost");
     on($("#ptab-unit"),  which==="unit");
+    on($("#ptab-tpl"),   which==="tpl");
     // the patch/JSON/retail actions describe the enemy tables specifically
     show($("#enemyActions"), which==="enemy");
     if(which==="skill") loadSkill();
@@ -643,20 +645,78 @@
     if(which==="gear") loadGear();
     if(which==="cost") loadCost();
     if(which==="unit") loadUnit();
+    // the preview is against what is staged RIGHT NOW, so it is recomputed on
+    // entry rather than cached — edits made in another pane change the answer
+    if(which==="tpl") paintTemplate();
+  }
+
+  // ---- collapsible sections -------------------------------------------------
+  // The enemy card carries six blocks of controls and a page of prose that
+  // explains them. Shown all at once it buries the thing most people opened the
+  // tab to do — pick an enemy and change a number — under several screens of
+  // scrolling. Each block is a <details> instead, so the card opens as a short
+  // list of headings you expand when you need them.
+  //
+  // Open/closed is remembered per SECTION, not per enemy. loadEnemy() refills
+  // the tables inside these elements rather than replacing the elements, so a
+  // section stays open while you page through enemies, and localStorage carries
+  // that across reloads. Without both, a disclosure control is worse than no
+  // disclosure control: you would re-open the same section 125 times.
+  //
+  // No element ids here on purpose — data-sect only. An id built by
+  // concatenation is invisible to anything that greps the source for it, which
+  // is the rule the pane tabs already follow.
+  const SECTKEY="x2sect";
+  let SECTOPEN={};
+  try{ SECTOPEN=JSON.parse(localStorage.getItem(SECTKEY)||"{}")||{}; }catch(e){ SECTOPEN={}; }
+  function sect(key,title,body,hint){
+    return '<details class="sect" data-sect="'+key+'"'+(SECTOPEN[key]?' open':'')+'>'+
+      '<summary>'+esc(title)+(hint?'<span class="secthint">'+hint+'</span>':'')+'</summary>'+
+      '<div class="sectbody">'+body+'</div></details>';
+  }
+  function wireSects(){
+    document.querySelectorAll("details.sect").forEach(d=>{
+      d.addEventListener("toggle",()=>{
+        SECTOPEN[d.dataset.sect]=d.open;
+        try{ localStorage.setItem(SECTKEY,JSON.stringify(SECTOPEN)); }catch(e){}
+      });
+    });
   }
 
   function renderEditor(){
     const opts=enemyKeys().map(optionHtml).join("");
     $("#isoEdit").innerHTML=
       '<nav class="modebar panetabs">'+
-      '<button id="ptab-enemy" class="mtab on">Enemies</button>'+
+      '<button id="ptab-tpl" class="mtab on">Templates</button>'+
+      '<button id="ptab-enemy" class="mtab">Enemies</button>'+
       '<button id="ptab-skill" class="mtab">Skills</button>'+
       '<button id="ptab-passive" class="mtab">Passives</button>'+
       '<button id="ptab-gear" class="mtab">Gear</button>'+
       '<button id="ptab-cost" class="mtab">Costs</button>'+
       '<button id="ptab-unit" class="mtab">Units</button>'+
       '</nav>'+
-      '<div id="pane-enemy">'+
+      '<div id="pane-tpl">'+
+      '<div class="card"><h2>2 \u00b7 Template</h2>'+
+      '<p class="sub" style="margin:0 0 10px">A template is a whole rebalance expressed as '+
+      'staged table edits \u2014 pick one, read exactly what it would change, and accept it '+
+      'only if you want it. Accepting <b>configures</b>: the edits join your pending changes '+
+      'and nothing is written until you Save, so you can walk into any pane and tweak '+
+      'individual values on top.</p>'+
+      '<div class="toolbar"><label>Template</label> <select id="tplsel"></select>'+
+      '<span id="tplcount" class="muted small"></span></div>'+
+      '<div id="tpldesc"></div></div>'+
+      '<div class="card"><h2>3 \u00b7 Preview</h2>'+
+      '<div id="tplprev"></div>'+
+      '<div class="toolbar">'+
+      '<button id="tplAccept" class="btn primary">\u2713 Accept into pending changes</button>'+
+      '<button id="tplReplace" class="btn" disabled>\u21ba Replace my staged changes</button>'+
+      '<span id="tplstat" class="muted small"></span></div>'+
+      '<p class="note">Nothing above is staged. <b>Accept</b> layers the template on top of '+
+      'whatever you have already changed; <b>Replace</b> discards your pending changes first '+
+      'and stages the template on its own. Either way the disc is untouched until you Save, '+
+      'and Revert all undoes the lot.</p></div>'+
+      '</div>'+                              // /pane-tpl
+      '<div id="pane-enemy" hidden>'+
       '<div class="card"><h2>2 · Enemy</h2>'+
       '<div class="toolbar"><label>Enemy</label> <select id="esel">'+opts+'</select>'+
       '<span class="findbox"><input type="search" id="esearch" placeholder="find by name, index or id" '+
@@ -665,13 +725,17 @@
       '<span id="ecount" class="muted small"></span>'+
       '<label style="margin-left:8px"><input type="checkbox" id="ebak"> back up ISO first</label>'+
       '</div>'+
-      '<table id="etbl" class="fieldtable"><tbody><tr id="erow"></tr></tbody></table>'+
-      '<div class="affbox"><div class="fl">Battle rewards</div>'+
-        '<table class="fieldtable"><tbody><tr id="erow2"></tr></tbody></table>'+
-      '</div>'+
       '<div id="eflags" class="note"></div>'+
       '<div id="eretail" class="note"></div>'+
-      '<div class="affbox"><div class="fl">Item drops</div>'+
+      sect("stats","Stats",
+        '<table id="etbl" class="fieldtable"><tbody><tr id="erow"></tr></tbody></table>'+
+        '<p class="note">Verified against guide data (74/76 exact matches). Writes only the '+
+        'changed bytes back at their exact offsets.</p>',
+        "HP, STR, VIT, EATK, EDEF, DEX, EVA, AGL")+
+      sect("rewards","Battle rewards",
+        '<table class="fieldtable"><tbody><tr id="erow2"></tr></tbody></table>',
+        "EXP, SP, CP")+
+      sect("drops","Item drops",
         '<table class="fieldtable"><tbody><tr id="erow4"></tr></tbody></table>'+
         '<div id="edrops" class="muted small"></div>'+
         '<p class="note">Two slots per enemy: a common drop and a rare one, each a '+
@@ -681,20 +745,23 @@
         'so a bare number is meaningless without knowing which window you are in.</p>'+
         '<p class="note">Changing the category re-bases the id, so the item list reloads '+
         'with it. Drop rates are verified against a strategy guide on 138 of 144 '+
-        'comparisons.</p></div>'+
-      '<div class="affbox"><div class="fl">Status resistance (%)</div>'+
+        'comparisons.</p>',
+        "common and rare slot")+
+      sect("resist","Status resistance",
         '<table class="fieldtable"><tbody><tr id="erow5"></tr></tbody></table>'+
         '<p class="note">Higher resists the status more. Eight of the ten statuses a '+
         'strategy guide publishes map to these bytes at 98–100% agreement; the block has '+
-        'three more bytes we have not identified, so they are not shown.</p></div>'+
-      '<div class="affbox"><div class="fl">Damage taken, by element (%)</div>'+
+        'three more bytes we have not identified, so they are not shown.</p>',
+        "%, higher resists more")+
+      sect("affinity","Damage taken, by element",
         '<table class="fieldtable"><tbody><tr id="erow3"></tr></tbody></table>'+
         '<p class="note">'+AFF_NORMAL+'% is normal, below resists, above takes extra, '+
         '<b>0 is immune</b> and <b>negative absorbs</b> (Svarozic takes -200% Fire, i.e. it '+
         'heals for double). Stored as a signed byte &times;'+AFF_SCALE+', so values snap to '+
         AFF_SCALE+'% steps and the usable range is about -640% to +635%. Verified against '+
-        '71 guide entries, exact on every one.</p></div>'+
-      '<div class="brkbox"><div class="fl">Break sequence</div>'+
+        '71 guide entries, exact on every one.</p>',
+        "%, "+AFF_NORMAL+" is normal")+
+      sect("break","Break sequence",
         '<input id="ebrk" type="text" maxlength="'+BRK_SLOTS+'" spellcheck="false" '+
           'autocapitalize="characters" placeholder="e.g. CBB" style="width:8ch;text-transform:uppercase">'+
         '<button type="button" class="restore" id="ebrkrev" title="Restore">↺</button>'+
@@ -703,9 +770,9 @@
         'loop’s actual gate. Zones are attack heights: <b>A</b> above 3&nbsp;m (○), '+
         '<b>B</b> 1–3&nbsp;m (□), <b>C</b> below 1&nbsp;m (△). Up to '+BRK_SLOTS+' hits; '+
         'clear it to make the enemy unbreakable. Shortening a boss’s 4-hit sequence is the '+
-        'single biggest cut to how long its fight drags.</p></div>'+
-      '<p class="note">Stats + battle rewards, verified against guide data (74/76 exact matches). '+
-      'Writes only the changed bytes back at their exact offsets.</p></div>'+
+        'single biggest cut to how long its fight drags.</p>',
+        "the combo loop’s gate")+
+      '</div>'+
       '<div class="card"><h2>3 · Battle pacing (all '+COUNT+' enemies)</h2>'+
       '<p class="sub" style="margin:0 0 10px">The stock→break→boost loop is the only efficient way to '+
       'fight, and bloated HP makes you run the whole ritual for every enemy. These profiles retune what '+
@@ -732,7 +799,7 @@
       '</tbody></table>'+
       '<div class="toolbar"><span id="sclWarn" class="status"></span><span style="flex:1"></span>'+
       '<button id="sclApply" class="btn primary">Stage rebalance</button></div>'+
-      '<div class="brkbox"><div class="fl">Shorten every Break sequence</div>'+
+      sect("brkall","Shorten every Break sequence",
         '<div class="toolbar" style="margin:0">'+
         '<button id="brkS1" class="btn">−1 hit</button>'+
         '<button id="brkS2" class="btn">−2 hits</button>'+
@@ -749,29 +816,12 @@
         '<p class="note">The shield above is why a 1-hit sequence is left alone. Emptying a sequence '+
         'doesn\'t shorten the break, it <b>removes</b> it: 16 retail enemies ship that way and 15 of '+
         'them still have weak zones, so there are places to hit but no break to reach. Turn it off '+
-        'only if that is what you actually want.</p>'+
-      '</div>'+
+        'only if that is what you actually want.</p>',
+        "trims hits off the end")+
       '<p class="note">Staged into the same pending-changes set above — review everything before writing. '+
       'Scaling always starts from the values the disc had when it was opened, so re-staging replaces the '+
       'previous plan instead of compounding it. Values round to whole numbers; HP floors at 1.</p></div>'+
-      '<div class="card"><h2>4 · HardType mod preset</h2>'+
-      '<p class="sub" style="margin:0 0 10px">Landon Ray’s XS2 HardType v3.9, rebuilt as staged '+
-      'edits — every enemy, skill and unit number the mod’s patch writes, applied without needing '+
-      'the .ppf. The mod ships two flavors; pick one:</p>'+
-      '<div class="toolbar">'+
-      '<button id="htNormal" class="btn">⚡ HardType (Normal)</button>'+
-      '<button id="htHard" class="btn">⚡ HardType (Hard)</button>'+
-      '<span id="htStat" class="muted small"></span></div>'+
-      '<p class="note">Stages what the mod writes into the tables this editor maps — enemy stats '+
-      'and rewards, skill numbers, unit stats, its skill <b>renames and rewritten descriptions</b>, '+
-      'its <b>passive/equip effect</b> changes (Ice Coat becomes STR+4), and its <b>E.S. '+
-      'accessory</b> rebalance (Anti-Fire Armor becomes a +20 POW part). Review it on the '+
-      'Enemies, Skills, Passives and Gear tabs before saving; Revert all undoes the lot.</p>'+
-      '<p class="note">13 of the mod’s 661 records are left out: nine duplicate copies of a '+
-      'renamed skill’s <i>battle caption</i> that sit outside every located table, and four bytes '+
-      'in an unidentified table. Writing those means writing at offsets nothing has confirmed. '+
-      'The practical effect is that a renamed skill keeps its retail name in battle captions.</p></div>'+
-      '<div class="card"><h2>5 · Patch files, bulk JSON &amp; retail values</h2>'+
+      '<div class="card"><h2>4 · Patch files, bulk JSON &amp; retail values</h2>'+
       '<input type="file" id="pFile" accept=".json,application/json" hidden>'+
       '<input type="file" id="tFile" accept=".json,application/json" hidden>'+
       '<p class="note">A patch is a small JSON file listing only the fields you changed, so you can '+
@@ -1004,8 +1054,14 @@
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
-    $("#htNormal").onclick=()=>applyHardtype("normal");
-    $("#htHard").onclick=()=>applyHardtype("hard");
+    $("#ptab-tpl").onclick=()=>showPane("tpl");
+    const tsel=$("#tplsel");
+    if(tsel){
+      tsel.innerHTML=TEMPLATES.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join("");
+      tsel.onchange=paintTemplate;
+    }
+    $("#tplAccept").onclick=()=>{const t=templateById($("#tplsel").value); if(t) acceptTemplate(t,false);};
+    $("#tplReplace").onclick=()=>{const t=templateById($("#tplsel").value); if(t) acceptTemplate(t,true);};
     // explicit selectors, not "#brkS"+n — a concatenated id is invisible to
     // anything that greps the source for it (tests/test_web.py checks that)
     $("#brkKeep").onchange=paintBrkOpts;
@@ -1025,6 +1081,12 @@
     $("#pRestore").onclick=stageRestore;
     checkPristine();
     loadEnemy();
+    wireSects();
+    // The markup above already renders with Templates selected; going through
+    // showPane() as well is what hides #enemyActions and paints the preview, so
+    // the opening state is produced by the same code path as every tab click
+    // rather than by markup that has to agree with it.
+    showPane("tpl");
   }
 
   // Warn if the disc no longer matches the verified retail tables. Stats *and*
@@ -1173,22 +1235,19 @@
   const nameOff=(i)=>{const v=skillInfo(i); return v&&v.nameOff;};
   const nameBudget=(i)=>{const v=skillInfo(i);
     return v&&v.name!==undefined ? v.name.length+1 : 0;};
-  function readName(i){
+  // One reader over an arbitrary byte array — the shape readPassiveName already
+  // uses. Two near-identical copies is how the live and baseline readers drift,
+  // and the Templates preview needs a third baseline (what is staged right now)
+  // that neither of them could express.
+  function readName(i,arr){
     const off=nameOff(i); if(!off||!TX) return null;
-    const at=off-TX.base, n=nameBudget(i);
-    if(at<0||at+n>TX.buf.length) return null;
+    const src=arr||TX.buf, at=off-TX.base, n=nameBudget(i);
+    if(at<0||at+n>src.length) return null;
     let out="";
-    for(let k=0;k<n-1;k++){ const c=TX.buf[at+k]; if(!c) break; out+=String.fromCharCode(c); }
+    for(let k=0;k<n-1;k++){ const c=src[at+k]; if(!c) break; out+=String.fromCharCode(c); }
     return out;
   }
-  function readNameOrig(i){
-    const off=nameOff(i); if(!off||!TX) return null;
-    const at=off-TX.base, n=nameBudget(i);
-    if(at<0||at+n>TX.orig.length) return null;
-    let out="";
-    for(let k=0;k<n-1;k++){ const c=TX.orig[at+k]; if(!c) break; out+=String.fromCharCode(c); }
-    return out;
-  }
+  const readNameOrig=(i)=>readName(i,TX?TX.orig:null);
   function writeName(i,text){
     const off=nameOff(i); if(!off||!TX) return false;
     const at=off-TX.base, n=nameBudget(i);
@@ -1943,59 +2002,139 @@
   function diffRuns(T){const runs=[];let i=0;while(i<T.buf.length){if(T.buf[i]!==T.orig[i]){let j=i;
     while(j<T.buf.length&&T.buf[j]!==T.orig[j])j++;runs.push([i,j]);i=j;}else i++;}return runs;}
 
-  // What the confirm dialog lists before anything is written. It must cover
-  // every field a Save actually writes — it used to show stats, affinities and
+  // What the confirm dialog lists before anything is written, and what the
+  // Templates preview lists before anything is staged. It must cover every
+  // field a Save actually writes — it used to show stats, affinities and
   // rewards only, so a break-sequence or drop change went to disc without ever
   // appearing in the review it was supposedly reviewed in.
-  function reviewRows(){
+  //
+  // `pick(T)` chooses the BASELINE each buffer is compared against, which is the
+  // only thing separating the two callers: Save compares against the disc as it
+  // was opened (T.orig), the Templates preview against what is staged right now.
+  // Same rows, same grouping, same rendering — one function, or the two drift.
+  function changeRows(pick){
+    pick = pick || ((T)=>T.orig);
+    const views=new Map();
+    const wasAt=(T,a,w)=>{
+      let v=views.get(T);
+      if(!v){ const arr=pick(T)||T.orig; v={arr,dv:new DataView(arr.buffer)}; views.set(T,v); }
+      return w===4?v.dv.getUint32(a,true):w===2?v.dv.getUint16(a,true):v.arr[a];
+    };
+    const was=(T,i,off,w)=>wasAt(T,i*(T===S?STRIDE:RSTRIDE)+off,w);
+    const wasArr=(T)=>{ wasAt(T,0,1); return views.get(T).arr; };
     const row=(l,a,b)=>'<div class="revrow"><span class="rl">'+esc(l)+'</span><span class="ro">'+
       esc(a)+'</span>→ <span class="rn">'+esc(b)+'</span></div>';
+    const grp=(t)=>'<div class="revgrp">'+esc(t)+'</div>';
     let rows="",count=0;
     for(let i=0;i<COUNT && count<400;i++){
       let cells="";
       // break slots collapse into one readable row, as in the retail comparison
-      let ob=""; for(let n=0;n<BRK_SLOTS;n++){const y=ZSYM[getOrig(S,i,BRK_OFF+n,1)];if(!y)break;ob+=y;}
+      let ob=""; for(let n=0;n<BRK_SLOTS;n++){const y=ZSYM[was(S,i,BRK_OFF+n,1)];if(!y)break;ob+=y;}
       const nb=breakSeq(i);
       if(ob!==nb) cells+=row("Break",ob||"—",nb||"—");
       for(const [T,FL] of [[S,SFIELDS],[S,AFIELDS],[S,RFIELDS_RES],[R,RFIELDS],[R,DFIELDS]]){
         for(const [l,o,w] of FL){
-          const a=getOrig(T,i,o,w),b=get(T,i,o,w);
+          const a=was(T,i,o,w),b=get(T,i,o,w);
           if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
         }
       }
       const zs=ZFIELDS.find(x=>x[0]==="Zones");
       if(zs){
-        const a=getOrig(S,i,zs[1],zs[2]), b=get(S,i,zs[1],zs[2]);
+        const a=was(S,i,zs[1],zs[2]), b=get(S,i,zs[1],zs[2]);
         if(a!==b) cells+=row("Zones",zoneMaskText(a)||"—",zoneMaskText(b)||"—");
       }
-      if(cells){rows+='<div class="revgrp">'+String(i).padStart(3,"0")+' · '+esc(cat[i]?cat[i].name:i)+'</div>'+cells;count++;}
+      if(cells){rows+=grp(String(i).padStart(3,"0")+" · "+(cat[i]?cat[i].name:i))+cells;count++;}
     }
     for(let i=0;i<UCOUNT;i++){
       let cells="";
       for(const [l,o,w] of UFIELDS.concat(UAFIELDS)){
-        const a=getOrigAt(U,i*USTRIDE+o,w), b=getAt(U,i*USTRIDE+o,w);
+        const a=wasAt(U,i*USTRIDE+o,w), b=getAt(U,i*USTRIDE+o,w);
         if(a===b) continue;
         const aff=UAFIELDS.some(x=>x[0]===l);
         cells+=row(l, aff?affPct(a)+"%":a.toLocaleString(),
                       aff?affPct(b)+"%":b.toLocaleString());
       }
-      if(cells) rows+='<div class="revgrp">unit '+String(i).padStart(2,"0")+' · '+
-        esc(unitName(i))+'</div>'+cells;
+      if(cells) rows+=grp("unit "+String(i).padStart(2,"0")+" · "+unitName(i))+cells;
     }
     for(const i of skillKeys()){
       const base=skillOff(i); if(base<0) continue;
       let cells="";
-      const nOld=readNameOrig(i), nNew=readName(i);
+      const nOld=readName(i,wasArr(TX)), nNew=readName(i);
       if(nOld!==null && nOld!==nNew) cells+=row("Name",nOld||"—",nNew||"—");
       for(const [l,o,w] of KFIELDS){
-        const a=getOrigAt(K,base+o,w), b=getAt(K,base+o,w);
+        const a=wasAt(K,base+o,w), b=getAt(K,base+o,w);
         if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
       }
-      if(cells) rows+='<div class="revgrp">skill '+String(i).padStart(3,"0")+' · '+
-        esc(skillName(i))+'</div>'+cells;
+      if(cells) rows+=grp("skill "+String(i).padStart(3,"0")+" · "+skillName(i))+cells;
+    }
+    // The three panes below were missing entirely: staging the HardType preset
+    // changes passive effects, E.S. accessories and skill costs, and the write
+    // review listed none of them. A review that omits a pane is worse than no
+    // review — it reads as "that is everything".
+    for(const i of passiveKeys()){
+      const base=passiveOff(i); if(base<0) continue;
+      let cells="";
+      const nOld=readPassiveName(i,wasArr(TX)), nNew=readPassiveName(i);
+      if(nOld!==null && nOld!==nNew) cells+=row("Name",nOld||"—",nNew||"—");
+      for(const [l,o,w] of PFIELDS){
+        const a=wasAt(TX,base+o,w), b=getAt(TX,base+o,w);
+        if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
+      }
+      if(cells) rows+=grp("passive "+String(i).padStart(3,"0")+" · "+skillName(i))+cells;
+    }
+    for(const k of gearKeys()){
+      const base=gearOff(k); if(base<0) continue;
+      let cells="";
+      for(const [l,o,w] of GFIELDS_G){
+        const a=wasAt(TX,base+o,w), b=getAt(TX,base+o,w);
+        if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
+      }
+      if(cells) rows+=grp("gear "+String(k).padStart(2,"0")+" · "+gearName(k))+cells;
+    }
+    for(let k=0;k<CCOUNT;k++){
+      const base=costOff(k); if(base<0) continue;
+      let cells="";
+      // Type/Id/Slot are shown as well as Cost: the HardType preset re-prices
+      // four ethers by SWAPPING id bytes, which a Cost-only view renders as
+      // "nothing changed" on records whose cost is untouched.
+      for(const [l,o,w] of CFIELDS.concat([["Type",CTYPEOFF,1],["Id",CIDOFF,1],
+                                           ["Slot",CSLOTOFF,1]])){
+        const a=wasAt(C,base+o,w), b=getAt(C,base+o,w);
+        if(a!==b) cells+=row(l,a.toLocaleString(),b.toLocaleString());
+      }
+      if(cells) rows+=grp("cost "+String(k).padStart(3,"0")+" · "+costName(k))+cells;
     }
     if(count>=400) rows+='<div class="note">…truncated…</div>';
     return rows;
+  }
+  const reviewRows=()=>changeRows();
+
+  // Byte runs that differ from a baseline, for the buffers as a whole. diffRuns
+  // answers the same question against T.orig only; this one takes the baseline,
+  // and it exists to say honestly how much a change touches that the field rows
+  // above do NOT model — rewritten skill DESCRIPTIONS, most of all, which live
+  // in the text region and belong to no field.
+  function runsAgainst(T,base){
+    const runs=[]; let i=0;
+    while(i<T.buf.length){
+      if(T.buf[i]!==base[i]){ let j=i; while(j<T.buf.length&&T.buf[j]!==base[j]) j++; runs.push([i,j]); i=j; }
+      else i++;
+    }
+    return runs;
+  }
+
+  // Run `fn` with every edit buffer swapped for a throwaway copy, then put the
+  // real ones back. This is what lets the Templates tab answer "what would this
+  // template do?" without staging anything: the template is applied to the
+  // copies, the preview is rendered off them, and the user's actual pending
+  // changes are never touched. Restoring in `finally` matters — a thrown error
+  // mid-preview must not leave the editor pointing at scratch buffers.
+  function withScratch(fn){
+    const bufs=[S,R,K,U,TX,C].filter(Boolean);
+    const saved=bufs.map(T=>({T,buf:T.buf,dv:T.dv}));
+    for(const T of bufs){ T.buf=T.buf.slice(); T.dv=new DataView(T.buf.buffer); }
+    try{ return fn(saved); }
+    finally{ for(const x of saved){ x.T.buf=x.buf; x.T.dv=x.dv; } }
   }
 
   // ---- patch files, retail comparison, restore ----------------------------
@@ -2104,7 +2243,7 @@
             [C,CTABLES[String(d)]],[TX,TX?TX.base:0]];
   }
   // Stage raw byte records (PPF or embedded preset) into whichever edit
-  // buffers they land in, and repaint. Shared by importPPF and applyHardtype.
+  // buffers they land in, and repaint. Shared by importPPF and acceptTemplate.
   function stageRecords(recs, layout){
     let staged=0, stagedBytes=0, skipped=0, skippedBytes=0;
     for(const {off,data} of recs){
@@ -2121,10 +2260,17 @@
     return {staged,stagedBytes,skipped,skippedBytes};
   }
 
-  // ---- HardType preset ------------------------------------------------------
+  // ---- Templates ------------------------------------------------------------
+  // A template is a named set of table edits that can be PREVIEWED as a whole
+  // and then staged as a whole. The two HardType variants are the first two
+  // entries, and the registry is a list rather than two buttons precisely so
+  // that community patch files or curated rebalances can join it later without
+  // the pane changing shape.
+  //
   // web/hardtype.json (generated by Editor/gen_hardtype.py from the mod's own
-  // PPFs) carries the in-table subset of the mod's writes as disc-1 records —
-  // the buffers are disc-agnostic, so one layout serves both discs.
+  // PPFs) already carries the records as disc-1 offsets, the per-disc divergence
+  // notes and the count of what was deliberately left out — so an entry here is
+  // mostly prose. The buffers are disc-agnostic, so one layout serves both discs.
   let HARDTYPE=null;
   async function loadHardtype(){
     if(HARDTYPE) return HARDTYPE;
@@ -2137,30 +2283,149 @@
     for(let i=0;i<a.length;i++) a[i]=parseInt(h.substr(i*2,2),16);
     return a;
   }
-  async function applyHardtype(key){
-    let ht;
-    try{ ht=await loadHardtype(); }
-    catch(e){ toastFn("✗ "+e.message+" — the preset data didn't load (offline before first use?)",true); return; }
-    const v=(ht.variants||{})[key];
-    if(!v||!Array.isArray(v.records)){ toastFn("✗ hardtype.json has no '"+key+"' variant",true); return; }
-    const recs=v.records.map(([off,hex])=>({off,data:hexBytes(hex)}));
-    const {staged,stagedBytes}=stageRecords(recs, ht.layout||1);
-    const msg="✓ Staged HardType ("+v.label+"): "+staged+" records, "+stagedBytes+" bytes — review & Save";
-    $("#estat").textContent=msg; $("#estat").className="status ok";
-    $("#htStat").textContent=v.label+" staged";
-    toastFn(msg);
-    if(window.openInfo) await window.openInfo("HardType preset",
-      '<div class="note"><b>'+esc(ht.source||"HardType")+'</b> — '+esc(v.label)+'. '+
-      staged+' record(s) staged across the enemy, skill, passive, gear and unit tables — including '+
-      'the mod\'s renames and its passive effect changes. Nothing is written until you review '+
-      'and Save; Revert all undoes it.</div>'+
-      (v.skippedRecords?'<div class="note">Not included: '+v.skippedRecords+
-        ' record(s) ('+v.skippedBytes+' bytes) that fall outside every located table — duplicate '+
-        'copies of a renamed skill\'s battle caption, and four bytes in a cost table whose ids '+
-        'are not pinned down yet. Both are identified but not yet written, so a renamed skill '+
-        'keeps its retail name in battle captions.</div>':'')+
-      (v.discNotes&&v.discNotes.length?'<div class="note">⚠ '+v.discNotes.map(esc).join("<br>")+'</div>':''));
+  // What a template deliberately does NOT carry. This lived in the enemy pane's
+  // preset card; it belongs with the template it describes, where someone is
+  // actually deciding whether to accept it.
+  const HT_EXCLUDED=
+    'Nine of the mod\u2019s 661 records are not staged: duplicate copies of a renamed '+
+    'skill\u2019s <i>battle caption</i>, which live outside every table and are found by '+
+    'scanning the image rather than at a fixed offset. The command line applies '+
+    'those (<code>x2patch.py apply-ppf</code> reaches all 661); a browser would have '+
+    'to scan the whole 4.6\u00a0GB image to match. The practical effect is that a skill '+
+    'renamed here keeps its retail name in battle captions.';
+  const TEMPLATES=[
+    {id:"hardtype-normal", variant:"normal", name:"HardType v3.9 \u2014 Normal",
+     by:"Landon Ray (1945)",
+     blurb:'The mod\u2019s standard difficulty. Retunes every enemy\u2019s stats and rewards, '+
+       'the skill numbers, unit starting stats, its skill renames and rewritten '+
+       'descriptions, its passive/equip effects (Ice Coat becomes STR+4), its E.S. '+
+       'accessory rebalance (Anti-Fire Armor becomes a +20 POW part) and its skill '+
+       'purchase costs.',
+     excluded: HT_EXCLUDED},
+    {id:"hardtype-hard", variant:"hard", name:"HardType v3.9 \u2014 Hard",
+     by:"Landon Ray (1945)",
+     blurb:'The same rebalance with the mod\u2019s harder enemy numbers. Everything the '+
+       'Normal variant touches, at the higher difficulty the mod ships as a separate patch.',
+     excluded: HT_EXCLUDED},
+  ];
+  const templateById=(id)=>TEMPLATES.find(t=>t.id===id)||null;
+
+  // {recs, layout, meta} for a template, or throws with something a user can act on.
+  async function templateData(t){
+    const ht=await loadHardtype();
+    const v=(ht.variants||{})[t.variant];
+    if(!v||!Array.isArray(v.records)) throw new Error("hardtype.json has no '"+t.variant+"' variant");
+    return {recs:v.records.map(([off,hex])=>({off,data:hexBytes(hex)})),
+            layout:ht.layout||1, meta:v, source:ht.source||"HardType"};
   }
+
+  // Stage a template's records into throwaway buffers and render what changed.
+  // "Preview" here means exactly what the pane claims: nothing is staged, the
+  // user's own pending edits are untouched, and the rows are produced by the
+  // same changeRows() the write confirmation uses — so what you see before
+  // accepting is what you will see before saving.
+  function templatePreview(d){
+    return withScratch((saved)=>{
+      const base=new Map(saved.map(x=>[x.T,x.buf]));
+      for(const {off,data} of d.recs){
+        for(const [T,b] of bufferMap(d.layout)){
+          if(off>=b && off+data.length<=b+T.buf.length){ T.buf.set(data,off-b); break; }
+        }
+      }
+      const rows=changeRows(T=>base.get(T));
+      // Byte runs the field rows above cannot name — overwhelmingly the mod's
+      // rewritten skill DESCRIPTIONS, which live in the text region and belong
+      // to no field. Counting them is the honest way to say "there is more here
+      // than the list shows" without inventing rows for text we do not model.
+      let runs=0, bytes=0;
+      for(const x of saved){
+        for(const [a,b2] of runsAgainst(x.T,base.get(x.T))){ runs++; bytes+=b2-a; }
+      }
+      // How much of the user's own staged work this template would overwrite:
+      // a byte that already differed from the disc AND differs again after the
+      // template is applied has been taken over by it.
+      let clobber=0;
+      for(const x of saved){
+        const orig=x.T.orig, mine=x.buf, after=x.T.buf;
+        for(let n=0;n<after.length;n++)
+          if(mine[n]!==orig[n] && after[n]!==mine[n]) clobber++;
+      }
+      return {rows, runs, bytes, clobber};
+    });
+  }
+
+  async function acceptTemplate(t, replace){
+    let d;
+    try{ d=await templateData(t); }
+    catch(e){ toastFn("\u2717 "+e.message+" \u2014 the template data didn\u2019t load (offline before first use?)",true); return; }
+    if(replace){
+      S.buf.set(S.orig);R.buf.set(R.orig);K.buf.set(K.orig);C.buf.set(C.orig);
+      U.buf.set(U.orig);TX.buf.set(TX.orig);
+    }
+    const {staged,stagedBytes}=stageRecords(d.recs, d.layout);
+    const how=replace?"replacing everything staged before it":"on top of what was already staged";
+    const msg="\u2713 Accepted "+t.name+": "+staged+" record(s), "+stagedBytes+" bytes "+how+
+              " \u2014 review & Save";
+    $("#estat").textContent=msg; $("#estat").className="status ok";
+    const st=$("#tplstat"); if(st) st.textContent=t.name+" accepted \u2014 "+staged+" record(s) staged";
+    toastFn(msg);
+    paintTemplate();
+    if(window.openInfo) await window.openInfo("Template accepted",
+      '<div class="note"><b>'+esc(t.name)+'</b> is now part of your pending changes \u2014 '+
+      staged+' record(s). <b>Nothing has been written to the disc.</b> Walk into any pane and '+
+      'edit individual values on top of it, then Save when you are happy; Revert all undoes '+
+      'the template and your edits together.</div>'+
+      (d.meta.discNotes&&d.meta.discNotes.length
+        ? '<div class="note">\u26a0 '+d.meta.discNotes.map(esc).join("<br>")+'</div>' : ''));
+  }
+
+  // Selecting a template renders its preview; it never stages anything. The two
+  // buttons are the whole composability answer: a template is presented as a
+  // coherent whole, so layering it onto edits you have already made is offered
+  // explicitly rather than done silently, and replacing is one click away when
+  // that is what you meant.
+  let TPLBUSY=false;
+  async function paintTemplate(){
+    const sel=$("#tplsel"), box=$("#tplprev"), desc=$("#tpldesc");
+    if(!sel||!box) return;
+    const t=templateById(sel.value);
+    if(!t){ box.innerHTML=''; return; }
+    if(desc) desc.innerHTML='<div class="note"><b>'+esc(t.name)+'</b> \u2014 by '+esc(t.by)+
+      '. '+t.blurb+'</div><div class="note">'+t.excluded+'</div>';
+    if(!S||!S.buf){ box.innerHTML='<div class="note">Open a disc first \u2014 a preview compares '+
+      'the template against the tables on your image.</div>'; return; }
+    if(TPLBUSY) return;
+    TPLBUSY=true;
+    box.innerHTML='<div class="note"><span class="spinner"></span>Reading the template\u2026</div>';
+    let d;
+    try{ d=await templateData(t); }
+    catch(e){ box.innerHTML='<div class="note">\u2717 '+esc(e.message)+'</div>'; TPLBUSY=false; return; }
+    finally{ TPLBUSY=false; }
+    const {rows,runs,bytes,clobber}=templatePreview(d);
+    const cnt=$("#tplcount");
+    if(cnt) cnt.textContent=d.meta.recordCount+" record(s), "+d.meta.byteCount+" bytes";
+    const head=rows
+      ? '<div class="note">This is what accepting <b>'+esc(t.name)+'</b> would change, '+
+        'against what is staged right now (current \u2192 template). '+runs+' byte run(s), '+
+        bytes+' byte(s) in total.</div>'
+      : '<div class="note">Nothing would change \u2014 every value this template sets is '+
+        'already staged or already on your disc.</div>';
+    const warn=clobber
+      ? '<div class="note">\u26a0 <b>'+clobber+' byte(s) you have already changed would be '+
+        'overwritten</b> by this template. Accept layers it on top of your edits; '+
+        '\u201cReplace\u201d discards your pending changes first and stages the template alone.</div>'
+      : '';
+    const notes=(d.meta.discNotes&&d.meta.discNotes.length)
+      ? '<div class="note">\u26a0 Per-disc divergence: '+d.meta.discNotes.map(esc).join("<br>")+'</div>'
+      : '';
+    box.innerHTML=head+warn+notes+
+      '<div class="note">Skill <b>descriptions</b> this template rewrites are staged but not '+
+      'itemised below \u2014 they are text in the same region rather than named fields, which '+
+      'is what the byte-run count above covers.</div>'+
+      '<div class="tplrows">'+(rows||'')+'</div>';
+    const rep=$("#tplReplace"); if(rep) rep.disabled=!diffCount();
+  }
+
   function ppfCoverage(recs,d){
     let ok=0;
     for(const {off,data} of recs)
