@@ -1385,6 +1385,64 @@ Still to pair: the per-character tech pool (not yet located — pools A/B/C at
 and E.S. weapon techs respectively), and the E.S. tech blocks' layout. The save's
 learned-skill ids (character record `+0x33..`) should index one of these.
 
+### 2026-08-25 — The 予備 spare-skill slots exist physically but are blank templates
+
+Issue #5's cheapest lead, now checked on both discs. The gap between the ether
+block (`0x2007CA0 + 57×32 = 0x20083C0`) and the doubles block (`0x2008400`) is
+exactly 64 bytes = 2 records — precisely where text indices 57/58
+(`予備１`/`予備２`) would fall. What's actually in it:
+
+- Both slots are **formatted records in the ether layout**, opening `64 55 01
+  01` like every ether record. Byte-identical on disc 2 at the usual `-0x800`.
+- But `+0x16` reads **1 in both** — Medica's pool index, not 58/59. The stats
+  are generic defaults: category 1 (attack), EP 2, element 0, power 20 (the
+  tech-block default power). Only the VFX ids differ (`0x22` / `0x29`).
+
+So the slots are **inert templates, not wired spares**. Writing stats into them
+is trivial; making the game *look* at them is the unknown — nothing observed
+references pool ids 58/59, and the engine reaches records through per-block
+indexing whose bounds live in code.
+
+What "add Medica 3 / Flare" actually costs, revised: (a) stats into a gap
+record — pokeable today; (b) a name — renaming a `予備` string in place is
+already covered by the name-budget rule; (c) **the real gate**: getting a
+character to learn/select the new skill. That is the learn-list / skill-shop
+data — the same table already shown NOT to be in the flat data region
+(2026-08-24 negative result), so it joins the #4 runtime bundle. Until then the
+spare slots are storage without a doorway.
+
+### 2026-08-25 — Passive/equip skill numerics: NOT in the data region (NEGATIVE RESULT, four ways)
+
+Issue #5 step 2 proposed finding the passive band (catalog 110..172 — the
+Guards, HP/ST Minds, Coats, Inner Peace, Double Power, Combo Boost...) by the
+self-naming `+0x16` field. Four independent searches, all empty:
+
+1. **`+0x16` run scan**, `0x1FF0000..0x2018000` at 32-byte alignment: every
+   ascending run is already accounted for by the block map above. No run covers
+   111..173 (pool `+1`) or 131..193 (pool `+21`, the doubles' offset).
+2. **Magnitude signature, whole disc**: the passive names/descriptions publish
+   22 exact values (10/15 pairs, six `+2`s, 5/10/30/10, 20/30, eight 25%
+   coats). No uniform-stride u8 layout holds that vector anywhere on disc 1
+   (strides 1..64), and the tight local sub-patterns alone (the `20,30,25×8`
+   coat run) hit only float geometry — nothing structural.
+3. **Membership clustering**: no window anywhere on the disc concentrates the
+   band's ids at 16/32-byte alignment.
+4. **Pointer-table delta hunt** near the name pool (±4 MB, u16 and u32):
+   nothing matches the name-offset deltas — consistent with the earlier finding
+   that no pointer table into the pool exists.
+
+Conclusion: passive equip effects almost certainly have **no numeric records in
+the flat data region** — they are implemented in code (ELF or a battle/menu
+overlay) with immediate values, the same shape as the learning-cost negative
+result. **Moved to the #4 PCSX2 bundle**, with a concrete entry point: equip
+`HP Mind 10`, breakpoint the max-HP recompute, and the +10% source falls out;
+`Inner Peace` / `Double Power` should land in the same routine family.
+
+The counter-boost hunt (issue #5 step 3) also resolves by reasoning rather than
+scanning: the downed-counter-boost mechanic applies to every enemy uniformly,
+so there is no per-enemy behavioural difference for a flag bit to explain and
+nothing data-side to correlate a candidate against. It is battle code → #4.
+
 ### 2026-08-23 — STATUS RESISTANCES SOLVED (8 of 10 named)
 
 Enemy `i`'s resistance block sits at **`base + i*0x5C + 0x6C`** — which is `0x10`
