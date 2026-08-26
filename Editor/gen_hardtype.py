@@ -87,6 +87,7 @@ def extents():
         "rewards": (et["rewards"], 125 * F.REWARD_STRIDE),
         "skills": (F.skill_base(1), F.skill_span(1)),
         "units": (F.UNIT_TABLES[1], F.UNIT_COUNT * 92),
+        "costs": (F.skill_cost_base(1), F.skill_cost_span(1)),
         "text": F.skill_text_span(1),
     }
 

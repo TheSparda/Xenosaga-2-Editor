@@ -27,6 +27,7 @@
   let KTEXT=null;
   let PFIELDS, PSTRIDE, PTABLES, PCOUNT, PTEXT0, PKINDOFF, PKINDS, PSTATBITS;
   let GFIELDS_G, GTABLES, GCOUNT, GESIDS, GSTATBITS, ESGEAR=null;
+  let CFIELDS, CTABLES, CCOUNT, CSTRIDE, CTYPEOFF, CIDOFF, CSLOTOFF, CTYPES, CDELTA;
   // player units: 15 records before the enemy table, same 0x5C layout
   let UFIELDS, UAFIELDS, USTRIDE, UCOUNT, UTAIL, UTABLES, UNITS=null;
   let TABLES=null;
@@ -74,6 +75,11 @@
     GFIELDS_G=(t.gear||{}).fields||[]; GTABLES=(t.gear||{}).tables||{};
     GCOUNT=(t.gear||{}).count||0; GESIDS=(t.gear||{}).esIds||{};
     GSTATBITS=(t.gear||{}).statBits||{};
+    CFIELDS=(t.skillCost||{}).fields||[]; CTABLES=(t.skillCost||{}).tables||{};
+    CCOUNT=(t.skillCost||{}).count||0; CSTRIDE=(t.skillCost||{}).stride||6;
+    CTYPEOFF=(t.skillCost||{}).typeOff||0; CIDOFF=(t.skillCost||{}).idOff||1;
+    CSLOTOFF=(t.skillCost||{}).slotOff||4; CTYPES=(t.skillCost||{}).typeNames||{};
+    CDELTA=(t.skillCost||{}).passiveDelta||109;
     UFIELDS=(t.unit||{}).fields||[]; USTRIDE=(t.unit||{}).stride||92;
     UAFIELDS=(t.unit||{}).affinityFields||[];
     // the affinity block overhangs the record, so the LAST unit's Ice/Pierce/
@@ -113,7 +119,7 @@
   // five independent slices of the disc, each {buf, orig, dv}: enemy stats,
   // enemy rewards, the skill numeric blocks, the player-unit table, and the
   // skill/tech name text pool
-  let S=null, R=null, K=null, U=null, TX=null;
+  let S=null, R=null, K=null, U=null, TX=null, C=null;
   const loadedDiscs=()=>Object.keys(DISCS).map(Number).sort();
   const targetDiscs=()=>loadedDiscs().filter(n=>TARGET==='both'||TARGET===n);
   const $=(s,r=document)=>r.querySelector(s);
@@ -458,9 +464,13 @@
     const ubuf=new Uint8Array(await f.slice(uBase,uBase+UCOUNT*USTRIDE+UTAIL).arrayBuffer());
     const [tBase,tLen]=KTEXT[String(disc)];
     const tbuf=new Uint8Array(await f.slice(tBase,tBase+tLen).arrayBuffer());
+    // The skill-cost table is the one region whose disc-2 base is NOT -0x800,
+    // so it must be resolved per image rather than derived from disc 1's.
+    const cBase=CTABLES[String(disc)];
+    const cbuf=new Uint8Array(await f.slice(cBase,cBase+CCOUNT*CSTRIDE).arrayBuffer());
 
     DISCS[disc]={handle:h,name:f.name||("disc"+disc+".iso"),sBase,rBase,kBase:kb,uBase,tBase,
-                 size:f.size,backedUp:false};
+                 cBase,size:f.size,backedUp:false};
     rememberIso(disc,DISCS[disc].name,h);
 
     if(PRIMARY===null || PRIMARY===disc){
@@ -471,6 +481,7 @@
       K={buf:kbuf,orig:kbuf.slice(),dv:new DataView(kbuf.buffer)};
       U={buf:ubuf,orig:ubuf.slice(),dv:new DataView(ubuf.buffer)};
       TX={buf:tbuf,orig:tbuf.slice(),dv:new DataView(tbuf.buffer),base:tBase};
+      C={buf:cbuf,orig:cbuf.slice(),dv:new DataView(cbuf.buffer),base:cBase};
       const [,hpO,hpW]=SFIELDS.find(x=>x[0]==="HP");
       const perun=get(S,6,hpO,hpW), want=retail(6,"HP");
       say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+")"+
@@ -483,13 +494,13 @@
       // staged edits aren't mistaken for a difference between the discs.
       const dS=countDiff(sb,S.orig), dR=countDiff(rb,R.orig),
             dK=countDiff(kbuf,K.orig), dU=countDiff(ubuf,U.orig),
-            dT=countDiff(tbuf,TX.orig);
-      if(dS+dR+dK+dU+dT===0){
+            dT=countDiff(tbuf,TX.orig), dC=countDiff(cbuf,C.orig);
+      if(dS+dR+dK+dU+dT+dC===0){
         say(disc,"✓ Disc "+disc+" loaded ("+esc(DISCS[disc].name)+") — matches disc "+PRIMARY,"ok");
       } else {
         say(disc,"⚠ Disc "+disc+" loaded, but its enemy/skill tables differ from disc "+PRIMARY+
-               " in "+(dS+dR+dK)+" byte run(s) — pick which disc's values to keep below","err");
-        pendingDiverge={disc,sb,rb,kbuf,ubuf,tbuf,runs:dS+dR+dK+dU+dT};
+               " in "+(dS+dR+dK+dC)+" byte run(s) — pick which disc's values to keep below","err");
+        pendingDiverge={disc,sb,rb,kbuf,ubuf,tbuf,cbuf,runs:dS+dR+dK+dU+dT+dC};
       }
     }
     renderDiscBar();
@@ -517,6 +528,8 @@
          dv:new DataView(pendingDiverge.ubuf.buffer)};
       TX={buf:pendingDiverge.tbuf,orig:pendingDiverge.tbuf.slice(),
           dv:new DataView(pendingDiverge.tbuf.buffer),base:DISCS[n].tBase};
+      C={buf:pendingDiverge.cbuf,orig:pendingDiverge.cbuf.slice(),
+         dv:new DataView(pendingDiverge.cbuf.buffer),base:DISCS[n].cBase};
       PRIMARY=n; pendingDiverge=null;
       renderEditor(); renderDiscBar();
       toastFn("Now editing disc "+n+"'s values — they will be written to every targeted disc");
@@ -615,17 +628,20 @@
     show($("#pane-skill"), which==="skill");
     show($("#pane-passive"), which==="passive");
     show($("#pane-gear"), which==="gear");
+    show($("#pane-cost"), which==="cost");
     show($("#pane-unit"),  which==="unit");
     on($("#ptab-enemy"), which==="enemy");
     on($("#ptab-skill"), which==="skill");
     on($("#ptab-passive"), which==="passive");
     on($("#ptab-gear"), which==="gear");
+    on($("#ptab-cost"), which==="cost");
     on($("#ptab-unit"),  which==="unit");
     // the patch/JSON/retail actions describe the enemy tables specifically
     show($("#enemyActions"), which==="enemy");
     if(which==="skill") loadSkill();
     if(which==="passive") loadPassive();
     if(which==="gear") loadGear();
+    if(which==="cost") loadCost();
     if(which==="unit") loadUnit();
   }
 
@@ -637,6 +653,7 @@
       '<button id="ptab-skill" class="mtab">Skills</button>'+
       '<button id="ptab-passive" class="mtab">Passives</button>'+
       '<button id="ptab-gear" class="mtab">Gear</button>'+
+      '<button id="ptab-cost" class="mtab">Costs</button>'+
       '<button id="ptab-unit" class="mtab">Units</button>'+
       '</nav>'+
       '<div id="pane-enemy">'+
@@ -854,6 +871,33 @@
       'here matches the exact values its readme publishes for its rebalanced accessories.</p>'+
       '</details></div>'+
       '</div>'+                              // /pane-gear
+      '<div id="pane-cost" hidden>'+
+      '<div class="card"><h2>2 \u00b7 Skill purchase costs</h2>'+
+      '<div class="toolbar"><label>Skill</label> <select id="csel"></select>'+
+      '<span class="findbox"><input type="search" id="csearch" placeholder="find by name or text" '+
+        'autocomplete="off" spellcheck="false"><button type="button" id="cclear" '+
+        'class="chip mini" title="Clear search" aria-label="Clear search">\u2715</button></span>'+
+      '<span id="ccount" class="muted small"></span></div>'+
+      '<div id="cdesc" class="note"></div>'+
+      '<div id="crow" class="kctl"></div>'+
+      '<div id="cnote" class="note"></div>'+
+      '<details class="help"><summary>About these fields</summary>'+
+      '<p class="note">What each skill costs in <b>Skill Points</b> to learn from the class tree \u2014 '+
+      'the other half of skill pacing from the SP the Enemies tab hands out. All '+CCOUNT+' '+
+      'purchasable skills, grouped by the type the game itself sorts them into: <b>auto</b> skills '+
+      '(always on once learned), <b>equip</b> skills (they take a slot), and <b>ether</b> skills.</p>'+
+      '<p class="note">Not every skill appears. The Erde Kaiser family and Burst Veil are quest '+
+      'rewards rather than purchases, and Swimsuit is not for sale \u2014 so 112 records cover the '+
+      'catalog\u2019s purchasable skills exactly.</p>'+
+      '<p class="note">Verified against the walkthrough\u2019s class tree: every record\u2019s cost equals '+
+      'the SP that guide publishes for the skill this editor names, <b>112 of 112</b>, across all '+
+      'three types. A record stores a <i>(type, id)</i> pair rather than a catalog index; ether ids '+
+      'are the catalog index plus one, and the auto/equip band shares a single id space \u2014 which '+
+      'the disc confirms independently with an auto-skill flag bit in each passive record.</p>'+
+      '<p class="note">This is the one table whose disc-2 copy is <b>not</b> the usual 0x800 lower; '+
+      'it sits at its own base. Both are written, so a cost change survives the disc swap.</p>'+
+      '</details></div>'+
+      '</div>'+                              // /pane-cost
       '<div id="pane-unit" hidden>'+
       '<div class="card"><h2>2 · Unit</h2>'+
       '<div class="toolbar"><label>Unit</label> <select id="usel"></select>'+
@@ -933,6 +977,15 @@
     });
     $("#gclear").onclick=()=>{ $("#gsearch").value=""; paintGearList(); $("#gsearch").focus(); };
     paintGearList();
+    $("#ptab-cost").onclick=()=>showPane("cost");
+    $("#csel").onchange=loadCost;
+    $("#csearch").addEventListener("input",paintCostList);
+    $("#csearch").addEventListener("keydown",e=>{
+      if(e.key==="Escape"){ $("#csearch").value=""; paintCostList(); }
+      if(e.key==="Enter"){ e.preventDefault(); loadCost(); }
+    });
+    $("#cclear").onclick=()=>{ $("#csearch").value=""; paintCostList(); $("#csearch").focus(); };
+    paintCostList();
     $("#usel").onchange=loadUnit;
     paintUnitList();
     $("#ksel").onchange=loadSkill;
@@ -945,9 +998,9 @@
     paintSkillList();
     // Revert covers every pane: one Save writes them all, so one Revert has to
     // undo them all or the button would lie about its scope.
-    $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);K.buf.set(K.orig);
+    $("#erev").onclick=()=>{S.buf.set(S.orig);R.buf.set(R.orig);K.buf.set(K.orig);C.buf.set(C.orig);
       U.buf.set(U.orig);TX.buf.set(TX.orig);
-      loadEnemy();loadSkill();loadPassive();loadGear();loadUnit();epending();};
+      loadEnemy();loadSkill();loadPassive();loadGear();loadCost();loadUnit();epending();};
     $("#esave").onclick=saveISO;
     $("#sclApply").onclick=()=>stageRebalance(readScales());
     document.querySelectorAll("#profRow .prof").forEach(b=>b.onclick=()=>applyProfile(b.dataset.p));
@@ -1290,6 +1343,91 @@
     N.textContent = maskKind
       ? "Param is a bitmask on this kind, so it is shown as checkboxes."
       : "Param is this "+o.what+"'s magnitude — the number its own description publishes.";
+  }
+
+  // ---- skill costs ---------------------------------------------------------
+  // 6-byte records in their own buffer. The record does NOT store a catalog
+  // index: it stores (type, id), and the catalog index is derived — ether
+  // skills are id-1, and the auto/equip band is id+CDELTA. Auto and equip share
+  // one id space, which is why one rule covers both.
+  function costOff(k){
+    if(!C||!CCOUNT) return -1;
+    const at=k*CSTRIDE;
+    return (k<0||k>=CCOUNT||at+CSTRIDE>C.buf.length)?-1:at;
+  }
+  const costType=(k)=>{const o=costOff(k); return o<0?-1:getAt(C,o+CTYPEOFF,1);};
+  const costId=(k)=>{const o=costOff(k); return o<0?-1:getAt(C,o+CIDOFF,1);};
+  function costSkillIndex(k){
+    const t=costType(k), id=costId(k);
+    if(id<1) return null;
+    if(t===2) return id-1;
+    if(t===0||t===1) return id+CDELTA;
+    return null;                       // unknown type: name nothing rather than guess
+  }
+  const costTypeText=(t)=>CTYPES[String(t)]||("type "+t);
+  function costMatches(k,q){
+    if(!q) return true;
+    const i=costSkillIndex(k), v=(i!==null&&skillInfo(i))||{};
+    const hay=[String(costId(k)),v.name||"",v.desc||"",v.target||"",costTypeText(costType(k))]
+      .join(" ").toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(t=>hay.indexOf(t)>=0);
+  }
+  const costName=(k)=>{
+    const i=costSkillIndex(k);
+    const v=i!==null&&skillInfo(i);
+    return (v&&v.name)?v.name:("record "+k);
+  };
+  function paintCostList(){
+    const sel=$("#csel"); if(!sel) return;
+    const q=($("#csearch").value||"").trim().toLowerCase();
+    const prev=sel.value;
+    const all=[]; for(let k=0;k<CCOUNT;k++) all.push(k);
+    const keys=all.filter(k=>costMatches(k,q));
+    $("#ccount").textContent=q?(keys.length+" of "+CCOUNT):(CCOUNT+" purchasable");
+    if(!keys.length){
+      sel.innerHTML='<option value="">no match</option>'; sel.disabled=true;
+      $("#cdesc").textContent="No skill matches \u201c"+q+"\u201d.";
+      $("#crow").innerHTML=""; $("#cnote").textContent=""; return;
+    }
+    sel.disabled=false;
+    // grouped by type so the list reads like the in-game shop rather than raw records
+    const byType={};
+    for(const k of keys){ (byType[costType(k)]=byType[costType(k)]||[]).push(k); }
+    sel.innerHTML=Object.keys(byType).sort().map(t=>
+      '<optgroup label="'+esc(costTypeText(+t))+'">'+
+      byType[t].sort((a,b)=>costId(a)-costId(b)).map(k=>
+        '<option value="'+k+'">'+esc(costName(k))+'</option>').join("")+
+      '</optgroup>').join("");
+    if(keys.indexOf(+prev)>=0) sel.value=prev; else loadCost();
+  }
+  function loadCost(){
+    const sel=$("#csel"); if(!sel||sel.disabled||sel.value==="") return;
+    const k=+sel.value, base=costOff(k);
+    if(base<0){
+      $("#cdesc").textContent="No cost record addressable \u2014 open a disc first.";
+      $("#crow").innerHTML=""; $("#cnote").textContent=""; return;
+    }
+    const i=costSkillIndex(k), v=(i!==null&&skillInfo(i))||{}, t=costType(k);
+    const slot=getAt(C,base+CSLOTOFF,1);
+    $("#cdesc").innerHTML='<div class="rechead"><b>'+esc(v.name||costName(k))+'</b>'+
+      ' <span class="sub">'+esc(costTypeText(t))+
+      (slot?' \u00b7 tier slot '+slot:'')+'</span></div>'+
+      (v.target?'<div class="note">'+esc(v.target)+'</div>':'');
+    const CF=CFIELDS.find(f=>f[0]==="Cost");
+    const cv=getAt(C,base+CF[1],CF[2]), cdef=getOrigAt(C,base+CF[1],CF[2]);
+    $("#crow").innerHTML='<div class="fl">Skill Points</div>'+
+      '<input type="number" id="ccostIn" min="0" max="65535" value="'+cv+'" style="width:10ch">'+
+      '<button type="button" class="restore'+(cv!==cdef?' show':'')+'" id="ccostRev" '+
+      'title="Restore">\u21ba</button>'+
+      '<span class="muted small">on disc '+cdef.toLocaleString()+'</span>'+
+      (cv!==cdef?' <span class="pill dirty">changed</span>':'');
+    const inp=$("#ccostIn");
+    inp.oninput=()=>{ putAt(C,base+CF[1],CF[2],Math.max(0,Math.min(65535,+inp.value||0))); epending(); };
+    inp.onchange=()=>loadCost();
+    $("#ccostRev").onclick=()=>{ putAt(C,base+CF[1],CF[2],cdef); loadCost(); epending(); };
+    $("#cnote").textContent = i===null
+      ? "This record's (type, id) pair isn't one this editor can name, so no skill is shown."
+      : "";
   }
 
   // ---- gear pane ----------------------------------------------------------
@@ -1796,7 +1934,7 @@
   }
 
   function diffCount(){let n=0;
-    for(const T of [S,R,K,U,TX]){for(let i=0;i<T.buf.length;i++)if(T.buf[i]!==T.orig[i]){n++;while(i<T.buf.length&&T.buf[i]!==T.orig[i])i++;}}
+    for(const T of [S,R,K,U,TX,C]){for(let i=0;i<T.buf.length;i++)if(T.buf[i]!==T.orig[i]){n++;while(i<T.buf.length&&T.buf[i]!==T.orig[i])i++;}}
     return n;}
   function epending(){const n=diffCount();const b=$("#ebadge");if(b)b.textContent=n?"("+n+")":"";
     const s=$("#esave"),r=$("#erev");if(s)s.disabled=!n;if(r)r.disabled=!n;
@@ -1891,7 +2029,7 @@
   // enemy tables 0x800 into the wrong place.
   function xdeltaEdits(d){
     const runs=[];
-    for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase],[TX,d.tBase]])
+    for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase],[TX,d.tBase],[C,d.cBase]])
       for(const [s0,e0] of diffRuns(T)) runs.push({off:base+s0,data:T.buf.slice(s0,e0)});
     return runs.sort((a,b)=>a.off-b.off);
   }
@@ -1962,7 +2100,8 @@
   // passive/equip table lives inside that span.
   function bufferMap(d){
     const t=ETABLES[String(d)];
-    return [[S,t.stats],[R,t.rewards],[K,kBase(d)],[U,UTABLES[String(d)]],[TX,TX?TX.base:0]];
+    return [[S,t.stats],[R,t.rewards],[K,kBase(d)],[U,UTABLES[String(d)]],
+            [C,CTABLES[String(d)]],[TX,TX?TX.base:0]];
   }
   // Stage raw byte records (PPF or embedded preset) into whichever edit
   // buffers they land in, and repaint. Shared by importPPF and applyHardtype.
@@ -1978,7 +2117,7 @@
       if(hit){ staged++; stagedBytes+=data.length; }
       else { skipped++; skippedBytes+=data.length; }
     }
-    loadEnemy(); loadSkill(); loadPassive(); loadGear(); loadUnit(); checkBrkPlan(); paintBrkOpts(); epending();
+    loadEnemy(); loadSkill(); loadPassive(); loadGear(); loadCost(); loadUnit(); checkBrkPlan(); paintBrkOpts(); epending();
     return {staged,stagedBytes,skipped,skippedBytes};
   }
 
@@ -2183,7 +2322,7 @@
         st.textContent="writing disc "+n+"…";
         let runs=0;
         const w=await d.handle.createWritable({keepExistingData:true});
-        for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase],[TX,d.tBase]]){
+        for(const [T,base] of [[S,d.sBase],[R,d.rBase],[K,d.kBase],[U,d.uBase],[TX,d.tBase],[C,d.cBase]]){
           for(const [s,e] of diffRuns(T)){
             await w.write({type:"write",position:base+s,data:T.buf.slice(s,e)}); runs++;
           }
@@ -2198,8 +2337,8 @@
     } else {
       // only clear the pending state once every target actually took the write
       S.orig=S.buf.slice();R.orig=R.buf.slice();K.orig=K.buf.slice();U.orig=U.buf.slice();
-      TX.orig=TX.buf.slice();
-      loadEnemy();loadSkill();loadPassive();loadGear();loadUnit();
+      TX.orig=TX.buf.slice();C.orig=C.buf.slice();
+      loadEnemy();loadSkill();loadPassive();loadGear();loadCost();loadUnit();
       st.textContent="✓ wrote disc "+done.join(", disc ");st.className="status ok";
       toastFn("✓ Saved to "+(done.length>1?"both discs":"disc "+targets[0]));
     }

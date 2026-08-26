@@ -344,6 +344,62 @@ def skill_name_budget(retail_name):
     that is what defines the space.
     """
     return len(retail_name.encode("latin1", errors="replace")) + 1
+
+
+# ---------------------------------------------------------------------------
+# BATTLE CAPTIONS (2026-08-26)
+#
+# The label a skill flashes on screen when it fires is NOT the name in the menu
+# pool. It is a separate string, `$zoom13;<name>`, embedded per battle script and
+# duplicated — "Miracle Star" carries seven copies on disc 1, "Annihilation" two.
+# That is why renaming a skill used to leave its battle caption saying the retail
+# name, and it is the whole of the nine records the PPF importer reported as
+# unreachable.
+#
+# These have no table and no constant offset, and they never needed one: they are
+# locatable by CONTENT, exactly the way locate_enemy_table() works. One scan for
+# the prefix finds all 1,221 captions on disc 1, so this is a general mechanism
+# rather than a quirk of the two skills a particular mod renames.
+#
+# Two facts about the pool, both established from the HardType mod's own patch:
+#
+#   - It is precise, not a byte replace. "Annihilation" occurs six MORE times
+#     WITHOUT the prefix and the mod leaves every one alone. So a caption rewrite
+#     must key on prefix+name+terminator and never on the bare name — the same
+#     rule the name pool follows, and the reason this file's older warning about
+#     the mod "truncating Miracle Star disc-wide" was an overstatement.
+#   - Disc 2 carries them at the usual -0x800. Nothing here relies on that; each
+#     disc is scanned for its own copies. It is recorded because it corroborates
+#     that captions are ordinary disc data, not something built at runtime.
+#
+# Captions are DUPLICATED per script rather than pooled once and indexed, which
+# is what makes an in-place rewrite safe: every copy is an independent inline
+# string, so padding the slack with NULs cannot shift anything that follows.
+# ---------------------------------------------------------------------------
+CAPTION_PREFIX = b"$zoom13;"
+
+def caption_needle(retail_name):
+    """The exact bytes a pristine caption for `retail_name` holds."""
+    return (CAPTION_PREFIX + retail_name.encode("latin1", errors="replace")
+            + b"\x00")
+
+def caption_budget(retail_name):
+    """Bytes available for a caption replacement: the RETAIL name plus its NUL.
+
+    Derived from the catalog and never from the disc, for the same reason
+    skill_name_budget() is: once a rename shortens the string the disc's
+    terminator no longer marks the end of the space, and the caption could never
+    be restored to its original length.
+
+    Deliberately a separate function from skill_name_budget() even though the two
+    agree for every active skill today. They are different pools with different
+    rules — a passive's name budget is the gap between its record's own name and
+    description pointers, which is usually larger than the retail name. Folding
+    them into one number would quietly make "it fitted the name" imply "it fits
+    the caption", and the two are independent.
+    """
+    return len(retail_name.encode("latin1", errors="replace")) + 1
+
 TECH_TEXT0_SINGLE = 220
 SKILL_STRIDE = 32
 
@@ -516,6 +572,77 @@ GEAR_STAT_BITS = {"POW": 0x80, "ARM": 0x40, "DEX": 0x20, "EVA": 0x10,
 # resolve into the skill name pool (they land in a numeric pool), which matches
 # the standing finding that equipment names resolve through menu code rather
 # than a pointer table. Effects are editable; names are read from the catalog.
+# SKILL PURCHASE COSTS (VERIFIED 2026-08-25) — what a skill costs to learn.
+#
+# 112 records of 6 bytes. Unlike every other table here, disc 2's copy is NOT at
+# -0x800: it sits at its own base, +0xB1800 away, byte-identical over all 112
+# records. So this is a per-disc base like ENEMY_TABLES, not a shift.
+#
+#   +0x00 u8   TYPE — 0 auto skill, 1 equip skill, 2 ether skill
+#   +0x01 u8   ID within the type's id space (see the mapping below)
+#   +0x02 u16  COST in Skill Points (SPTS)
+#   +0x04 u8   class-tier-ish ordering: 31 of the 112 carry a nonzero value and
+#              those form a clean 1..31 run, skewed to the expensive skills
+#              [unverified meaning]
+#   +0x05 u8   always 0
+#
+# THE MAPPING, and it is two rules:
+#   * type 2 (ether):        catalog index = id - 1
+#   * types 0/1 (the passive band): catalog index = id + 109
+# Auto and equip therefore SHARE one id space (1..62 -> catalog 110..171), which
+# is exactly why the two types' ids are contiguous with each other. Verified:
+# under these rules every record's cost equals the SPTS the walkthrough's class
+# tree publishes for that skill — 112/112, all three types, zero mismatches.
+#
+# The type byte agrees with a flag on the disc, found independently: the passive
+# record's u32 at +0x04 carries **bit 0x20000000 on exactly the 28 auto skills**
+# (catalog 110..137) and clear on the 36 others (138..173). Two derivations of
+# the same boundary, from unrelated tables.
+#
+# NOT purchasable, hence 112 rather than 121: ether Burst Veil (catalog 25, the
+# gap at id 26) and the six Erde-family records (51..56, quest rewards rather
+# than shop skills), plus Swimsuit (172) and the 予備 placeholder (173).
+SKILL_COST_BASE = {1: 0x35E958, 2: 0x410158}
+SKILL_COST_STRIDE = 6
+SKILL_COST_COUNT = 112
+SKILL_COST_FIELDS = [("Cost", 0x02, 2, "num")]
+SKILL_COST_TYPE_OFF = 0x00
+SKILL_COST_ID_OFF = 0x01
+SKILL_COST_SLOT_OFF = 0x04
+SKILL_COST_TYPE_NAMES = {0: "auto skill", 1: "equip skill", 2: "ether skill"}
+SKILL_COST_PASSIVE_DELTA = 109      # catalog = id + this, for types 0 and 1
+
+
+def skill_cost_base(disc):
+    try:
+        return SKILL_COST_BASE[disc]
+    except KeyError:
+        raise KeyError(f"no skill-cost table known for disc {disc!r}") from None
+
+
+def skill_cost_span(disc=1):
+    return SKILL_COST_COUNT * SKILL_COST_STRIDE
+
+
+def skill_cost_record_off(disc, index):
+    if not (0 <= index < SKILL_COST_COUNT):
+        return None
+    return skill_cost_base(disc) + index * SKILL_COST_STRIDE
+
+
+def skill_cost_catalog_index(type_, id_):
+    """Which skill a (type, id) pair prices, or None if the pair is unknown.
+
+    Deliberately strict: an unrecognised type returns None rather than guessing,
+    because the caller uses this to put a NAME on a row the user then edits.
+    """
+    if type_ == 2:
+        return id_ - 1 if id_ >= 1 else None
+    if type_ in (0, 1):
+        return id_ + SKILL_COST_PASSIVE_DELTA if id_ >= 1 else None
+    return None
+
+
 GEAR_COUNT = 40
 GEAR_TEXT0 = PASSIVE_COUNT          # record index within the shared table
 _GEAR_SPARES = (2, 3, 4, 7, 8, 9, 37, 38, 39)
@@ -1429,6 +1556,19 @@ def web_tables():
             "statBits": GEAR_STAT_BITS,
             "elementBits": SKILL_ELEMENT_BITS,
             "esIds": {str(k): v for k, v in sorted(GEAR_ES_ID.items())},
+        },
+        # Skill purchase costs. Note the per-disc BASE (disc 2 is +0xB1800, not
+        # the usual -0x800), so a front-end must resolve it per image.
+        "skillCost": {
+            "tables": {str(d): b for d, b in sorted(SKILL_COST_BASE.items())},
+            "stride": SKILL_COST_STRIDE,
+            "count": SKILL_COST_COUNT,
+            "fields": fields(SKILL_COST_FIELDS),
+            "typeOff": SKILL_COST_TYPE_OFF,
+            "idOff": SKILL_COST_ID_OFF,
+            "slotOff": SKILL_COST_SLOT_OFF,
+            "typeNames": {str(k): v for k, v in sorted(SKILL_COST_TYPE_NAMES.items())},
+            "passiveDelta": SKILL_COST_PASSIVE_DELTA,
         },
         # Player units: 15 records before the enemy table, same 0x5C layout.
         # Verified fields only; names come from Editor/x2_units.json.

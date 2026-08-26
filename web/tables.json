@@ -500,6 +500,26 @@
       "2": [30956361, 2661794]
     }
   },
+  "skillCost": {
+    "count": 112,
+    "fields": [
+      ["Cost", 2, 2]
+    ],
+    "idOff": 1,
+    "passiveDelta": 109,
+    "slotOff": 4,
+    "stride": 6,
+    "tables": {
+      "1": 3533144,
+      "2": 4260184
+    },
+    "typeNames": {
+      "0": "auto skill",
+      "1": "equip skill",
+      "2": "ether skill"
+    },
+    "typeOff": 0
+  },
   "unit": {
     "affinityFields": [
       ["Beam", 88, 1],

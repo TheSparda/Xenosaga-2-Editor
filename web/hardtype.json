@@ -7,6 +7,22 @@
    "label": "Normal difficulty",
    "records": [
     [
+     3533469,
+     "05"
+    ],
+    [
+     3533475,
+     "26"
+    ],
+    [
+     3533529,
+     "13"
+    ],
+    [
+     3533649,
+     "23"
+    ],
+    [
      33551910,
      "d02f"
     ],
@@ -2599,17 +2615,37 @@
      "00"
     ]
    ],
-   "recordCount": 648,
-   "byteCount": 1506,
-   "skippedRecords": 13,
-   "skippedBytes": 64,
+   "recordCount": 652,
+   "byteCount": 1510,
+   "skippedRecords": 9,
+   "skippedBytes": 60,
    "discNotes": [
+    "Disc 2's patch has no counterpart for 0x35EA9D \u2014 the disc-1 value is staged on both discs.",
+    "Disc 2's patch has no counterpart for 0x35EAA3 \u2014 the disc-1 value is staged on both discs.",
+    "Disc 2's patch has no counterpart for 0x35EAD9 \u2014 the disc-1 value is staged on both discs.",
+    "Disc 2's patch has no counterpart for 0x35EB51 \u2014 the disc-1 value is staged on both discs.",
     "The mod gives Kazfa Jina STR (record 3, +0x3C) a different value on disc 2 (63 vs 62); the staged buffers are shared across discs, so the disc-1 value wins."
    ]
   },
   "hard": {
    "label": "Hard difficulty",
    "records": [
+    [
+     3533469,
+     "05"
+    ],
+    [
+     3533475,
+     "26"
+    ],
+    [
+     3533529,
+     "13"
+    ],
+    [
+     3533649,
+     "23"
+    ],
     [
      33551910,
      "c03f"
@@ -5203,11 +5239,15 @@
      "00"
     ]
    ],
-   "recordCount": 648,
-   "byteCount": 1536,
-   "skippedRecords": 13,
-   "skippedBytes": 64,
+   "recordCount": 652,
+   "byteCount": 1540,
+   "skippedRecords": 9,
+   "skippedBytes": 60,
    "discNotes": [
+    "Disc 2's patch has no counterpart for 0x35EA9D \u2014 the disc-1 value is staged on both discs.",
+    "Disc 2's patch has no counterpart for 0x35EAA3 \u2014 the disc-1 value is staged on both discs.",
+    "Disc 2's patch has no counterpart for 0x35EAD9 \u2014 the disc-1 value is staged on both discs.",
+    "Disc 2's patch has no counterpart for 0x35EB51 \u2014 the disc-1 value is staged on both discs.",
     "The mod gives Pilum (2) HP (record 102, +0x36) a different value on disc 2 (288a vs 488a); the staged buffers are shared across discs, so the disc-1 value wins."
    ]
   }
