@@ -799,3 +799,104 @@ class TestSlotIdentity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSecretKeyGates(PatchCase):
+    """The cost record's `slot` byte is the Secret Key index (F.SECRET_SKILL_GATES).
+
+    The gate itself is one byte per secret skill, so the thing worth testing is
+    that we change exactly those bytes and can put them back — a half-restored
+    disc would leave some skills gated and others not, with nothing to notice it.
+    """
+
+    def seed_costs(self, path):
+        """Write the repo's retail snapshot of the 112 cost records onto a disc."""
+        costs = F.res_json("x2_costs.json")
+        with X.Iso(path, write=True) as iso:
+            for k, v in costs.items():
+                base = F.skill_cost_record_off(iso.disc, int(k))
+                rec = bytearray(F.SKILL_COST_STRIDE)
+                rec[F.SKILL_COST_TYPE_OFF] = v["type"]
+                rec[F.SKILL_COST_ID_OFF] = v["id"]
+                rec[F.SKILL_COST_SLOT_OFF] = v["slot"]
+                for lbl, off, width, _k in F.SKILL_COST_FIELDS:   # Cost
+                    rec[off:off + width] = int(v["cost"]).to_bytes(width, "little")
+                iso.write(base, bytes(rec))
+        return path
+
+    def test_gate_table_agrees_with_the_disc_snapshot(self):
+        """SECRET_SKILL_GATES is a hand-written mirror of x2_costs.json; if the
+        two ever disagree, the restore path writes the wrong byte."""
+        costs = F.res_json("x2_costs.json")
+        from_json = {int(k): v["slot"] for k, v in costs.items() if v["slot"]}
+        self.assertEqual(from_json, F.SECRET_SKILL_GATES)
+        self.assertEqual(sorted(F.SECRET_SKILL_GATES.values()),
+                         list(range(1, F.SECRET_KEY_COUNT + 1)))
+
+    def test_every_gate_names_a_real_skill(self):
+        p = self.seed_costs(self.fresh("gates.iso"))
+        with X.Iso(p) as iso:
+            rows = X.read_secret_key_gates(iso)
+        self.assertEqual(len(rows), F.SECRET_KEY_COUNT)
+        self.assertEqual([r["key"] for r in rows],
+                         list(range(1, F.SECRET_KEY_COUNT + 1)))
+        for r in rows:
+            self.assertTrue(r["gated"])
+            self.assertTrue(r["skill"] and not r["skill"].startswith("skill "),
+                            f"key {r['key']} does not resolve to a named skill")
+            self.assertGreater(r["cost"], 0)
+
+    def test_unlock_then_require_restores_the_disc_byte_for_byte(self):
+        p = self.seed_costs(self.fresh("gates.iso"))
+        before = Path(p).read_bytes()
+        with X.Iso(p, write=True) as iso:
+            self.assertEqual(X.write_secret_key_gates(iso, required=False),
+                             F.SECRET_KEY_COUNT)
+        with X.Iso(p) as iso:
+            self.assertFalse(any(r["gated"] for r in X.read_secret_key_gates(iso)))
+        after = Path(p).read_bytes()
+        self.assertEqual(sum(a != b for a, b in zip(before, after)),
+                         F.SECRET_KEY_COUNT, "unlock touched more than the 31 gates")
+        with X.Iso(p, write=True) as iso:
+            X.write_secret_key_gates(iso, required=True)
+        self.assertEqual(Path(p).read_bytes(), before)
+
+    def test_writing_the_same_state_twice_is_a_no_op(self):
+        p = self.seed_costs(self.fresh("gates.iso"))
+        with X.Iso(p, write=True) as iso:
+            X.write_secret_key_gates(iso, required=False)
+            self.assertEqual(X.write_secret_key_gates(iso, required=False), 0)
+
+    def test_unlock_leaves_the_cost_and_identity_bytes_alone(self):
+        """Only `slot` moves — costs and the type/id pair must survive, or the
+        skill chart would silently re-price or re-point the record."""
+        p = self.seed_costs(self.fresh("gates.iso"))
+        with X.Iso(p) as iso:
+            before = {k: X.read_cost(iso, k) for k in F.SECRET_SKILL_GATES}
+        with X.Iso(p, write=True) as iso:
+            X.write_secret_key_gates(iso, required=False)
+        with X.Iso(p) as iso:
+            for k, was in before.items():
+                now = X.read_cost(iso, k)
+                self.assertEqual(now["Cost"], was["Cost"])
+                self.assertEqual((now["Type"], now["Id"]), (was["Type"], was["Id"]))
+                self.assertEqual(now["Slot"], 0)
+
+    def test_cli_lists_and_unlocks(self):
+        p = self.seed_costs(self.fresh("gates.iso"))
+        out = self.run_cli("secret-keys", p)
+        self.assertIn("Secret Key 1", out)
+        self.assertIn("31/31 still require their key", out)
+        self.run_cli("secret-keys", p, "--unlock")
+        self.assertIn("0/31 still require their key", self.run_cli("secret-keys", p))
+
+    def test_explain_diff_names_the_gate_bytes(self):
+        p = self.seed_costs(self.fresh("gates.iso"))
+        pristine = self.seed_costs(self.fresh("pristine.iso"))
+        with X.Iso(p, write=True) as iso:
+            X.write_secret_key_gates(iso, required=False)
+        out = self.run_cli("explain-diff", p, "--pristine", pristine,
+                           "--show", "40", "--verbose")
+        self.assertIn("skill costs", out)
+        self.assertIn("Secret Key gate", out)
+        self.assertIn("reproducible with this editor: 31 of 31", out)

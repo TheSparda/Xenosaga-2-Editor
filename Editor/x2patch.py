@@ -1338,6 +1338,7 @@ def _regions(disc):
                                         + F.enemy_record_tail(), "stat"),
         ("enemy rewards", t["rewards"], F.ENEMY_COUNT * F.REWARD_STRIDE, "reward"),
         ("skill blocks",  kb,           F.skill_span(disc), "skill"),
+        ("skill costs",   F.skill_cost_base(disc), F.skill_cost_span(disc), "cost"),
         ("enemy names",   t["names"],   0x4000, None),
     ]
 
@@ -1382,6 +1383,18 @@ def _locate(off, disc):
                             return name, f"skill {t0 + i} {lbl}"
                     return name, f"skill {t0 + i} +0x{r:02X} (undecoded)"
             return None, None          # a gap between blocks is not ours to claim
+        if kind == "cost":
+            i, r = divmod(off - base, F.SKILL_COST_STRIDE)
+            if r == F.SKILL_COST_SLOT_OFF:
+                key = F.SECRET_SKILL_GATES.get(i)
+                return name, (f"record {i} Secret Key gate (key {key})" if key
+                              else f"record {i} Slot")
+            for lbl, fo, w, _k in F.SKILL_COST_FIELDS:
+                if fo <= r < fo + w:
+                    return name, f"record {i} {lbl}"
+            if r == F.SKILL_COST_TYPE_OFF: return name, f"record {i} Type"
+            if r == F.SKILL_COST_ID_OFF:   return name, f"record {i} Id"
+            return name, f"record {i} +0x{r:02X} (undecoded)"
         return name, None
     return None, None
 
@@ -2119,6 +2132,44 @@ def read_cost(iso, k):
         out[lbl] = iso.read(base + off, 1)[0]
     return out
 
+# ---------------------------------------------------------------------------
+# SECRET-SKILL GATING — the cost record's `slot` byte is the Secret Key index.
+#
+# Retail: 31 records carry slot 1..31, one per Secret Key, and the game shows
+# those skills as "???" until you hold the key. Zeroing the byte should drop the
+# requirement and leave the skill an ordinary purchase. This is the only edit in
+# this file inferred from a field's MEANING rather than watched being read, so
+# every entry point says so out loud instead of burying it in a docstring.
+# ---------------------------------------------------------------------------
+def read_secret_key_gates(iso):
+    """[{key, record, skill, cost, gated}] for all 31 secret skills, key order."""
+    names = F.skill_names()
+    out = []
+    for rec, key in sorted(F.SECRET_SKILL_GATES.items(), key=lambda kv: kv[1]):
+        c = read_cost(iso, rec)
+        ci = F.skill_cost_catalog_index(c["Type"], c["Id"])
+        out.append({"key": key, "record": rec, "cost": c["Cost"],
+                    "skill": names.get(ci, f"skill {ci}"),
+                    "gated": c["Slot"] != 0})
+    return out
+
+
+def write_secret_key_gates(iso, required):
+    """Require (True) or drop (False) the Secret Key on all 31 secret skills.
+
+    Returns the number of records actually changed. Restoring is exact because
+    the retail slot values are recorded in F.SECRET_SKILL_GATES, so this works
+    on a disc that has already been patched."""
+    changed = 0
+    for rec, key in F.SECRET_SKILL_GATES.items():
+        off = F.skill_cost_record_off(iso.disc, rec) + F.SKILL_COST_SLOT_OFF
+        want = key if required else 0
+        if iso.read(off, 1)[0] != want:
+            iso.write(off, bytes([want]))
+            changed += 1
+    return changed
+
+
 def sync_skills(src, dst):
     """Copy every verified skill block from one disc to the other."""
     moved = 0
@@ -2248,6 +2299,44 @@ def cmd_skill_set(a):
         print(f"synced skill table onto the other disc"
               + ("" if n2 else " (already identical)"))
     return 0
+
+def cmd_secret_keys(a):
+    """Show, or drop/restore, the Secret Key requirement on the 31 secret skills."""
+    with Iso(a.iso) as iso:
+        require_version(iso)
+        rows = read_secret_key_gates(iso)
+    if not a.require and not a.unlock:
+        gated = sum(r["gated"] for r in rows)
+        print(f"{'key':>4}  {'skill':<20} {'SP':>6}  requirement")
+        for r in rows:
+            print(f"{r['key']:>4}  {r['skill']:<20} {r['cost']:>6}  "
+                  + (f"Secret Key {r['key']}" if r["gated"] else "none (unlocked)"))
+        print(f"\n{gated}/31 still require their key.")
+        return 0
+    if a.require and a.unlock:
+        raise SystemExit("pass either --unlock or --require, not both")
+    if a.backup:
+        print(f"backup -> {backup(a.iso)}")
+    with Iso(a.iso, write=True) as iso:
+        n = write_secret_key_gates(iso, required=bool(a.require))
+    what = "require their Secret Key" if a.require else "are learnable with no key"
+    print(f"{n} record(s) changed — the 31 secret skills now {what}.")
+    if a.unlock:
+        print("They still cost Class Points and Skill Points as usual; this only\n"
+              "removes the key requirement that shows them as \"???\".")
+    print("NOTE: `slot` is proven to ENCODE the key requirement (31/31 against the\n"
+          "skills FAQ), but the game has not been watched reading it. Try it in an\n"
+          "emulator before committing to a playthrough.")
+    if a.also:
+        with Iso(a.iso) as src, Iso(a.also, write=True) as dst:
+            require_version(src); require_version(dst)
+            if src.disc == dst.disc:
+                raise SystemExit("--also: both images are the same disc")
+            n2 = write_secret_key_gates(dst, required=bool(a.require))
+        print(f"applied to the other disc too ({n2} record(s)) — the cost table is "
+              f"per-disc, so an edit on one alone reverts at the disc swap")
+    return 0
+
 
 def cmd_enemy_columns(a):
     """Survey the 65 undecoded bytes of the stat record — the break/zone hunt."""
@@ -2510,6 +2599,20 @@ def main():
                     help="after editing, copy the skill table onto the other disc")
     sp.add_argument("--backup", action="store_true")
     sp.set_defaults(fn=cmd_skill_set)
+
+    sp = sub.add_parser("secret-keys",
+                        help="list the 31 secret skills, or make them learnable "
+                             "with no Secret Key")
+    sp.add_argument("iso")
+    sp.add_argument("--unlock", action="store_true",
+                    help="drop the key requirement (learnable from the start)")
+    sp.add_argument("--require", action="store_true",
+                    help="put the retail key requirement back")
+    sp.add_argument("--also", metavar="OTHER_ISO",
+                    help="apply the same change to the other disc (the cost table "
+                         "is per-disc, so one alone reverts at the disc swap)")
+    sp.add_argument("--backup", action="store_true")
+    sp.set_defaults(fn=cmd_secret_keys)
 
     sp = sub.add_parser("sync", help="copy the enemy tables from one disc onto the other")
     sp.add_argument("src"); sp.add_argument("dst")

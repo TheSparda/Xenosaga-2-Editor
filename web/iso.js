@@ -28,6 +28,10 @@
   let PFIELDS, PSTRIDE, PTABLES, PCOUNT, PTEXT0, PKINDOFF, PKINDS, PSTATBITS;
   let GFIELDS_G, GTABLES, GCOUNT, GESIDS, GSTATBITS, ESGEAR=null, COSTS=null;
   let CFIELDS, CTABLES, CCOUNT, CSTRIDE, CTYPEOFF, CIDOFF, CSLOTOFF, CTYPES, CDELTA;
+  // {cost-record index: Secret Key number} as RETAIL has it. Kept as a table rather
+  // than read back off the disc, so "restore" still works on an already-patched image
+  // where every one of those bytes is zero.
+  let SECRETKEYS = {};
   // player units: 15 records before the enemy table, same 0x5C layout
   let UFIELDS, UAFIELDS, USTRIDE, UCOUNT, UTAIL, UTABLES, UNITS=null;
   let TABLES=null;
@@ -81,6 +85,7 @@
     CTYPEOFF=(t.skillCost||{}).typeOff||0; CIDOFF=(t.skillCost||{}).idOff||1;
     CSLOTOFF=(t.skillCost||{}).slotOff||4; CTYPES=(t.skillCost||{}).typeNames||{};
     CDELTA=(t.skillCost||{}).passiveDelta||109;
+    SECRETKEYS=(t.skillCost||{}).secretKeys||{};
     UFIELDS=(t.unit||{}).fields||[]; USTRIDE=(t.unit||{}).stride||92;
     UAFIELDS=(t.unit||{}).affinityFields||[];
     // the affinity block overhangs the record, so the LAST unit's Ice/Pierce/
@@ -947,6 +952,22 @@
       '<div id="cdesc" class="note"></div>'+
       '<div id="crow" class="kctl"></div>'+
       '<div id="cnote" class="note"></div>'+
+      '<div class="affbox" id="skbox"><div class="fl">Secret skills</div>'+
+        '<div class="toolbar"><span id="skstate" class="muted small"></span>'+
+        '<span style="flex:1"></span>'+
+        '<button type="button" id="skUnlock" class="btn">No key required</button>'+
+        '<button type="button" id="skRequire" class="btn">Restore requirement</button></div>'+
+        '<p class="note">31 skills show in-game as <b>???</b> until you find the matching '+
+        '<b>Secret Key</b> — G2 quests, Segment Address doors and post-game chests, several '+
+        'permanently missable. Each record’s <i>slot</i> byte is that key’s number, so '+
+        'zeroing all 31 makes them ordinary purchases from a fresh save. They still cost Class '+
+        'Points and Skill Points, and Levels 2–4 still need Class Complete below.</p>'+
+        '<p class="note">The <i>slot</i> byte provably <b>encodes</b> the requirement — naming '+
+        'all 31 reproduces the skills FAQ’s Secret Key list <b>31 of 31</b>, including six it '+
+        'leaves romanized — but the game has not been watched <i>reading</i> it. Try it in an '+
+        'emulator before committing to a playthrough; <b>Restore requirement</b> puts the retail '+
+        'bytes back exactly, even on a disc that arrived already patched.</p>'+
+      '</div>'+
       '<details class="help"><summary>About these fields</summary>'+
       '<p class="note">What each skill costs in <b>Skill Points</b> to learn from the class tree \u2014 '+
       'the other half of skill pacing from the SP the Enemies tab hands out. All '+CCOUNT+' '+
@@ -1051,6 +1072,8 @@
       if(e.key==="Enter"){ e.preventDefault(); loadCost(); }
     });
     $("#cclear").onclick=()=>{ $("#csearch").value=""; paintCostList(); $("#csearch").focus(); };
+    $("#skUnlock").onclick=()=>setSecretKeyGates(false);
+    $("#skRequire").onclick=()=>setSecretKeyGates(true);
     paintCostList();
     $("#usel").onchange=loadUnit;
     paintUnitList();
@@ -1452,6 +1475,44 @@
     const v=i!==null&&skillInfo(i);
     return (v&&v.name)?v.name:("record "+k);
   };
+  // ---- secret-key gating --------------------------------------------------
+  // One byte per secret skill: `slot` holds the Secret Key number that unlocks
+  // the record, so zeroing all 31 drops the requirement and writing the retail
+  // numbers back restores it. Staged through putAt() like every other edit, so
+  // it joins the pending count and the normal save path.
+  function secretKeyGates(){
+    return Object.keys(SECRETKEYS).map(k=>({ rec:+k, key:SECRETKEYS[k], off:costOff(+k) }))
+                 .filter(g=>g.off>=0).sort((a,b)=>a.key-b.key);
+  }
+  function gatedCount(){
+    return secretKeyGates().filter(g=>getAt(C,g.off+CSLOTOFF,1)!==0).length;
+  }
+  function paintSecretKeys(){
+    const box=$("#skbox"); if(!box) return;
+    const gates=secretKeyGates();
+    if(!gates.length){
+      box.hidden=true; return;
+    }
+    box.hidden=false;
+    const n=gatedCount(), total=gates.length;
+    $("#skstate").textContent = n===total ? total+" of "+total+" still require their key"
+      : n===0 ? "all "+total+" learnable with no key"
+      : n+" of "+total+" still require their key";
+    $("#skUnlock").disabled = n===0;
+    $("#skRequire").disabled = n===total;
+  }
+  function setSecretKeyGates(required){
+    let changed=0;
+    for(const g of secretKeyGates()){
+      const want = required ? g.key : 0;
+      if(getAt(C,g.off+CSLOTOFF,1)!==want){ putAt(C,g.off+CSLOTOFF,1,want); changed++; }
+    }
+    if(changed){ epending(); }
+    paintSecretKeys(); loadCost();
+    toastFn(required ? "Secret Key requirement restored on "+changed+" skill(s)"
+                     : changed+" secret skill(s) now need no key \u2014 review, then Save");
+  }
+
   function paintCostList(){
     const sel=$("#csel"); if(!sel) return;
     const q=($("#csearch").value||"").trim().toLowerCase();
@@ -1483,10 +1544,13 @@
       $("#crow").innerHTML=""; $("#cnote").textContent=""; return;
     }
     const i=costSkillIndex(k), v=(i!==null&&skillInfo(i))||{}, t=costType(k);
-    const slot=getAt(C,base+CSLOTOFF,1);
+    // `slot` is the Secret Key number that unlocks this record \u2014 not, as an
+    // earlier read of the table had it, the class tier.
+    const slot=getAt(C,base+CSLOTOFF,1), retailKey=SECRETKEYS[String(k)];
+    const gate = slot ? ' \u00b7 needs Secret Key '+slot
+               : retailKey ? ' \u00b7 secret skill, key requirement removed' : '';
     $("#cdesc").innerHTML='<div class="rechead"><b>'+esc(v.name||costName(k))+'</b>'+
-      ' <span class="sub">'+esc(costTypeText(t))+
-      (slot?' \u00b7 tier slot '+slot:'')+'</span></div>'+
+      ' <span class="sub">'+esc(costTypeText(t))+esc(gate)+'</span></div>'+
       (v.target?'<div class="note">'+esc(v.target)+'</div>':'');
     const CF=CFIELDS.find(f=>f[0]==="Cost");
     const cv=getAt(C,base+CF[1],CF[2]), cdef=getOrigAt(C,base+CF[1],CF[2]);
@@ -1503,6 +1567,7 @@
     $("#cnote").textContent = i===null
       ? "This record's (type, id) pair isn't one this editor can name, so no skill is shown."
       : "";
+    paintSecretKeys();
   }
 
   // ---- gear pane ----------------------------------------------------------

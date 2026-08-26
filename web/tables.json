@@ -44,6 +44,7 @@
     "Zones": "zones"
   },
   "character": {
+    "affinityOff": 36,
     "base": 4468,
     "caps": {
       "Agl": 99,
@@ -59,14 +60,15 @@
       "Vit": 999
     },
     "count": 15,
+    "equipSlotCount": 4,
+    "equipSlotOff": 52,
     "esFields": [
-      ["Gear 1", 134, 2],
-      ["Gear 2", 136, 2],
-      ["Gear 3", 138, 2],
-      ["Gear 4", 144, 2]
+      ["Slot 1", 134, 2],
+      ["Slot 2", 136, 2],
+      ["Slot 3", 138, 2]
     ],
     "fields": [
-      ["Character id", 0, 2],
+      ["Name ptr", 0, 2],
       ["HP", 2, 2],
       ["EP", 6, 2],
       ["Str", 8, 2],
@@ -77,8 +79,10 @@
       ["Eva", 17, 1],
       ["Agl", 18, 1],
       ["Level", 19, 1],
+      ["Unit id", 30, 2],
       ["Current HP", 92, 2]
     ],
+    "readonlyFields": ["Name ptr", "Unit id"],
     "sheetCols": [
       ["Lvl", "Level"],
       ["HP", "HP"],
@@ -274,6 +278,44 @@
       "2": 33598980
     }
   },
+  "growth": {
+    "base": 8820,
+    "caps": {
+      "Class Points": 999999,
+      "EXP": 9999999,
+      "EXP to next": 9999999,
+      "Skill Points": 999999
+    },
+    "count": 15,
+    "etherMask": [32, 12, 57, 0],
+    "fields": [
+      ["EXP", 0, 4],
+      ["EXP to next", 4, 4],
+      ["Skill Points", 8, 4],
+      ["Class Points", 12, 4]
+    ],
+    "skillMask": [44, 8, 64, 110],
+    "stride": 64
+  },
+  "inventory": {
+    "consumables": {
+      "count": 40,
+      "item0": 40,
+      "max": 99,
+      "off": 9844
+    },
+    "esGear": {
+      "count": 40,
+      "item0": 0,
+      "max": 99,
+      "off": 10354
+    },
+    "keyItems": {
+      "count": 107,
+      "max": 1,
+      "off": 10864
+    }
+  },
   "majorHpThreshold": 20000,
   "passive": {
     "count": 64,
@@ -318,6 +360,7 @@
     },
     "text0": 110
   },
+  "playtimeOff": 104,
   "profiles": {
     "deeper": {
       "label": "Deeper challenge",
@@ -511,6 +554,39 @@
     ],
     "idOff": 1,
     "passiveDelta": 109,
+    "secretKeys": {
+      "101": 25,
+      "104": 26,
+      "106": 27,
+      "108": 28,
+      "109": 29,
+      "110": 30,
+      "111": 31,
+      "28": 1,
+      "29": 2,
+      "30": 3,
+      "31": 4,
+      "44": 5,
+      "47": 6,
+      "54": 7,
+      "60": 8,
+      "61": 9,
+      "62": 10,
+      "63": 11,
+      "65": 12,
+      "67": 13,
+      "73": 14,
+      "75": 15,
+      "83": 16,
+      "85": 17,
+      "87": 18,
+      "91": 19,
+      "92": 20,
+      "93": 21,
+      "94": 22,
+      "95": 23,
+      "97": 24
+    },
     "slotOff": 4,
     "stride": 6,
     "tables": {

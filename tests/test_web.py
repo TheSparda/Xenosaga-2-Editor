@@ -61,10 +61,41 @@ class TestPyodideGlue(unittest.TestCase):
         self.assertEqual(ref["caps"], F.CHAR_CAPS)
         self.assertEqual([tuple(c) for c in ref["sheetCols"]], list(F.SHEET_COLS))
         self.assertEqual(ref["esFields"],
-                         [l for (l, _o, _w, _k) in F.ES_EQUIP_FIELDS])
-        self.assertEqual(len(ref["esEquipList"]), 31)
-        self.assertEqual(ref["esEquip"]["0"], "Auxiliary Armor A")
+                         [l for (l, _o, _w, _k) in F.ES_ACCESSORY_FIELDS])
         self.assertEqual(ref["roster"]["0"], "chaos")
+        # E.S. slots store a ONE-BASED item-catalog index, so the picker's first
+        # entry is id 1 — the 0-based es_equip ids it used to show made a slot
+        # holding 7 read as "Anti-Beam Armor" when it is really "EF Circuit B"
+        self.assertEqual(ref["esSlotList"][0], {
+            "id": 1, "name": "Auxiliary Armor A",
+            "desc": "Arm +30 Increase Physical Defense."})
+        self.assertEqual(len(ref["esSlotList"]), 31)
+
+    def test_load_reference_supplies_the_new_panes(self):
+        ref = json.loads(self.ns["load_reference"]())
+        self.assertEqual(ref["growthCols"],
+                         [l for (l, _o, _w, _k) in F.GROWTH_FIELDS])
+        self.assertEqual(ref["affinity"]["elements"], list(F.AFFINITY_ELEMENTS))
+        # the two learned-skill masks, named, placeholders dropped
+        self.assertEqual(ref["ethers"][0], {"idx": 0, "name": "Medica"})
+        self.assertEqual(ref["skills"][0], {"idx": 110, "name": "HP Mind 10"})
+        self.assertTrue(all(r["idx"] < F.ETHER_MASK_COUNT for r in ref["ethers"]))
+        self.assertTrue(all(F.SKILL_MASK_TEXT0 <= r["idx"]
+                            < F.SKILL_MASK_TEXT0 + F.SKILL_MASK_COUNT
+                            for r in ref["skills"]))
+        # equip-slot ids resolve through the cost table's type-1 rows
+        self.assertEqual(ref["equipIds"]["29"], "STR+2")
+        # the three inventories, with the catalog's spare slots hidden
+        inv = ref["inv"]
+        self.assertEqual(inv["consumables"]["rows"][0],
+                         {"slot": 0, "name": "Med Kit S",
+                          "desc": "Recover 25% of MAX HP."})
+        self.assertEqual(len(inv["consumables"]["rows"]),
+                         F.INV_CONSUMABLE_COUNT - 4)     # four 予備 placeholders
+        self.assertEqual(len(inv["esGear"]["rows"]),
+                         F.INV_ES_GEAR_COUNT - 9)        # nine of them here
+        self.assertEqual(len(inv["keyItems"]["rows"]), F.INV_KEYITEM_COUNT)
+        self.assertEqual(ref["secretKeys"], F.secret_key_ids())
 
     def test_load_slots_on_a_card(self):
         p = self.put("card.ps2", FX.x2_memcard(n_slots=3))
@@ -375,6 +406,53 @@ class TestDomReferences(unittest.TestCase):
         sw = re.search(r'CACHE\s*=\s*"x2editor-v([^"]+)"', read("sw.js")).group(1)
         self.assertEqual({page, app, sw}, {page},
                          f"version strings disagree: html={page} app={app} sw={sw}")
+
+
+class TestSecretKeyGating(unittest.TestCase):
+    """The Costs pane's Secret Key toggle.
+
+    The retail key numbers have to reach the front-end as DATA, not be inferred
+    from the disc, or "restore" on an already-unlocked image would write zeros
+    back over zeros and silently do nothing."""
+
+    def test_tables_json_ships_the_retail_key_map(self):
+        tables = json.loads(read("tables.json"))
+        keys = tables["skillCost"]["secretKeys"]
+        self.assertEqual({int(k): v for k, v in keys.items()}, F.SECRET_SKILL_GATES)
+        self.assertEqual(sorted(keys.values()), list(range(1, F.SECRET_KEY_COUNT + 1)))
+
+    def test_iso_js_reads_the_map_rather_than_the_disc(self):
+        iso = read("iso.js")
+        self.assertIn("secretKeys", iso, "iso.js never reads tables.json's key map")
+        m = re.search(r"function setSecretKeyGates\(.*?\n  \}", iso, re.S)
+        self.assertTrue(m, "setSecretKeyGates is gone from iso.js")
+        body = m.group(0)
+        self.assertIn("putAt(", body, "the toggle must stage through putAt so the "
+                                      "pending count and save path see it")
+        self.assertIn("epending()", body, "the toggle must join the pending count")
+        self.assertNotIn("getOrigAt(", body,
+                         "restore must use the retail key map, not the disc's own "
+                         "bytes — those are zero on an already-patched image")
+
+    def test_the_slot_byte_is_not_called_a_tier(self):
+        """It was labelled 'tier slot' before it was decoded. That label is wrong
+        and would tell a user the opposite of what the byte does."""
+        iso = read("iso.js")
+        self.assertNotIn("tier slot", iso)
+        self.assertIn("Secret Key", iso)
+
+    def test_the_gate_byte_is_covered_by_the_three_review_paths(self):
+        """The toggle writes the cost record's Slot byte, so the pending list,
+        restore-to-retail and compare-to-retail all have to see it — otherwise an
+        unlocked disc reports itself unchanged, or 'restore' leaves it unlocked
+        while saying it put everything back."""
+        iso = read("iso.js")
+        for fn in ("changeRows", "stageRestore", "retailRows"):
+            m = re.search(r"function " + fn + r"\b.*?\n  \}", iso, re.S)
+            with self.subTest(fn):
+                self.assertTrue(m, f"could not find {fn} in iso.js")
+                self.assertIn("CSLOTOFF", m.group(0),
+                              f"{fn} no longer covers the cost record's Slot byte")
 
 
 if __name__ == "__main__":

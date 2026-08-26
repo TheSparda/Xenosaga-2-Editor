@@ -404,3 +404,28 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
 .sect .secthint{color:var(--mut);font-weight:400;font-size:12px}
 .sect .sectbody{padding:0 12px 12px}
 .sect .sectbody>.fieldtable{margin-top:0}
+
+/* ---- save editor: the panes the ISO tables made nameable ------------------ */
+/* the growth row (EXP / EXP-to-next / SP / CP) reads as a continuation of the
+   stat rows above it, so it is tinted rather than boxed */
+#sheet tr.growthrow td{background:color-mix(in srgb,var(--panel2) 70%,transparent)}
+#sheet tr.growthrow input{width:11ch}
+/* a labelled number: the element name (or item name) sits above its box, which
+   is what lets eight affinities or forty items wrap without a table */
+.affrow{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-end;margin:4px 0 12px}
+.affrow .fl{flex:0 0 100%;margin-bottom:0}
+.affcell{display:inline-flex;flex-direction:column;gap:3px}
+.affcell i{font-style:normal;font-size:11px;color:var(--mut)}
+.affcell.wide{min-width:15ch}
+.affcell.wide i{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:20ch}
+.affcell input{width:8ch}
+.affcell.wide input{width:100%}
+/* a staged checkbox chip — same amber the number inputs use for .changed */
+label.ebit.dirty{border-color:var(--warnbd);color:var(--warn)}
+label.ebit.dirty:has(input:checked){background:var(--warn);border-color:var(--warn);
+  color:var(--accink)}
+#skillPane .sectbody .fl,#itemPane .sectbody .fl{margin:10px 0 4px}
+/* the E.S. sheet's .gname is sized for a 9ch table cell; in the wider skills
+   pane the same element has room for the whole name */
+.affcell .gname{font-size:11px;max-width:100%;margin-left:0;margin-right:0}
+.affrow.cols{gap:8px 12px}
