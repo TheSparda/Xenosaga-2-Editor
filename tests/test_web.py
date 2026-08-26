@@ -350,6 +350,25 @@ class TestDomReferences(unittest.TestCase):
                               f"app.js loads Editor/{name} but the service worker "
                               f"does not precache it — offline would break")
 
+    def test_damage_reference_keeps_its_provenance_labels(self):
+        # The Damage section is the one place the editor states game mechanics it
+        # derived rather than data it read off the disc, so the labelling is the
+        # feature: a formula shown without "verified"/"inferred" reads as settled
+        # fact, and the chain-counter offset in particular is the page's weakest
+        # claim. It also has to keep pointing at the derivation.
+        ref = read("ref.js")
+        self.assertIn('key:"damage"', ref, "the Damage reference section is gone")
+        for tag in ("verified", "inferred", "unresolved"):
+            with self.subTest(tag):
+                self.assertIn(tag, ref, f"the Damage section no longer labels {tag} claims")
+        self.assertIn("Research/DAMAGE.md", ref,
+                      "the Damage section must link the full derivation")
+        # the numbers a reader would act on, straight from the write-up
+        for claim in ("STR × 4", "VIT × 3", "EATK × 5", "EDEF × 4",
+                      "ATK × power / 20", "0xA8C778"):
+            with self.subTest(claim):
+                self.assertIn(claim, ref, f"the Damage section dropped {claim}")
+
     def test_versions_agree(self):
         page = re.search(r'id="appver">([^<]+)<', read("index.html")).group(1).strip()
         app = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', read("app.js")).group(1)

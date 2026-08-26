@@ -286,6 +286,19 @@ code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
 .stpill{font-size:11px;padding:1px 7px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--acc2);white-space:nowrap}
 #refSearch{background:var(--input);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 #refTabs{gap:6px}
+/* Damage section: prose + tables + code, not rows */
+.dmgblk{padding:10px 6px 12px;border-bottom:1px solid var(--line)}
+.dmghead{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.dmgblk .note{margin:7px 0 0}
+.dmgblk code{font:12.5px ui-monospace,monospace;background:var(--panel2);border-radius:5px;padding:0 4px}
+.dmgwrap{overflow-x:auto;margin-top:9px}
+.dmgtab{border-collapse:collapse;font-size:13px;min-width:100%}
+.dmgtab th,.dmgtab td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+.dmgtab th{color:var(--acc2);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+.dmgcode{margin:9px 0 0;padding:9px 11px;overflow-x:auto;background:var(--input);
+  border:1px solid var(--line);border-radius:9px;font:12.5px/1.5 ui-monospace,monospace}
+.tag-inferred{color:var(--warn);border-color:var(--warnbd)}
+.tag-open{color:var(--mut)}
 .linkbtn{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit;padding:0;text-decoration:underline}
 .updbanner{background:var(--acc);color:var(--accink);border-radius:8px;padding:8px 12px;font-weight:600;align-self:flex-start}
 .updbanner .chip{margin-left:8px}
