@@ -49,8 +49,11 @@ device** (no server, no upload). It's a PWA, so you can **Install** it and use i
 
   Everything writes **in place** into your disc images. Share your work as a readable
   **patch file** or a standard **`.xdelta`** patch, and use **compare-to-retail** to see
-  exactly how your disc differs from an unmodified one — across *every* editable field —
-  and to put it back.
+  exactly how your disc differs from an unmodified one — across *every* editable field in
+  *all six panes*, enemies, units, skills, passives, E.S. gear and skill costs — and
+  **Stage restore** to put any of it back. Fields with no shipped retail baseline are
+  counted and named rather than skipped quietly, so an unanswerable field never looks like
+  a matching one.
 - **Reference** — searchable bestiary (verified stats & rewards, filter by ID band or major
   fights, sort, CSV export) + item / key-item / E.S.-gear catalogs extracted from the disc.
 - **Reopen recent** — your last save *and* last ISO are remembered, so a return visit is one
@@ -319,6 +322,22 @@ Because a template is presented as a coherent whole, layering one onto edits you
 have already made is offered explicitly rather than done silently. The preview
 counts how many of your own changed bytes it would overwrite, and **Replace**
 discards your pending changes first and stages the template alone.
+
+### Where the retail baseline comes from
+
+The comparison needs to know what the game shipped with, and that data is generated from
+the discs themselves — never typed in — with the write gated on **both discs agreeing
+record for record**:
+
+```bash
+python3 Editor/gen_effect_catalog.py "…(Disc 1).iso" "…(Disc 2).iso"
+```
+
+That covers the passive/equip effects, the E.S. accessory effects and the 112 skill
+purchase costs; the enemy, unit and skill baselines have their own generators alongside it.
+Until these existed, three of the six panes had been editable for a release or two with
+nothing able to say what their retail values were — compare-to-retail said nothing at all
+about them, which reads as "nothing to report".
 
 ### What does someone else's mod change?
 

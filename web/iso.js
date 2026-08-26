@@ -22,11 +22,11 @@
   let DFIELDS, DROPCATS, DROP_CONSUMABLE, DROPBASE, RFIELDS_RES, ITEMS=null;
   // Ether + Double skill numeric records: two disjoint blocks per disc, read as
   // one span so a single buffer covers both (x2fields.skill_span()).
-  let KFIELDS, KSTRIDE, KBLOCKS, KSPAN, KELEM, KTARGETS, KTGT_ALL, SKILLS=null;
+  let KFIELDS, KSTRIDE, KBLOCKS, KBASE, KSPAN, KELEM, KTARGETS, KTGT_ALL, SKILLS=null;
   // the skill/tech name pool, so names can be renamed in place
   let KTEXT=null;
   let PFIELDS, PSTRIDE, PTABLES, PCOUNT, PTEXT0, PKINDOFF, PKINDS, PSTATBITS;
-  let GFIELDS_G, GTABLES, GCOUNT, GESIDS, GSTATBITS, ESGEAR=null;
+  let GFIELDS_G, GTABLES, GCOUNT, GESIDS, GSTATBITS, ESGEAR=null, COSTS=null;
   let CFIELDS, CTABLES, CCOUNT, CSTRIDE, CTYPEOFF, CIDOFF, CSLOTOFF, CTYPES, CDELTA;
   // player units: 15 records before the enemy table, same 0x5C layout
   let UFIELDS, UAFIELDS, USTRIDE, UCOUNT, UTAIL, UTABLES, UNITS=null;
@@ -65,6 +65,7 @@
     RFIELDS_RES=t.enemy.statusResFields||[];
     KFIELDS=(t.skill||{}).fields||[]; KSTRIDE=(t.skill||{}).stride||32;
     KBLOCKS=(t.skill||{}).blocks||{}; KSPAN=(t.skill||{}).span||0;
+    KBASE=(t.skill||{}).base||null;
     KELEM=(t.skill||{}).elementBits||{};
     KTARGETS=(t.skill||{}).targetNames||{}; KTGT_ALL=(t.skill||{}).targetAll||8;
     KTEXT=(t.skill||{}).textSpan||null;
@@ -238,6 +239,8 @@
     // names + retail values for the player units
     try{UNITS=await (await fetch("../Editor/x2_units.json")).json();}catch(e){UNITS={};}
     try{ESGEAR=await (await fetch("../Editor/x2_es_equip.json")).json();}catch(e){ESGEAR={};}
+    // the retail purchase costs, so the Costs pane can be compared like the rest
+    try{COSTS=await (await fetch("../Editor/x2_costs.json")).json();}catch(e){COSTS={};}
     return cat; }
 
   // ---- skills -------------------------------------------------------------
@@ -246,8 +249,16 @@
   // combo blocks use a different layout, so they are deliberately not addressable
   // (mirrors x2fields.skill_record_off returning None).
   const kBlocks=()=>KBLOCKS[String(PRIMARY||1)]||[];
-  const kBase=(disc)=>Math.min.apply(null,(KBLOCKS[String(disc)]||[[0,0,0,0]])
-                                          .map(b=>b[1]));
+  // From tables.json, NOT min(block bases): Target sits at base-0x04, so the
+  // buffer has to start four bytes below the first block or the first record's
+  // Target byte falls outside it. Deriving it here is what put `undefined` in
+  // that slot — invisible while nothing compared Target against a baseline,
+  // and a thrown TypeError the moment something did.
+  const kBase=(disc)=>{
+    const v=KBASE&&KBASE[String(disc)];
+    return v!==undefined ? v
+      : Math.min.apply(null,(KBLOCKS[String(disc)]||[[0,0,0,0]]).map(b=>b[1]));
+  };
   function skillKeys(){
     const out=[];
     for(const [,,count,text0] of kBlocks())
@@ -313,7 +324,12 @@
   const skillInfo=(i)=>(SKILLS&&SKILLS[String(i)])||null;
   const skillName=(i)=>{const v=skillInfo(i); return v&&v.name?v.name:("skill "+i);};
   // retail value of one numeric field, from the shipped catalog
-  const KCATKEY={EP:"ep",Element:"element",Power:"power",EffPct:"effPct",EffMask:"effMask"};
+  // Target belongs here as much as the rest — the catalog has carried
+  // numeric.target since the skill table was decoded, and leaving it out made
+  // the one field that turns a skill into an AoE the one field "Compare to
+  // retail" could not answer for.
+  const KCATKEY={Target:"target",EP:"ep",Element:"element",Power:"power",
+                 EffPct:"effPct",EffMask:"effMask"};
   function skillRetail(i,label){
     const v=skillInfo(i), k=KCATKEY[label];
     return (v&&v.numeric&&k&&v.numeric[k]!==undefined)?v.numeric[k]:undefined;
@@ -993,10 +1009,10 @@
       '<button id="pImport" class="btn">⬆ Import patch…</button>'+
       '<button id="tExport" class="btn">⬇ Export JSON…</button>'+
       '<button id="tImport" class="btn">⬆ Import JSON…</button>'+
-      '<span class="sep"></span>'+
-      '<button id="pDiff" class="btn">Compare to retail</button>'+
       '<button id="pRestore" class="btn">Stage restore</button>'+
       '</span>'+
+      '<span class="sep"></span>'+
+      '<button id="pDiff" class="btn">Compare to retail</button>'+
       '<span style="flex:1"></span>'+
       '<span id="estat" class="status"></span></div>';
     $("#esel").onchange=loadEnemy;
@@ -2002,6 +2018,19 @@
   function diffRuns(T){const runs=[];let i=0;while(i<T.buf.length){if(T.buf[i]!==T.orig[i]){let j=i;
     while(j<T.buf.length&&T.buf[j]!==T.orig[j])j++;runs.push([i,j]);i=j;}else i++;}return runs;}
 
+  // One row renderer for both comparisons — "staged vs the disc" and "yours vs
+  // retail" are the same shape and were drifting apart as two copies.
+  // A name is only comparable when the RETAIL name is representable in the
+  // single-byte encoding these buffers are read as. The placeholder records are
+  // named 予備 ("spare") in the catalog and read back from the disc as latin1
+  // mojibake — a difference in encoding, not in the disc. Reported as an edit it
+  // put a permanent false positive at the top of every retail comparison.
+  const latin1=(v)=>typeof v==="string" && [...v].every(c=>c.charCodeAt(0)<256);
+
+  const revRow=(l,a,b)=>'<div class="revrow"><span class="rl">'+esc(l)+'</span><span class="ro">'+
+    esc(a)+'</span>→ <span class="rn">'+esc(b)+'</span></div>';
+  const revGrp=(t)=>'<div class="revgrp">'+esc(t)+'</div>';
+
   // What the confirm dialog lists before anything is written, and what the
   // Templates preview lists before anything is staged. It must cover every
   // field a Save actually writes — it used to show stats, affinities and
@@ -2022,9 +2051,7 @@
     };
     const was=(T,i,off,w)=>wasAt(T,i*(T===S?STRIDE:RSTRIDE)+off,w);
     const wasArr=(T)=>{ wasAt(T,0,1); return views.get(T).arr; };
-    const row=(l,a,b)=>'<div class="revrow"><span class="rl">'+esc(l)+'</span><span class="ro">'+
-      esc(a)+'</span>→ <span class="rn">'+esc(b)+'</span></div>';
-    const grp=(t)=>'<div class="revgrp">'+esc(t)+'</div>';
+    const row=revRow, grp=revGrp;
     let rows="",count=0;
     for(let i=0;i<COUNT && count<400;i++){
       let cells="";
@@ -2530,6 +2557,12 @@
   // allFields(), not SFIELDS+RFIELDS: a restore that quietly leaves break
   // sequences, zones, affinities, resistances and drops modified is worse than
   // no restore, because it reports success.
+  // Puts the retail values back, across the SAME six panes the comparison covers.
+  // It was enemies-only, which stopped being defensible the moment "Compare to
+  // retail" could report 252 records across five panes and the button next to it
+  // could only fix 125 of them. Fields with no baseline are left alone, and a
+  // name that is not representable in the buffers' encoding is skipped for the
+  // same reason the comparison declines to judge it.
   function stageRestore(){
     let n=0;
     for(let i=0;i<COUNT;i++)
@@ -2537,31 +2570,188 @@
         const van=retail(i,l), T=tableOf(l);
         if(van!==undefined && get(T,i,o,w)!==van){ put(T,i,o,w,van); n++; }
       }
-    loadEnemy(); epending();
-    toastFn(n?("✓ Staged a restore of "+n+" field(s) to retail — review, then Save to ISO")
+    for(let i=0;i<UCOUNT;i++){
+      const v=unitInfo(i); if(!v) continue;
+      for(const [l,o,w] of UFIELDS.concat(UAFIELDS)){
+        const van=v[l]; if(van===undefined) continue;
+        if(getAt(U,i*USTRIDE+o,w)!==van){ putAt(U,i*USTRIDE+o,w,van); n++; }
+      }
+    }
+    for(const i of skillKeys()){
+      const base=skillOff(i); if(base<0) continue;
+      const v=skillInfo(i)||{};
+      if(latin1(v.name) && readName(i)!==null && readName(i)!==v.name && writeName(i,v.name)) n++;
+      for(const [l,o,w] of KFIELDS){
+        const van=skillRetail(i,l); if(van===undefined) continue;
+        if(getAt(K,base+o,w)!==van){ putAt(K,base+o,w,van); n++; }
+      }
+    }
+    const restoreEffect=(base,van)=>{
+      if(!van) return 0;
+      let m=0;
+      const pairs=[[PKINDOFF,1,van.kind]].concat(
+        PFIELDS.map(([l,o,w])=>[o,w, l==="Param"?van.param:van.statMask]));
+      for(const [o,w,want] of pairs){
+        if(want===undefined) continue;
+        if(getAt(TX,base+o,w)!==want){ putAt(TX,base+o,w,want); m++; }
+      }
+      return m;
+    };
+    for(const i of passiveKeys()){
+      const base=passiveOff(i); if(base<0) continue;
+      const v=skillInfo(i)||{};
+      if(latin1(v.name) && readPassiveName(i)!==null && readPassiveName(i)!==v.name
+         && writePassiveName(i,v.name)) n++;
+      n+=restoreEffect(base, v.numeric);
+    }
+    for(const k of gearKeys()){
+      const base=gearOff(k); if(base<0) continue;
+      n+=restoreEffect(base, (gearInfo(k)||{}).numeric);
+    }
+    for(let k=0;k<CCOUNT;k++){
+      const base=costOff(k), v=COSTS&&COSTS[String(k)];
+      if(base<0||!v) continue;
+      for(const [o,w,want] of [[0x02,2,v.cost],[CTYPEOFF,1,v.type],
+                               [CIDOFF,1,v.id],[CSLOTOFF,1,v.slot]]){
+        if(want===undefined) continue;
+        if(getAt(C,base+o,w)!==want){ putAt(C,base+o,w,want); n++; }
+      }
+    }
+    loadEnemy(); loadSkill(); loadPassive(); loadGear(); loadCost(); loadUnit(); epending();
+    toastFn(n?("✓ Staged a restore of "+n+" field(s) to retail across every pane — "+
+               "review, then Save to ISO")
              :"Already matches the retail values");
   }
 
-  async function showRetailDiff(){
-    let rows="", recs=0, fields=0;
+  // Every editable field compared against the RETAIL baseline, across every pane.
+  //
+  // Distinct from changeRows(), which compares against a baseline that is on the
+  // disc — as opened, or as staged. This one compares against what the game
+  // shipped with, which comes from the catalogs rather than the image.
+  //
+  // It used to cover the enemy tables and nothing else. Not "the other panes
+  // match" — nothing at all about them, which reads as "there is nothing to
+  // report" while a changed equip-skill magnitude sat there unmentioned. Three
+  // of the six panes had no shipped baseline to compare against at all;
+  // Editor/gen_effect_catalog.py generates them off the discs, gated on both
+  // discs agreeing, so all six are answerable now.
+  //
+  // Fields with no baseline are COUNTED and reported rather than skipped
+  // silently — an unanswerable field and a matching field must not look alike.
+  function retailRows(){
+    let rows="", recs=0, fields=0, unknown=0;
+    const push=(title,cells)=>{ if(cells){ recs++; if(recs<=300) rows+=revGrp(title)+cells; } };
+
     for(let i=0;i<COUNT;i++){
       let cells="";
-      for(const d of retailDiffs(i)){
-        fields++;
-        cells+='<div class="revrow"><span class="rl">'+esc(d.label)+'</span><span class="ro">'+
-          esc(d.van)+'</span>→ <span class="rn">'+esc(d.cur)+'</span></div>';
-      }
-      if(cells){recs++;
-        if(recs<=200) rows+='<div class="revgrp">'+String(i).padStart(3,"0")+' · '+
-          esc(cat[i]?cat[i].name:i)+'</div>'+cells;}
+      for(const d of retailDiffs(i)){ fields++; cells+=revRow(d.label,d.van,d.cur); }
+      push(String(i).padStart(3,"0")+" · "+(cat[i]?cat[i].name:i), cells);
     }
-    const head=recs
-      ? '<div class="note">'+recs+' record(s), '+fields+' field(s) differ from an unmodified disc '+
-        '(retail → yours). Covers everything this editor can write — stats, rewards, drops, '+
-        'break sequences, zones, affinities and status resistances.</div>'+
-        (recs>200?'<div class="note">…first 200 shown…</div>':'')
-      : '<div class="note">Every editable field matches the retail values.</div>';
-    if(window.openInfo) await window.openInfo("Compared to retail", head+rows);
+
+    for(let i=0;i<UCOUNT;i++){
+      const v=unitInfo(i); let cells="";
+      for(const [l,o,w] of UFIELDS.concat(UAFIELDS)){
+        const van=v&&v[l];
+        if(!v||van===undefined){ unknown++; continue; }
+        const cur=getAt(U,i*USTRIDE+o,w); if(cur===van) continue;
+        const aff=UAFIELDS.some(x=>x[0]===l), f=(n)=>aff?affPct(n)+"%":n.toLocaleString();
+        fields++; cells+=revRow(l,f(van),f(cur));
+      }
+      push("unit "+String(i).padStart(2,"0")+" · "+unitName(i), cells);
+    }
+
+    for(const i of skillKeys()){
+      const base=skillOff(i); if(base<0) continue;
+      let cells="";
+      const vn=(skillInfo(i)||{}).name, cn=readName(i);
+      if(vn!==undefined && !latin1(vn)) unknown++;
+      else if(vn!==undefined && cn!==null && cn!==vn){ fields++; cells+=revRow("Name",vn||"—",cn||"—"); }
+      for(const [l,o,w] of KFIELDS){
+        const van=skillRetail(i,l);
+        if(van===undefined){ unknown++; continue; }
+        const cur=getAt(K,base+o,w); if(cur===van) continue;
+        const f = l==="Target"?targetText : l==="Element"?elementText : (n)=>n.toLocaleString();
+        fields++; cells+=revRow(l,String(f(van)),String(f(cur)));
+      }
+      push("skill "+String(i).padStart(3,"0")+" · "+skillName(i), cells);
+    }
+
+    // Passives and gear share the 12-byte effect record, so they share a walker.
+    // Kind is compared even though no pane offers it as a control: a patch or a
+    // template can change it, and a comparison that only covers what the UI
+    // exposes is not a comparison against retail.
+    const effectCells=(baseOff,van,curName,vanName)=>{
+      let cells="";
+      if(vanName!==undefined && !latin1(vanName)) unknown++;
+      else if(vanName!==undefined && curName!==null && curName!==vanName){
+        fields++; cells+=revRow("Name",vanName||"—",curName||"—");
+      }
+      if(!van){ unknown+=PFIELDS.length+1; return cells; }
+      const pairs=[["Kind",PKINDOFF,1,van.kind]].concat(
+        PFIELDS.map(([l,o,w])=>[l,o,w, l==="Param"?van.param:van.statMask]));
+      for(const [l,o,w,want] of pairs){
+        if(want===undefined){ unknown++; continue; }
+        const cur=getAt(TX,baseOff+o,w); if(cur===want) continue;
+        const f = l==="Kind" ? passiveKindText : (n)=>n.toLocaleString();
+        fields++; cells+=revRow(l,String(f(want)),String(f(cur)));
+      }
+      return cells;
+    };
+
+    for(const i of passiveKeys()){
+      const base=passiveOff(i); if(base<0) continue;
+      const v=skillInfo(i)||{};
+      push("passive "+String(i).padStart(3,"0")+" · "+skillName(i),
+           effectCells(base, v.numeric, readPassiveName(i), v.name));
+    }
+
+    for(const k of gearKeys()){
+      const base=gearOff(k); if(base<0) continue;
+      // E.S. accessory names are read-only (their pointers land in a numeric
+      // pool, not the skill name pool), so there is no name row to compare
+      push("gear "+String(k).padStart(2,"0")+" · "+gearName(k),
+           effectCells(base, (gearInfo(k)||{}).numeric, null, undefined));
+    }
+
+    for(let k=0;k<CCOUNT;k++){
+      const base=costOff(k); if(base<0) continue;
+      const v=COSTS&&COSTS[String(k)]; let cells="";
+      if(!v){ unknown+=4; }
+      else for(const [l,o,w,want] of [["Cost",0x02,2,v.cost],["Type",CTYPEOFF,1,v.type],
+                                      ["Id",CIDOFF,1,v.id],["Slot",CSLOTOFF,1,v.slot]]){
+        if(want===undefined){ unknown++; continue; }
+        const cur=getAt(C,base+o,w); if(cur===want) continue;
+        const f = l==="Type" ? costTypeText : (n)=>n.toLocaleString();
+        fields++; cells+=revRow(l,String(f(want)),String(f(cur)));
+      }
+      push("cost "+String(k).padStart(3,"0")+" · "+costName(k), cells);
+    }
+    return {rows,recs,fields,unknown};
+  }
+
+  async function showRetailDiff(){
+    const {rows,recs,fields,unknown}=retailRows();
+    const head = recs
+      ? '<div class="note"><b>'+recs+' record(s), '+fields+' field(s)</b> differ from an '+
+        'unmodified disc (retail → yours). Covers every pane this editor can write: '+
+        'enemies, units, skills, passives, E.S. gear and skill costs.</div>'+
+        (recs>300?'<div class="note">…first 300 shown…</div>':'')
+      : '<div class="note">Every editable field across all six panes matches the retail '+
+        'values.</div>';
+    const gap = unknown
+      ? '<div class="note">'+unknown+' field(s) have no shipped retail baseline and were '+
+        'not compared — counted here rather than skipped quietly, so an unanswerable '+
+        'field does not look like a matching one.</div>'
+      : '';
+    // Said out loud because "matches retail" would otherwise be read as covering
+    // it: description TEXT is not a field and is not compared, so a patch that
+    // rewrites descriptions can leave this dialog reporting a clean match while
+    // the pending-changes count is not zero. That is not a contradiction — the
+    // two answer different questions — but it looks like one if nobody says so.
+    const text='<div class="note">This compares editable <b>fields</b>. Skill and passive '+
+      '<i>description text</i> is not among them, so a patch that rewrites descriptions can '+
+      'show as a clean match here while still leaving pending changes.</div>';
+    if(window.openInfo) await window.openInfo("Compared to retail", head+gap+text+rows);
   }
 
   async function saveISO(){

@@ -2087,7 +2087,12 @@
   "nameOff": 33601508,
   "placeholder": false,
   "tags": [],
-  "target": "HP Recovery +10%."
+  "target": "HP Recovery +10%.",
+  "numeric": {
+   "kind": 8,
+   "param": 10,
+   "statMask": 128
+  }
  },
  "111": {
   "desc": "HP Recovery +15%.",
@@ -2096,7 +2101,12 @@
   "nameOff": 33601537,
   "placeholder": false,
   "tags": [],
-  "target": "HP Recovery +15%."
+  "target": "HP Recovery +15%.",
+  "numeric": {
+   "kind": 8,
+   "param": 15,
+   "statMask": 128
+  }
  },
  "112": {
   "desc": "Status effect recovery +10%.",
@@ -2105,7 +2115,12 @@
   "nameOff": 33601566,
   "placeholder": false,
   "tags": [],
-  "target": "Status effect recovery +10%."
+  "target": "Status effect recovery +10%.",
+  "numeric": {
+   "kind": 8,
+   "param": 10,
+   "statMask": 64
+  }
  },
  "113": {
   "desc": "Status effect recovery +15%.",
@@ -2114,7 +2129,12 @@
   "nameOff": 33601606,
   "placeholder": false,
   "tags": [],
-  "target": "Status effect recovery +15%."
+  "target": "Status effect recovery +15%.",
+  "numeric": {
+   "kind": 8,
+   "param": 15,
+   "statMask": 64
+  }
  },
  "114": {
   "desc": "Poison resistance +25%.",
@@ -2123,7 +2143,12 @@
   "nameOff": 33601646,
   "placeholder": false,
   "tags": [],
-  "target": "Poison resistance +25%."
+  "target": "Poison resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 2,
+   "statMask": 0
+  }
  },
  "115": {
   "desc": "Lost resistance +25%.",
@@ -2132,7 +2157,12 @@
   "nameOff": 33601683,
   "placeholder": false,
   "tags": [],
-  "target": "Lost resistance +25%."
+  "target": "Lost resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 0,
+   "statMask": 4
+  }
  },
  "116": {
   "desc": "Blind resistance +25%.",
@@ -2141,7 +2171,12 @@
   "nameOff": 33601716,
   "placeholder": false,
   "tags": [],
-  "target": "Blind resistance +25%."
+  "target": "Blind resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 4,
+   "statMask": 0
+  }
  },
  "117": {
   "desc": "Heavy resistance +25%.",
@@ -2150,7 +2185,12 @@
   "nameOff": 33601751,
   "placeholder": false,
   "tags": [],
-  "target": "Heavy resistance +25%."
+  "target": "Heavy resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 8,
+   "statMask": 0
+  }
  },
  "118": {
   "desc": "Weak resistance +25%.",
@@ -2159,7 +2199,12 @@
   "nameOff": 33601786,
   "placeholder": false,
   "tags": [],
-  "target": "Weak resistance +25%."
+  "target": "Weak resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 16,
+   "statMask": 0
+  }
  },
  "119": {
   "desc": "Slow resistance +25%.",
@@ -2168,7 +2213,12 @@
   "nameOff": 33601819,
   "placeholder": false,
   "tags": [],
-  "target": "Slow resistance +25%."
+  "target": "Slow resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 1,
+   "statMask": 0
+  }
  },
  "120": {
   "desc": "Stun resistance +25%.",
@@ -2177,7 +2227,12 @@
   "nameOff": 33601852,
   "placeholder": false,
   "tags": [],
-  "target": "Stun resistance +25%."
+  "target": "Stun resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 32,
+   "statMask": 0
+  }
  },
  "121": {
   "desc": "Ether PD resistance +25%.",
@@ -2186,7 +2241,12 @@
   "nameOff": 33601885,
   "placeholder": false,
   "tags": [],
-  "target": "Ether PD resistance +25%."
+  "target": "Ether PD resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 64,
+   "statMask": 0
+  }
  },
  "122": {
   "desc": "Ether DD resistance +25%.",
@@ -2195,7 +2255,12 @@
   "nameOff": 33601926,
   "placeholder": false,
   "tags": [],
-  "target": "Ether DD resistance +25%."
+  "target": "Ether DD resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 128,
+   "statMask": 0
+  }
  },
  "123": {
   "desc": "Poison EP resistance +25%.",
@@ -2204,7 +2269,12 @@
   "nameOff": 33601967,
   "placeholder": false,
   "tags": [],
-  "target": "Poison EP resistance +25%."
+  "target": "Poison EP resistance +25%.",
+  "numeric": {
+   "kind": 32,
+   "param": 0,
+   "statMask": 1
+  }
  },
  "124": {
   "desc": "Increase skill slots by one.",
@@ -2213,7 +2283,12 @@
   "nameOff": 33602010,
   "placeholder": false,
   "tags": [],
-  "target": "Increase skill slots by one."
+  "target": "Increase skill slots by one.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "125": {
   "desc": "Recall enemy zones once learned.",
@@ -2222,7 +2297,12 @@
   "nameOff": 33602054,
   "placeholder": false,
   "tags": [],
-  "target": "Recall enemy zones once learned."
+  "target": "Recall enemy zones once learned.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "126": {
   "desc": "Break bonus chance +10%.",
@@ -2231,7 +2311,12 @@
   "nameOff": 33602094,
   "placeholder": false,
   "tags": [],
-  "target": "Break bonus chance +10%."
+  "target": "Break bonus chance +10%.",
+  "numeric": {
+   "kind": 8,
+   "param": 10,
+   "statMask": 32
+  }
  },
  "127": {
   "desc": "Break bonus chance +15%.",
@@ -2240,7 +2325,12 @@
   "nameOff": 33602129,
   "placeholder": false,
   "tags": [],
-  "target": "Break bonus chance +15%."
+  "target": "Break bonus chance +15%.",
+  "numeric": {
+   "kind": 8,
+   "param": 15,
+   "statMask": 32
+  }
  },
  "128": {
   "desc": "Retain full Agility after casting Ether.",
@@ -2249,7 +2339,12 @@
   "nameOff": 33602164,
   "placeholder": false,
   "tags": [],
-  "target": "Retain full Agility after casting Ether."
+  "target": "Retain full Agility after casting Ether.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "129": {
   "desc": "Regeneration x2 during reserve.",
@@ -2258,7 +2353,12 @@
   "nameOff": 33602214,
   "placeholder": false,
   "tags": [],
-  "target": "Regeneration x2 during reserve."
+  "target": "Regeneration x2 during reserve.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "130": {
   "desc": "Experience Points +10%.",
@@ -2267,7 +2367,12 @@
   "nameOff": 33602260,
   "placeholder": false,
   "tags": [],
-  "target": "Experience Points +10%."
+  "target": "Experience Points +10%.",
+  "numeric": {
+   "kind": 4,
+   "param": 10,
+   "statMask": 128
+  }
  },
  "131": {
   "desc": "Experience Points +15%.",
@@ -2276,7 +2381,12 @@
   "nameOff": 33602301,
   "placeholder": false,
   "tags": [],
-  "target": "Experience Points +15%."
+  "target": "Experience Points +15%.",
+  "numeric": {
+   "kind": 4,
+   "param": 15,
+   "statMask": 128
+  }
  },
  "132": {
   "desc": "Skill Points +10%.",
@@ -2285,7 +2395,12 @@
   "nameOff": 33602342,
   "placeholder": false,
   "tags": [],
-  "target": "Skill Points +10%."
+  "target": "Skill Points +10%.",
+  "numeric": {
+   "kind": 4,
+   "param": 10,
+   "statMask": 64
+  }
  },
  "133": {
   "desc": "Skill Points +15%.",
@@ -2294,7 +2409,12 @@
   "nameOff": 33602373,
   "placeholder": false,
   "tags": [],
-  "target": "Skill Points +15%."
+  "target": "Skill Points +15%.",
+  "numeric": {
+   "kind": 4,
+   "param": 15,
+   "statMask": 64
+  }
  },
  "134": {
   "desc": "Damage reduction +20% when guarding.",
@@ -2303,7 +2423,12 @@
   "nameOff": 33602404,
   "placeholder": false,
   "tags": [],
-  "target": "Damage reduction +20% when guarding."
+  "target": "Damage reduction +20% when guarding.",
+  "numeric": {
+   "kind": 8,
+   "param": 20,
+   "statMask": 16
+  }
  },
  "135": {
   "desc": "Recover 10% EP with the Stock command.",
@@ -2312,7 +2437,12 @@
   "nameOff": 33602447,
   "placeholder": false,
   "tags": [],
-  "target": "Recover 10% EP with the Stock command."
+  "target": "Recover 10% EP with the Stock command.",
+  "numeric": {
+   "kind": 2,
+   "param": 10,
+   "statMask": 128
+  }
  },
  "136": {
   "desc": "Recover 15% EP with the Stock command.",
@@ -2321,7 +2451,12 @@
   "nameOff": 33602494,
   "placeholder": false,
   "tags": [],
-  "target": "Recover 15% EP with the Stock command."
+  "target": "Recover 15% EP with the Stock command.",
+  "numeric": {
+   "kind": 2,
+   "param": 15,
+   "statMask": 128
+  }
  },
  "137": {
   "desc": "Raise Evasion after using the Stock command.",
@@ -2330,7 +2465,12 @@
   "nameOff": 33602541,
   "placeholder": false,
   "tags": [],
-  "target": "Raise Evasion after using the Stock command."
+  "target": "Raise Evasion after using the Stock command.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "138": {
   "desc": "Increase Physical Attack.",
@@ -2339,7 +2479,12 @@
   "nameOff": 33602598,
   "placeholder": false,
   "tags": [],
-  "target": "Str +2"
+  "target": "Str +2",
+  "numeric": {
+   "kind": 128,
+   "param": 2,
+   "statMask": 128
+  }
  },
  "139": {
   "desc": "Increase Physical Defense.",
@@ -2348,7 +2493,12 @@
   "nameOff": 33602638,
   "placeholder": false,
   "tags": [],
-  "target": "Vit +2"
+  "target": "Vit +2",
+  "numeric": {
+   "kind": 128,
+   "param": 2,
+   "statMask": 64
+  }
  },
  "140": {
   "desc": "Increase Dexterity.",
@@ -2357,7 +2507,12 @@
   "nameOff": 33602679,
   "placeholder": false,
   "tags": [],
-  "target": "Dex +2"
+  "target": "Dex +2",
+  "numeric": {
+   "kind": 128,
+   "param": 2,
+   "statMask": 32
+  }
  },
  "141": {
   "desc": "Increase Evasion.",
@@ -2366,7 +2521,12 @@
   "nameOff": 33602713,
   "placeholder": false,
   "tags": [],
-  "target": "Eva +2"
+  "target": "Eva +2",
+  "numeric": {
+   "kind": 128,
+   "param": 2,
+   "statMask": 16
+  }
  },
  "142": {
   "desc": "Increase Ether Attack.",
@@ -2375,7 +2535,12 @@
   "nameOff": 33602745,
   "placeholder": false,
   "tags": [],
-  "target": "Eatk +2"
+  "target": "Eatk +2",
+  "numeric": {
+   "kind": 128,
+   "param": 2,
+   "statMask": 8
+  }
  },
  "143": {
   "desc": "Increase Ether Defense.",
@@ -2384,7 +2549,12 @@
   "nameOff": 33602784,
   "placeholder": false,
   "tags": [],
-  "target": "Edef +2"
+  "target": "Edef +2",
+  "numeric": {
+   "kind": 128,
+   "param": 2,
+   "statMask": 4
+  }
  },
  "144": {
   "desc": "Increase max HP & EP 10%.",
@@ -2393,7 +2563,12 @@
   "nameOff": 33602824,
   "placeholder": false,
   "tags": [],
-  "target": "Increase max HP & EP 10%."
+  "target": "Increase max HP & EP 10%.",
+  "numeric": {
+   "kind": 128,
+   "param": 10,
+   "statMask": 1
+  }
  },
  "145": {
   "desc": "Double parameter effects of equipped skills.",
@@ -2402,7 +2577,12 @@
   "nameOff": 33602861,
   "placeholder": false,
   "tags": [],
-  "target": "Double parameter effects of equipped skills."
+  "target": "Double parameter effects of equipped skills.",
+  "numeric": {
+   "kind": 128,
+   "param": 130,
+   "statMask": 0
+  }
  },
  "146": {
   "desc": "Increases critical hit rate 5%.",
@@ -2411,7 +2591,12 @@
   "nameOff": 33602919,
   "placeholder": false,
   "tags": [],
-  "target": "Critical +5%."
+  "target": "Critical +5%.",
+  "numeric": {
+   "kind": 8,
+   "param": 5,
+   "statMask": 4
+  }
  },
  "147": {
   "desc": "Rare item acquisition +10%.",
@@ -2420,7 +2605,12 @@
   "nameOff": 33602973,
   "placeholder": false,
   "tags": [],
-  "target": "Rare item acquisition +10%."
+  "target": "Rare item acquisition +10%.",
+  "numeric": {
+   "kind": 4,
+   "param": 10,
+   "statMask": 32
+  }
  },
  "148": {
   "desc": "Rare item acquisition +30%.",
@@ -2429,7 +2619,12 @@
   "nameOff": 33603009,
   "placeholder": false,
   "tags": [],
-  "target": "Rare item acquisition +30%."
+  "target": "Rare item acquisition +30%.",
+  "numeric": {
+   "kind": 4,
+   "param": 30,
+   "statMask": 32
+  }
  },
  "149": {
   "desc": "Lower all damage received by 10%.",
@@ -2438,7 +2633,12 @@
   "nameOff": 33603045,
   "placeholder": false,
   "tags": [],
-  "target": "Lower all damage received by 10%."
+  "target": "Lower all damage received by 10%.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "150": {
   "desc": "EP consumption 1/2.",
@@ -2449,7 +2649,12 @@
   "tags": [
    "2."
   ],
-  "target": "EP consumption 1"
+  "target": "EP consumption 1",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "151": {
   "desc": "Duration of status effects x2.",
@@ -2458,7 +2663,12 @@
   "nameOff": 33603117,
   "placeholder": false,
   "tags": [],
-  "target": "Duration of status effects x2."
+  "target": "Duration of status effects x2.",
+  "numeric": {
+   "kind": 8,
+   "param": 2,
+   "statMask": 8
+  }
  },
  "152": {
   "desc": "(only after enemy individual attack).",
@@ -2467,7 +2677,12 @@
   "nameOff": 33603158,
   "placeholder": false,
   "tags": [],
-  "target": "25% chance of Counterboost after taking a critical hit"
+  "target": "25% chance of Counterboost after taking a critical hit",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "153": {
   "desc": "character icon is showing.",
@@ -2476,7 +2691,12 @@
   "nameOff": 33603266,
   "placeholder": false,
   "tags": [],
-  "target": "Boost possible even when"
+  "target": "Boost possible even when",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "154": {
   "desc": "EP +2 every turn.",
@@ -2485,7 +2705,12 @@
   "nameOff": 33603331,
   "placeholder": false,
   "tags": [],
-  "target": "EP +2 every turn."
+  "target": "EP +2 every turn.",
+  "numeric": {
+   "kind": 64,
+   "param": 0,
+   "statMask": 16
+  }
  },
  "155": {
   "desc": "Increase attack when party member is knocked out.",
@@ -2494,7 +2719,12 @@
   "nameOff": 33603358,
   "placeholder": false,
   "tags": [],
-  "target": "Increase attack when party member is knocked out."
+  "target": "Increase attack when party member is knocked out.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "156": {
   "desc": "Increase defense when party member is knocked out.",
@@ -2503,7 +2733,12 @@
   "nameOff": 33603421,
   "placeholder": false,
   "tags": [],
-  "target": "Increase defense when party member is knocked out."
+  "target": "Increase defense when party member is knocked out.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "157": {
   "desc": "1 HP and full stock (1 time only).",
@@ -2512,7 +2747,12 @@
   "nameOff": 33603484,
   "placeholder": false,
   "tags": [],
-  "target": "When knocked out, Counterboost with"
+  "target": "When knocked out, Counterboost with",
+  "numeric": {
+   "kind": 64,
+   "param": 0,
+   "statMask": 64
+  }
  },
  "158": {
   "desc": "also doubles EP consumption.",
@@ -2521,7 +2761,12 @@
   "nameOff": 33603569,
   "placeholder": false,
   "tags": [],
-  "target": "Doubles Ether attack damage, but"
+  "target": "Doubles Ether attack damage, but",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "159": {
   "desc": "Stock +1 when battle starts.",
@@ -2530,7 +2775,12 @@
   "nameOff": 33603644,
   "placeholder": false,
   "tags": [],
-  "target": "Stock +1 when battle starts."
+  "target": "Stock +1 when battle starts.",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "160": {
   "desc": "when using the Stock command.",
@@ -2539,7 +2789,12 @@
   "nameOff": 33603685,
   "placeholder": false,
   "tags": [],
-  "target": "50% chance to Counterboost after guard or evasion"
+  "target": "50% chance to Counterboost after guard or evasion",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "161": {
   "desc": "when using the Stock command.",
@@ -2548,7 +2803,12 @@
   "nameOff": 33603774,
   "placeholder": false,
   "tags": [],
-  "target": "50% chance of stock +2"
+  "target": "50% chance of stock +2",
+  "numeric": {
+   "kind": 2,
+   "param": 2,
+   "statMask": 32
+  }
  },
  "162": {
   "desc": "Status effect resistance +20%.",
@@ -2557,7 +2817,12 @@
   "nameOff": 33603837,
   "placeholder": false,
   "tags": [],
-  "target": "Status effect resistance +20%."
+  "target": "Status effect resistance +20%.",
+  "numeric": {
+   "kind": 32,
+   "param": 255,
+   "statMask": 255
+  }
  },
  "163": {
   "desc": "Status effect resistance +30%.",
@@ -2566,7 +2831,12 @@
   "nameOff": 33603881,
   "placeholder": false,
   "tags": [],
-  "target": "Status effect resistance +30%."
+  "target": "Status effect resistance +30%.",
+  "numeric": {
+   "kind": 32,
+   "param": 255,
+   "statMask": 255
+  }
  },
  "164": {
   "desc": "Reduce fire damage 25%.",
@@ -2575,7 +2845,12 @@
   "nameOff": 33603925,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce fire damage 25%."
+  "target": "Reduce fire damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 8,
+   "statMask": 0
+  }
  },
  "165": {
   "desc": "Reduce ice damage 25%.",
@@ -2584,7 +2859,12 @@
   "nameOff": 33603960,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce ice damage 25%."
+  "target": "Reduce ice damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 16,
+   "statMask": 0
+  }
  },
  "166": {
   "desc": "Reduce thunder damage 25%.",
@@ -2593,7 +2873,12 @@
   "nameOff": 33603992,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce thunder damage 25%."
+  "target": "Reduce thunder damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 4,
+   "statMask": 0
+  }
  },
  "167": {
   "desc": "Reduce aura damage 25%.",
@@ -2602,7 +2887,12 @@
   "nameOff": 33604032,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce aura damage 25%."
+  "target": "Reduce aura damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 2,
+   "statMask": 0
+  }
  },
  "168": {
   "desc": "Reduce slashing damage 25%.",
@@ -2611,7 +2901,12 @@
   "nameOff": 33604066,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce slashing damage 25%."
+  "target": "Reduce slashing damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 64,
+   "statMask": 0
+  }
  },
  "169": {
   "desc": "Reduce piercing damage 25%.",
@@ -2620,7 +2915,12 @@
   "nameOff": 33604105,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce piercing damage 25%."
+  "target": "Reduce piercing damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 32,
+   "statMask": 0
+  }
  },
  "170": {
   "desc": "Reduce strike damage 25%.",
@@ -2629,7 +2929,12 @@
   "nameOff": 33604144,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce strike damage 25%."
+  "target": "Reduce strike damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 128,
+   "statMask": 0
+  }
  },
  "171": {
   "desc": "Reduce beam damage 25%.",
@@ -2638,7 +2943,12 @@
   "nameOff": 33604182,
   "placeholder": false,
   "tags": [],
-  "target": "Reduce beam damage 25%."
+  "target": "Reduce beam damage 25%.",
+  "numeric": {
+   "kind": 64,
+   "param": 1,
+   "statMask": 0
+  }
  },
  "172": {
   "desc": "Additional 10-15% damage.",
@@ -2649,7 +2959,12 @@
   "tags": [
    "Skill points +10%"
   ],
-  "target": "Agl +1"
+  "target": "Agl +1",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "173": {
   "desc": "",
@@ -2658,7 +2973,12 @@
   "nameOff": 33604277,
   "placeholder": true,
   "tags": [],
-  "target": ""
+  "target": "",
+  "numeric": {
+   "kind": 0,
+   "param": 0,
+   "statMask": 0
+  }
  },
  "200": {
   "desc": "Ice sword slashes the enemy.",
