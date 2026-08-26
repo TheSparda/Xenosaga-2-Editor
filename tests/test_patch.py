@@ -656,6 +656,97 @@ class TestPatchFiles(PatchCase):
                          "a patch that fails validation must not half-apply")
 
 
+class TestBattleCaptions(unittest.TestCase):
+    """The `$zoom13;` caption pool: located by content, never by a constant.
+
+    These run against a bare image rather than a fake disc on purpose — the
+    locator's whole claim is that it needs no table, no base and no version
+    check, so a test that handed it a well-formed disc would be testing less.
+    """
+    # deliberately awkward: a duplicated caption, one whose text also appears
+    # unprefixed (the decoy a byte replace would eat), and one whose text is a
+    # strict prefix of another's (the terminator is what tells them apart)
+    PLAN = [(0x1000, "Miracle Star"), (0x2000, "Miracle Star"),
+            (0x3000, "Annihilation"), (0x4000, "Medica"), (0x5000, "Medica 2")]
+    DECOY = 0x6000
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="x2caption-")
+        self.iso = os.path.join(self.dir, "captions.bin")
+        with open(self.iso, "wb") as f:
+            f.truncate(0x8000)
+            for off, name in self.PLAN:
+                f.seek(off)
+                f.write(F.caption_needle(name))
+            f.seek(self.DECOY)
+            f.write(b"a line of prose naming Miracle Star without the prefix\x00")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_scan_finds_every_caption_and_nothing_else(self):
+        with X.Iso(self.iso) as iso:
+            got = X.scan_captions(iso)
+        self.assertEqual(got, self.PLAN)
+
+    def test_a_prefix_of_another_name_is_not_confused_for_it(self):
+        with X.Iso(self.iso) as iso:
+            texts = [t for _o, t in X.scan_captions(iso)]
+        # "Medica" is a strict prefix of "Medica 2"; the NUL keeps them apart
+        self.assertEqual(texts.count("Medica"), 1)
+        self.assertEqual(texts.count("Medica 2"), 1)
+
+    def test_spans_cover_the_blob_and_exclude_the_decoy(self):
+        with X.Iso(self.iso) as iso:
+            spans = X.caption_spans(iso)
+        self.assertIn((0x1000, len(F.CAPTION_PREFIX) + len("Miracle Star") + 1),
+                      spans)
+        self.assertFalse(any(b <= self.DECOY < b + n for b, n in spans))
+
+    def test_rewrite_is_in_place_padded_and_leaves_the_decoy_alone(self):
+        with X.Iso(self.iso) as iso:
+            before = iso.read(self.DECOY, 64)
+            hits = [(o, t) for o, t in X.scan_captions(iso) if t == "Miracle Star"]
+        with X.Iso(self.iso, write=True) as iso:
+            self.assertEqual(X.rename_captions(iso, 34, "Flare", hits), 2)
+        with X.Iso(self.iso) as iso:
+            # padded to the retail budget, so no fragment of the old name shows
+            self.assertEqual(iso.read(0x1000, 21),
+                             F.CAPTION_PREFIX + b"Flare" + b"\x00" * 8)
+            self.assertEqual(iso.read(self.DECOY, 64), before)
+
+    def test_a_shortened_caption_can_be_restored_to_full_length(self):
+        """The budget comes from the catalog, so shortening is not one-way."""
+        with X.Iso(self.iso) as iso:
+            hits = [(o, t) for o, t in X.scan_captions(iso) if t == "Miracle Star"]
+        with X.Iso(self.iso, write=True) as iso:
+            X.rename_captions(iso, 34, "Flare", hits)
+        with X.Iso(self.iso) as iso:
+            again = [(o, t) for o, t in X.scan_captions(iso) if t == "Flare"]
+        with X.Iso(self.iso, write=True) as iso:
+            X.rename_captions(iso, 34, "Miracle Star", again)
+        with X.Iso(self.iso) as iso:
+            self.assertEqual(iso.read(0x1000, 21), F.caption_needle("Miracle Star"))
+
+    def test_an_oversized_name_is_refused_before_anything_is_written(self):
+        with X.Iso(self.iso) as iso:
+            hits = [(o, t) for o, t in X.scan_captions(iso) if t == "Medica"]
+            before = iso.read(0x4000, 32)
+        with X.Iso(self.iso, write=True) as iso:
+            with self.assertRaises(SystemExit):
+                X.rename_captions(iso, 0, "Grand Restoration", hits)
+        with X.Iso(self.iso) as iso:
+            self.assertEqual(iso.read(0x4000, 32), before)
+
+    def test_the_caption_budget_is_computed_independently_of_the_name_budget(self):
+        # equal for every active skill today, but they are separate pools and
+        # the code must not assume "it fitted the name" means "it fits here"
+        self.assertEqual(F.caption_budget("Miracle Star"), 13)
+        self.assertEqual(X.caption_fits("Annihilation", "Angel's Rain"),
+                         (True, 13, 13))
+        self.assertEqual(X.caption_fits("Medica", "Medica 2")[0], False)
+
+
 class TestSlotIdentity(unittest.TestCase):
     def test_icon_title_is_split_into_name_and_playtime(self):
         info = SV.parse_icon_sys(FX.icon_sys("XenosagaEPII-07[42:09]", nl=15))

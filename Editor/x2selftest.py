@@ -16,7 +16,7 @@ verified in Xenosaga2_ISO_offsets.md against the real discs.
     python3 x2selftest.py            # build in a temp dir, test, clean up
     python3 x2selftest.py --keep DIR # leave the fixture behind for poking at
 """
-import argparse, os, struct, sys, tempfile, shutil
+import argparse, collections, os, struct, sys, tempfile, shutil
 from pathlib import Path
 
 import x2fields as F
@@ -26,6 +26,15 @@ import x2patch as X
 PLANT_OFF = 0x2A
 # A parallel table elsewhere on the disc, to exercise the region sweep fallback
 PLANT_TABLE_BASE, PLANT_TABLE_STRIDE, PLANT_TABLE_FIELD = 0x1FF0000, 0x10, 3
+
+# Battle captions planted far from every table, which is where the real ones
+# live — the locator is content-addressed, so a fixture that put them inside a
+# mapped span would prove nothing. One caption is DUPLICATED (retail carries
+# seven copies of "Miracle Star"), and one skill is given a caption whose text
+# also appears WITHOUT the prefix, which is the case that separates a caption
+# rewrite from a disc-wide byte replace.
+CAPTION_PLANT = 0x1D00000
+CAPTION_SKILLS = (34, 36, 0)          # copies: 3, 2, 1 — see build_fixture
 
 ZONE_STRINGS = ["BB", "CB", "CC", "AB", "BCBB", "AC", "BA"]
 SYMBOL = {"A": 1, "B": 2, "C": 3}
@@ -71,6 +80,27 @@ def build_fixture(path, disc=1):
         f.write(b"XENOSAGA_II".ljust(32, b" "))           # PVD volume id
         f.seek(0x9000)
         f.write(b"BOOT2 = cdrom0:\\" + SERIAL_LINE[disc] + b";1\r\n")
+
+        # planted battle captions. Written with a deliberate decoy: the bare
+        # name, unprefixed, sits between two real captions. A rewrite that
+        # keyed on the name instead of `$zoom13;<name>` would corrupt it, which
+        # is exactly the failure mode the notes warn about.
+        cap_at = CAPTION_PLANT
+        for n, i in enumerate(CAPTION_SKILLS):
+            nm = (F.skill_catalog()[i].get("name") or "").encode("latin1")
+            for _c in range(3 - n):
+                f.seek(cap_at)
+                f.write(F.CAPTION_PREFIX + nm + b"\x00")
+                cap_at += 0x40
+            f.seek(cap_at)
+            f.write(b"prose mentioning " + nm + b" in passing\x00")   # decoy
+            cap_at += 0x40
+            # ...and the skill's own NAME blob, at the catalog's nameOff. Only
+            # the captioned skills get one: attribution reads the name pool to
+            # find a caption that has already been renamed once, so without it
+            # the fixture cannot exercise a second rename at all.
+            f.seek(F.skill_catalog()[i]["nameOff"])
+            f.write(nm + b"\x00")
 
         # planted parallel table (row = record index), for the region-sweep test
         for i in range(F.ENEMY_COUNT):
@@ -688,6 +718,78 @@ def t_skills(iso_path, tmp):
         eq(X.read_skill(iso, 59)["Power"], 777, "doubles edit arrived on disc 2")
     with X.Iso(iso_path) as src, X.Iso(d2, write=True) as dst:
         eq(X.sync_skills(src, dst), 0, "second sync is a no-op")
+
+
+@check("battle captions: located by content, rewritten in place", path=True)
+def t_captions(_iso_path, tmp):
+    """The captions have no table — the locator finds them by content, so this
+    checks the scan, the attribution, the in-place rewrite and the decoy that a
+    disc-wide byte replace would have eaten."""
+    iso_path = build_fixture(os.path.join(tmp, "caption.iso"))
+    decoys = [CAPTION_PLANT + 0x40 * n for n in (3, 6, 8)]
+
+    def decoy_bytes():
+        with X.Iso(iso_path) as iso:
+            return [iso.read(o, 48) for o in decoys]
+
+    before_decoys = decoy_bytes()
+    with X.Iso(iso_path) as iso:
+        caps = X.scan_captions(iso)
+        eq(len(caps), 6, "captions on the fixture")
+        eq(sorted(collections.Counter(t for _o, t in caps).values()), [1, 2, 3],
+           "duplicate counts")
+        owned, ambiguous = X.caption_owners(iso, caps)
+        eq(ambiguous, {}, "nothing ambiguous")
+        eq({i: len(v) for i, v in owned.items()}, {34: 3, 36: 2, 0: 1},
+           "captions attributed to their skills")
+
+    # a rename rewrites every copy, and only those. Locate first, then write
+    # both the name and the captions — the order cmd_skill_rename uses.
+    with X.Iso(iso_path, write=True) as iso:
+        X.write_skill_name(iso, 34, "Flare")
+        eq(X.rename_captions(iso, 34, "Flare", owned[34]), 3, "copies rewritten")
+    with X.Iso(iso_path) as iso:
+        got = [t for _o, t in X.scan_captions(iso)]
+        eq(sorted(got), sorted(["Flare"] * 3 + ["Annihilation"] * 2 + ["Medica"]),
+           "only skill 34's captions changed")
+    eq(decoy_bytes(), before_decoys, "the unprefixed decoy text is untouched")
+
+    # locate-then-write is what makes a SECOND rename work: attribution is by
+    # the text on the disc, so a caption reading "Flare" is found through the
+    # name pool's current value, not through the retail catalog name
+    with X.Iso(iso_path) as iso:
+        again, _amb = X.caption_owners(iso, indices=[34])
+    eq(len(again.get(34, [])), 3, "renamed captions still attributed")
+
+    # the budget is the RETAIL name's, so a full-length name goes back cleanly
+    with X.Iso(iso_path, write=True) as iso:
+        X.write_skill_name(iso, 34, "Miracle Star")
+        X.rename_captions(iso, 34, "Miracle Star", again[34])
+    with X.Iso(iso_path) as iso:
+        eq(iso.read(CAPTION_PLANT, 21), F.caption_needle("Miracle Star"),
+           "round-trips byte-for-byte back to retail")
+
+    # ...and a name that does not fit is refused before anything is written
+    with X.Iso(iso_path) as iso:
+        hits = X.caption_owners(iso, indices=[36])[0][36]
+        pristine = iso.read(hits[0][0], 24)
+    with X.Iso(iso_path, write=True) as iso:
+        try:
+            X.rename_captions(iso, 36, "A Very Long Skill Name", hits)
+            raise AssertionError("oversized caption was accepted")
+        except SystemExit:
+            pass
+    with X.Iso(iso_path) as iso:
+        eq(iso.read(hits[0][0], 24), pristine, "nothing written on refusal")
+        eq(X.caption_fits("Annihilation", "Angel's Rain"), (True, 13, 13),
+           "an exactly-fitting replacement is allowed")
+
+    # the spans a patch importer writes inside are the ones the scan returned
+    with X.Iso(iso_path) as iso:
+        spans = X.caption_spans(iso)
+    eq((CAPTION_PLANT, 21) in spans, True, "caption span covers prefix + text + NUL")
+    eq(any(b <= decoys[0] < b + ln for b, ln in spans), False,
+       "the decoy is not inside any caption span")
 
 
 @check("sync_discs mirrors every verified field onto the other disc", path=True)

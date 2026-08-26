@@ -377,10 +377,12 @@ Open, in the order they are worth attempting:
 - [x] **Skill/tech description + name text.** Done 2026-08-25. The text span is a staged
   buffer (`TX`), so names and descriptions are editable and a patch's text records stage
   like any other. Coverage of the HardType patch went 528 → 648 of 661 records. What is
-  left is the 9 duplicate copies of a renamed skill's *battle caption*. Those are now
-  **locatable by content** (`$zoom13;<name>`, all occurrences found, disc 2 at the usual
-  `-0x800`) — see the write-up above; the scan-and-rewrite is specified but not built.
-  Until it is, a renamed skill keeps its retail battle caption.
+  left was the 9 duplicate copies of a renamed skill's *battle caption*, and those are
+  **done too** (2026-08-26) — located by content, rewritten in place, wired into
+  `skill-rename` and `apply-ppf`. The CLI now reaches **661 of 661** HardType records.
+  The web editor still stages 652: `gen_hardtype.py` filters by fixed extent and a
+  caption has no fixed offset, so a browser front end would have to scan a 4.6 GB
+  `File` to match. That is a deliberate front-end difference, recorded below.
 - [x] **Passive / equip skill effects.** Done 2026-08-25 — 12-byte records at `0x200B304`,
   64 exposed (catalog 110..173). See the section above.
 - [x] **Skill / class learning costs.** Done 2026-08-25 — they were in the flat data region
@@ -1534,7 +1536,7 @@ same bits, which is why `GEAR_STAT_BITS` exists alongside `PASSIVE_STAT_BITS`.
 These are what `apply-ppf` and the presets report as unreachable. Neither is a
 mystery any more; both are characterised, and one now has a proven safe method.
 
-#### 9 of them: `$zoom13;` battle captions (a method exists, not yet built)
+#### 9 of them: `$zoom13;` battle captions — SOLVED 2026-08-26, 9/9 reached
 
 The renamed skills' captions, duplicated per battle script: `$zoom13;Miracle
 Star` appears **7 times** and `$zoom13;Annihilation` **twice**, and the mod
@@ -1551,11 +1553,52 @@ Two facts that settle how to support them:
   disc-2 patch, whose entries for these nine sit exactly `0x800` below.
 
 There are 1,221 `$zoom13;` strings on disc 1, so this is a general mechanism,
-not a special case for two skills. The safe implementation is a scan for
-`$zoom13;<retail name>\0` with the existing in-place length rule (the caption
-copy is the same packed-pool problem as the name pool). Until that exists, a
-renamed skill keeps its retail name in battle captions — which is the only
-user-visible consequence of the 13.
+not a special case for two skills.
+
+**What was built** (`scan_captions`, `caption_owners`, `caption_spans`,
+`rename_captions` in `x2patch.py`; `CAPTION_PREFIX` / `caption_budget` in
+`x2fields.py`):
+
+- **One needle, one pass.** The scan searches for the bare prefix and reads back
+  what follows, rather than putting 190 name needles in the pass. Both find the
+  same nine records; the second costs 190 buffer searches per chunk instead of
+  one, and it cannot produce the census. Measured 1,221 captions / 418 distinct
+  texts on disc 1 in ~8 s.
+- **Attribution is by text, against BOTH the retail catalog name and the name
+  currently in the pool.** Retail alone stops working the moment a caption has
+  been rewritten once, so a second rename would silently do nothing; current
+  alone misses the half-applied disc a patch import leaves, where the pool says
+  "Flare" and seven captions still say "Miracle Star". Of the 190 skills, **18
+  have captions at all** (156 of the 1,221) — the rest of the pool is enemy
+  attacks and system labels. **Zero ambiguous**: no two skills claim one text.
+- **Locate before writing.** `cmd_skill_rename` scans first and writes second.
+  Getting this backwards is a real bug and it was written that way first: the
+  name write lands, attribution then matches nothing, and the second rename
+  reports "no battle caption on this image" while seven of them sit there.
+- **The budget is the retail name's, and it is a SEPARATE function from
+  `skill_name_budget()`** even though the two agree for every active skill. They
+  are different pools — a passive's name budget is its record's name/desc pointer
+  gap — and sharing one number would make "it fitted the name" imply "it fits the
+  caption".
+
+**Verified on the real disc**, not just the fixture: `Miracle Star` → `Flare` →
+`Fire` → `Miracle Star` rewrites all seven copies each time and comes back
+**byte-identical to retail**, name blob included. `apply-ppf` on XS2HT v3.9
+Normal D1 goes from 657/661 to **661/661**, and the bytes land exactly where the
+mod put them.
+
+**Two things the mod told us that the fixture now encodes.** It writes
+`Flare\0` over `Miracl` and leaves `e Star\0` behind as a live-looking string,
+and it turns `Annihilation` into `Angel's Rain` by replacing the nine bytes
+`nihilatio` in the middle. That the game is fine with both means captions are
+**referenced by offset, not walked as a sequential pool** — which is what makes
+NUL-padding the slack (what this editor does instead, so no fragment survives)
+safe rather than a gamble.
+
+**The remaining honest limit.** A caption can be orphaned by renaming with
+`--no-captions` and then renaming again: the disc says "Flare", the pool says
+"Fire", and no string links them. `captions --grep` finds it by text. This is
+inherent to content addressing, not a gap in the implementation.
 
 #### 4 of them: the SKILL PURCHASE COST table at `0x35E958` — SOLVED, 112/112
 
