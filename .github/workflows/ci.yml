@@ -61,6 +61,9 @@ jobs:
       - name: PPF parser handles the format's flags
         run: node web/tests/ppf.mjs
 
+      - name: Templates preview never leaks its scratch buffers
+        run: node web/tests/templates.mjs
+
       - name: JSON is well formed
         run: |
           for f in web/*.json web/*.webmanifest Editor/*.json; do

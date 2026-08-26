@@ -171,6 +171,55 @@ class TestDomReferences(unittest.TestCase):
         self.assertIn("breakFloor()", iso,
                       "shortenSeq must consult the shield, not a hardcoded floor")
 
+    def test_templates_is_the_first_pane_and_the_one_the_editor_opens_on(self):
+        # A tab bar whose first tab is not the selected one reads as a bug, so
+        # the order, the `on` class and the PANE default all have to agree.
+        iso = read("iso.js")
+        tabs = re.findall(r'<button id="ptab-([a-z]+)" class="mtab( on)?"', iso)
+        self.assertTrue(tabs, "the pane tab bar is gone")
+        self.assertEqual(tabs[0][0], "tpl", "Templates is not the first pane tab")
+        self.assertTrue(tabs[0][1], "the first tab is not the selected one")
+        self.assertEqual([t for t in tabs if t[1]], [tabs[0]],
+                         "more than one pane tab starts selected")
+        self.assertIn('let PANE="tpl"', iso,
+                      "the tab bar opens on Templates but PANE says otherwise")
+
+    def test_a_template_is_previewed_on_scratch_buffers_not_staged(self):
+        # The tab's whole promise is that looking at a template changes nothing.
+        # If the preview read the live buffers it would stage the template merely
+        # by being displayed, and the user's pending edits would go with it.
+        iso = read("iso.js")
+        m = re.search(r"function templatePreview\(d\)\{.*?\n  \}", iso, re.S)
+        self.assertTrue(m, "templatePreview is gone")
+        self.assertIn("withScratch(", m.group(0),
+                      "the template preview must run on throwaway buffers")
+        w = re.search(r"function withScratch\(fn\)\{.*?\n  \}", iso, re.S)
+        self.assertTrue(w, "withScratch is gone")
+        self.assertIn("finally{", w.group(0),
+                      "withScratch must restore the real buffers even on a throw")
+
+    def test_the_enemy_pane_opens_collapsed(self):
+        # Six blocks of controls and a page of prose in one card buried the
+        # thing the tab is for. They are <details> now, and none may ship open.
+        iso = read("iso.js")
+        keys = re.findall(r'sect\("([a-z]+)"', iso)
+        for want in ("stats", "rewards", "drops", "resist", "affinity", "break"):
+            with self.subTest(want):
+                self.assertIn(want, keys, f"the {want} block is not a section")
+        m = re.search(r"function sect\(key,title,body,hint\)\{.*?\n  \}", iso, re.S)
+        self.assertTrue(m, "the section helper is gone")
+        self.assertIn("SECTOPEN[key]?' open':''", m.group(0),
+                      "sections must open only where the user last left them open")
+        self.assertIn("wireSects()", iso, "nothing records the open/closed state")
+
+    def test_the_old_preset_buttons_are_gone(self):
+        # They moved into the Templates tab, which previews before it stages.
+        iso = read("iso.js")
+        for dead in ("htNormal", "htHard", "applyHardtype"):
+            with self.subTest(dead):
+                self.assertNotIn(dead, iso,
+                                 f"{dead} survived the move to the Templates tab")
+
     def test_touch_targets_do_not_depend_on_screen_width(self):
         # A 4:3 handheld can be 960 or 1280 logical px wide and still be driven
         # by thumbs. Gating hit areas on width alone would give it desktop-sized
