@@ -4,6 +4,14 @@ Living document. Everything below marked **VERIFIED** was extracted directly fro
 retail discs / save samples. Everything marked **TODO** is not known yet — do not write
 those regions blind.
 
+> **On the `x2patch.py` / `x2save.py` commands quoted throughout.** The command line was
+> removed on 2026-09-05: `web/` is the only front end now, and `Editor/*.py` is a library
+> the browser and the catalog generators call. Command lines below (`x2patch.py verify`,
+> `enemy-set`, `apply-ppf`, `skill-rename`, …) are kept **as a record of how a finding was
+> made** — they name the engine function that did the work and still exists, not something
+> you can run today. Where a line claims a capability rather than a method, it has been
+> updated to say which front end has it.
+
 ## Discs (VERIFIED 2026-08-21)
 
 | Disc | Serial | BOOT2 | Volume ID | Size (bytes) |
@@ -440,8 +448,8 @@ Open, in the order they are worth attempting:
   like any other. Coverage of the HardType patch went 528 → 648 of 661 records. What is
   left was the 9 duplicate copies of a renamed skill's *battle caption*, and those are
   **done too** (2026-08-26) — located by content, rewritten in place, wired into
-  `skill-rename` and `apply-ppf`. The CLI now reaches **661 of 661** HardType records.
-  The web editor still stages 652: `gen_hardtype.py` filters by fixed extent and a
+  `rename_captions()` and the PPF path. The engine reaches **661 of 661** HardType records.
+  The web editor stages 652: `gen_hardtype.py` filters by fixed extent and a
   caption has no fixed offset, so a browser front end would have to scan a 4.6 GB
   `File` to match. That is a deliberate front-end difference, recorded below.
 - [x] **Passive / equip skill effects.** Done 2026-08-25 — 12-byte records at `0x200B304`,
@@ -559,7 +567,7 @@ The game's element set is known from elsewhere (the E.S. Anti-Fire/Ice/Thunder/B
 accessories, plus the physical attack types in the status labels) but nothing on
 disc ties a slot to a name, and pairing a name to a byte on vibes is exactly the
 mistake the B12 retraction above came from. So they are exposed as `Aff1..Aff8`:
-numbered, gated behind an explicit opt-in in the UI, and flagged on the CLI. They
+numbered and gated behind an explicit opt-in in the UI. They
 They do now have entries in `x2_enemies.json`, taken from the discs rather than
 from a guide, so they can be diffed against retail and restored — see "Retail
 baseline" below for what that claim rests on. That is a statement about the
@@ -660,7 +668,7 @@ name-matched to the guide, is unusually good ground truth. Not yet run.
 
 ### 2026-08-24 — PPF import (mod → staged edits)
 
-`apply-ppf` (CLI) and **Import .ppf** (web) parse PPF3.0 — the format the
+**Import .ppf** (web) parses PPF3.0 — the format the
 HardType mod ships in — and apply only the records that land in mapped tables,
 reporting the rest. The web side stages into the normal edit buffers, so a mod
 import gets the same review/retail-compare/Save pipeline as hand edits, and
@@ -868,7 +876,7 @@ deliberately unnamed: `+0x51` bit 0 is set for exactly chaos/Jin/Ziggy/Jr. and
 clear for KOS-MOS/Shion/MOMO — plausibly a gender flag, but nothing verifies
 it, and naming bits on plausibility is the mistake this file keeps recording.
 
-Editable as the **Units** tab (web), `units` / `unit-set` (CLI), with the
+Editable as the **Units** tab (web), with the
 retail baseline in `Editor/x2_units.json` (gen_unit_catalog.py, disc
 cross-check gated). Disc sync copies the table; explain-diff names its fields.
 
@@ -995,8 +1003,10 @@ regions this tool does not decode, and any VCDIFF decoder applies it:
 xdelta3 -d -s <pristine ISO> patch.xdelta out.iso
 ```
 
-The CLI (`x2patch.py xdelta-make`) shells out to `xdelta3`, which diffs the two
-images. The web editor cannot — it never holds a pristine copy, and diffing
+The engine's `make_xdelta()` shells out to `xdelta3`, which diffs the two images —
+that path was only ever reachable from the removed command line, and it is kept
+for reference. The web editor cannot do it that way — it never holds a pristine
+copy, and diffing
 4.6 GB in a browser tab is not sensible — so it **synthesizes** the patch from
 the byte runs it has already staged: `web/vcdiff.js` emits COPY-from-source plus
 ADD-literal windows directly. Nothing reads the whole disc, and the patch for a
@@ -1027,11 +1037,11 @@ JSON document others can apply to their own disc:
  "edits":{"6":{"HP":11200,"EXP":45000}}}
 ```
 
-`x2patch.py export-patch / apply-patch / diff / restore` and the web ISO editor
-read and write the same file. Parsing is deliberately strict (unknown field,
+`make_patch` / `parse_patch` / `apply_patch` / `diff_vanilla` in the engine and the
+web ISO editor read and write the same file. Parsing is deliberately strict (unknown field,
 out-of-range record, or non-integer value is an error, not something to skip) and
 validation happens before anything is written, so a bad patch cannot half-apply.
-The CLI exports verified fields against the retail catalog; the web editor also
+The engine exports verified fields against the retail catalog; the web editor also
 exports affinity slots, measured against the disc it opened, since retail has no
 baseline for those.
 
@@ -2003,7 +2013,7 @@ on an already-patched disc), verified byte-for-byte against the retail image.
 **Stated plainly, because it is the one inference in this file that has not been
 observed:** `slot` provably *encodes* the key requirement, but the game has not
 been watched *reading* it. Zeroing it is a hypothesis with 31/31 evidence behind
-its meaning and none behind its effect. The CLI says so on every write.
+its meaning and none behind its effect. The web editor says so on every write.
 
 Two other things this is not: it does not grant the skill (Class Points and Skill
 Points are still owed, and Levels 2-4 still need Class Complete below), and it is
@@ -2526,9 +2536,8 @@ says so and makes the user pick a source of truth rather than guessing.
 #### Exposed as
 
 `F.ZONE_FIELDS` (`Zones`, `Brk1..Brk4`), with `F.encode_break_seq()` /
-`F.decode_break_seq()` / `F.zone_mask_text()` as the codec. Editable from the CLI
-(`x2patch.py enemy-set <iso> <n> --break CBB`, and `enemy` prints both fields),
-from the web ISO editor (one text box over the four bytes, with a warning if the
+`F.decode_break_seq()` / `F.zone_mask_text()` as the codec. Editable from the web
+ISO editor (one text box over the four bytes, with a warning if the
 sequence uses a zone the enemy lacks), and through patch files. Covered by the
 `break sequence round-trips through the record` self-test check.
 

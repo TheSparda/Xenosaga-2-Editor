@@ -4,8 +4,6 @@ stand-in image that carries the real table offsets but none of the game.
 """
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,8 +11,6 @@ from pathlib import Path
 import fixtures as FX
 import x2fields as F
 import x2patch as X
-
-EDITOR = os.path.normpath(os.path.join(FX.HERE, "..", "Editor"))
 
 
 class IsoCase(unittest.TestCase):
@@ -143,90 +139,82 @@ class TestEnemyTables(IsoCase):
         self.assertLessEqual(end, os.path.getsize(self.iso))
 
 
-class TestCli(IsoCase):
-    def run_cli(self, *args, expect=0):
-        r = subprocess.run([sys.executable, "x2patch.py", *args], cwd=EDITOR,
-                           capture_output=True, text=True)
-        self.assertEqual(r.returncode, expect, r.stdout + r.stderr)
-        return r.stdout
+class TestEngineEntryPoints(IsoCase):
+    """What the removed command line used to cover, called directly.
 
-    def test_verify(self):
-        out = self.run_cli("verify", self.iso)
-        self.assertIn("[OK]", out)
-        self.assertIn("SLUS-20892", out)
+    The CLI these went through is gone — `web/` is the only front end now — but
+    the engine underneath it still backs the catalog generators and the browser's
+    JS port, so the behaviour is still worth pinning. Argument parsing, help text
+    and exit codes are deliberately NOT reproduced: those were the CLI's own.
+    """
 
-    def test_enemy_get(self):
-        out = self.run_cli("enemy", self.iso, "6")
-        self.assertIn("22,400", out)
-        self.assertIn("30,000", out)
+    def test_a_known_disc_identifies_itself(self):
+        with X.Iso(self.iso) as iso:
+            ok, serial, disc, vol = X.check_version(iso)
+        self.assertTrue(ok)
+        self.assertEqual(serial, "SLUS-20892")
+        self.assertEqual(disc, 1)
+        self.assertEqual(vol, F.VOLUME_ID)
 
-    def test_enemies_csv_has_a_row_per_record(self):
-        out = self.run_cli("enemies", self.iso, "--csv").strip().splitlines()
-        self.assertEqual(len(out), F.ENEMY_COUNT + 1)
-        header = out[0].split(",")
-        self.assertEqual(header[:3], ["idx", "name", "id"])
-        for f in F.ENEMY_FIELDS + F.REWARD_FIELDS:
-            self.assertIn(f[0], header)
+    def test_one_record_reads_back_the_values_it_was_built_with(self):
+        with X.Iso(self.iso) as iso:
+            rec = X.read_enemy(iso, 6)
+        self.assertEqual(rec["HP"], 22400)
+        self.assertEqual(rec["EXP"], 30000)
 
-    def test_enemy_set(self):
-        p = self.fresh("cli-set.iso")
-        out = self.run_cli("enemy-set", p, "6", "--set", "HP=1234", "--set", "SP=9")
-        self.assertIn("wrote 2 field(s)", out)
+    def test_every_record_carries_every_verified_field(self):
+        want = {f[0] for f in F.ENEMY_FIELDS + F.REWARD_FIELDS}
+        with X.Iso(self.iso) as iso:
+            rows = [X.read_enemy(iso, i) for i in range(F.ENEMY_COUNT)]
+        self.assertEqual(len(rows), F.ENEMY_COUNT)
+        for i, rec in enumerate(rows):
+            self.assertTrue(want <= set(rec), f"record {i} is missing {want - set(rec)}")
+
+    def test_writing_two_fields_writes_exactly_those_two(self):
+        p = self.fresh("eng-set.iso")
+        with X.Iso(p, write=True) as iso:
+            n = X.write_enemy(iso, 6, {"HP": 1234, "SP": 9})
+        self.assertEqual(n, 2)
         with X.Iso(p) as iso:
             rec = X.read_enemy(iso, 6)
         self.assertEqual(rec["HP"], 1234)
         self.assertEqual(rec["SP"], 9)
 
-    def test_enemy_set_rejects_an_unknown_field(self):
-        self.run_cli("enemy-set", self.fresh("cli-bad.iso"), "6", "--set", "LUCK=1",
-                     expect=1)
-
-    def test_rebalance_dry_run_writes_nothing(self):
-        p = self.fresh("cli-dry.iso")
+    def test_planning_a_rebalance_writes_nothing(self):
+        p = self.fresh("eng-dry.iso")
         before = Path(p).read_bytes()
-        out = self.run_cli("rebalance", p, "--profile", "faster", "--dry-run")
-        self.assertIn("dry run", out)
+        with X.Iso(p) as iso:
+            plan = X.plan_rebalance(iso, F.PROFILES["faster"])
+        self.assertTrue(plan)
         self.assertEqual(Path(p).read_bytes(), before)
 
-    def test_rebalance_lists_the_profiles(self):
-        out = self.run_cli("rebalance", "--help")
-        for key in F.PROFILES:
-            self.assertIn(key, out)
+    def test_every_profile_names_both_enemy_groups(self):
+        self.assertTrue(F.PROFILES)
+        for key, prof in F.PROFILES.items():
+            self.assertTrue(set(prof) & {"regular", "major"}, key)
 
-    def test_rebalance_refuses_an_unknown_profile(self):
-        self.run_cli("rebalance", self.iso, "--profile", "nope", expect=2)
+    def test_an_already_edited_disc_is_not_pristine(self):
+        # this fixture's filler values do not match retail, so the guard that
+        # stops a second scaling pass compounding the first should fire
+        with X.Iso(self.iso) as iso:
+            self.assertFalse(X.disc_is_pristine(iso))
 
-    def test_rebalance_refuses_an_already_edited_disc(self):
-        # this fixture's filler values do not match retail, so the guard should
-        # fire — a second scaling pass would compound the first
-        out = self.run_cli("rebalance", self.fresh("cli-guard.iso"),
-                           "--profile", "faster", expect=1)
-        self.assertIn("already edited", out)
-
-    def test_rebalance_rewards_shorthand_covers_exp_sp_cp(self):
-        p = self.fresh("cli-rw.iso")
+    def test_applying_a_plan_scales_and_caps(self):
+        p = self.fresh("eng-apply.iso")
         with X.Iso(p) as iso:
             before = X.read_enemy(iso, 0)
-        self.run_cli("rebalance", p, "--profile", "grindcut", "--rewards", "200",
-                     "--force")
+            plan = X.plan_rebalance(iso, F.PROFILES["grindcut"])
+        wanted = dict(next((e for i, _n, _g, e in plan if i == 0), {}))
+        with X.Iso(p, write=True) as iso:
+            records, fields = X.apply_rebalance(iso, plan)
+        self.assertEqual(records, len(plan))
+        self.assertGreater(fields, 0)
         with X.Iso(p) as iso:
             after = X.read_enemy(iso, 0)
-        for field in ("EXP", "SP", "CP"):
-            if before[field]:
-                self.assertEqual(after[field], min(before[field] * 2,
-                                                   F.ENEMY_FIELD_CAPS[field]), field)
-
-    def test_rebalance_explicit_field_beats_the_shorthand(self):
-        p = self.fresh("cli-rw2.iso")
-        with X.Iso(p) as iso:
-            before = X.read_enemy(iso, 0)
-        self.run_cli("rebalance", p, "--profile", "grindcut", "--rewards", "200",
-                     "--exp", "300", "--force")
-        with X.Iso(p) as iso:
-            after = X.read_enemy(iso, 0)
-        if before["EXP"]:
-            self.assertEqual(after["EXP"], min(before["EXP"] * 3,
-                                               F.ENEMY_FIELD_CAPS["EXP"]))
+        for lbl, (old, new) in wanted.items():
+            self.assertEqual(before[lbl], old, lbl)
+            self.assertEqual(after[lbl], new, lbl)
+            self.assertLessEqual(after[lbl], F.ENEMY_FIELD_CAPS.get(lbl, 1 << 32), lbl)
 
 
 if __name__ == "__main__":

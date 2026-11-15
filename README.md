@@ -458,42 +458,28 @@ The **unmapped** bucket is the useful part — it's either a table nobody has
 decoded yet or it's code, and either way it's the honest answer to "can we edit
 everything this mod does?". A full 4.6 GB comparison takes about 8 seconds.
 
-## Desktop app (optional)
+## Working on the editor
 
-Prefer a local app? The same engine runs as a small local web app (Python stdlib only, no
-`pip install`):
+The web editor is the only front end. There is no desktop app and no command line:
+`web/` is what people use, and everything under `Editor/` exists to serve it.
 
-- **macOS:** double-click `Start Editor (Mac).command`
-- **Windows:** double-click `Start Editor (Windows).bat`
-- **Any:** `cd Editor && python3 x2editor.py` → opens `http://127.0.0.1:8748/`
+`Editor/*.py` is a library, not a set of programs. The browser fetches
+`x2fields.py`, `x2mc.py`, `x2lzari.py` and `x2save.py` straight into Pyodide and
+calls them — the save engine literally runs in the page. `x2patch.py` is the ISO
+engine behind the catalog generators; the browser's ISO editing is a JavaScript
+port of the same offsets, which is why `gen_web_tables.py --check` runs in CI.
 
-CLI bits:
 ```bash
-cd Editor
-python3 x2patch.py verify "../ISO/....(Disc 1).iso"          # identify a disc
-python3 x2patch.py verify-tables "../ISO/...iso"              # confirm/locate the enemy table
-python3 x2patch.py enemies "../ISO/...iso" --csv             # dump the bestiary
-python3 x2patch.py enemy "../ISO/...iso" 6                   # stats, drops, zones, Break, affinities
-python3 x2patch.py enemy-set "../ISO/...iso" 6 --break CB     # shorten Perun's Break sequence
-python3 x2patch.py rebalance "../ISO/...iso" --profile faster --dry-run
-python3 x2patch.py diff "../ISO/...iso"                      # how it differs from retail
-python3 x2patch.py export-patch "../ISO/...iso" --out mod.json
-python3 x2patch.py apply-patch "../ISO/...iso" mod.json      # share a rebalance
-python3 x2patch.py sync "../ISO/...(Disc 1).iso" "../ISO/...(Disc 2).iso"
-python3 x2patch.py restore "../ISO/...iso"                   # back to retail values
-python3 x2patch.py secret-keys "../ISO/...iso" --unlock      # secret skills need no key
-python3 x2save.py slots "…/Mcd001.ps2"                       # list a card's saves
-python3 x2save.py "…/Mcd001.ps2" --slot 2                    # decode one of them
-python3 x2save.py keyitems "…/BASLUS-….PSV"                  # what the save holds
-python3 x2save.py set "…/BASLUS-….PSV" --secret-keys         # grant all 31 Secret Keys
-python3 x2save.py set "…/BASLUS-….PSV" --gold 9999999 --char 0 --level 99 --hp 9999
-python3 x2selftest.py                                         # engine self-test, no game data
+python3 Editor/gen_web_tables.py            # regenerate web/tables.json from x2fields.py
+python3 Editor/gen_web_tables.py --check    # CI: fail if it drifted
+python3 Editor/gen_enemy_catalog.py ISO/disc1.iso ISO/disc2.iso   # retail baseline
+python3 Editor/gen_hardtype.py              # rebuild web/hardtype.json from the .ppf mod
+python3 Editor/x2selftest.py                # engine self-test, no game data needed
+cd tests && python3 -m unittest discover    # the suite, synthetic fixtures only
 ```
 
-Tests (stdlib `unittest`, no game data needed):
-```bash
-cd tests && python3 -m unittest discover
-```
+Research tooling that needs `pip install capstone` lives in `Research/` and is
+deliberately outside the shipped engine — see `Research/README.md`.
 
 ## Layout
 
@@ -501,13 +487,13 @@ cd tests && python3 -m unittest discover
 web/            hosted browser PWA (Pyodide save editor + ISO enemy/skill editor + reference)
   vcdiff.js     VCDIFF (.xdelta) encoder, shared with the Node tests
   tests/        front-end tests (VCDIFF round-trip, incl. a cross-check vs real xdelta3)
-Editor/
-  x2editor.py   local web app (desktop)
-  x2save.py     save engine (container decode + edit, gamedata layout)
+Editor/        the engine — a library, no programs; web/ is the only front end
+  x2save.py     save engine (container decode + edit, gamedata layout) — runs in the browser
+                under Pyodide, fetched by web/app.js
   x2mc.py       PS2 memory-card filesystem (PS2MFS + ECC) and .psu containers
   x2lzari.py    LZARI codec for AR Max (.max) saves
-  x2patch.py    ISO engine + CLI (verify / extract / enemy + skill read-write / rebalance /
-                patches / xdelta / zone hunt)
+  x2patch.py    ISO engine (verify / extract / enemy + skill read-write / rebalance /
+                patches / zone hunt) — backs the generators; the browser ports it to JS
   x2fields.py   verified offsets + schema + battle-pacing profiles
   x2selftest.py engine self-test against a synthetic disc (needs no game data)
   gen_web_tables.py    generates web/tables.json from x2fields (CI checks for drift)

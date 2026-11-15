@@ -6,8 +6,6 @@ reads and writes, so its rules have to be exact).
 import json
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,8 +15,28 @@ import x2fields as F
 import x2patch as X
 import x2save as SV
 
-EDITOR = os.path.normpath(os.path.join(FX.HERE, "..", "Editor"))
 
+def restore_enemies(iso, only=None):
+    """What the removed `restore` command did, composed from the engine: put the
+    verified retail values back, record by record.
+
+    The command line is gone (web/ is the only front end), but the primitives it
+    called are still the ones the browser's JS port mirrors, so the round trip is
+    still worth pinning.
+    """
+    n = 0
+    for i, fields in X.diff_vanilla(iso).items():
+        if only is not None and i not in only:
+            continue
+        n += X.write_enemy(iso, i, {lbl: retail for lbl, (_cur, retail) in fields.items()})
+    return n
+
+
+def export_edits(iso):
+    """{record: {field: disc value}} for everything that differs from retail —
+    the payload the removed `export-patch` command wrapped with make_patch()."""
+    return {i: {lbl: cur for lbl, (cur, _retail) in fields.items()}
+            for i, fields in X.diff_vanilla(iso).items()}
 
 class PatchCase(unittest.TestCase):
     def setUp(self):
@@ -37,12 +55,6 @@ class PatchCase(unittest.TestCase):
         p = os.path.join(self.dir, name)
         shutil.copyfile(self.iso, p)
         return p
-
-    def run_cli(self, *args, expect=0):
-        r = subprocess.run([sys.executable, "x2patch.py", *args], cwd=EDITOR,
-                           capture_output=True, text=True)
-        self.assertEqual(r.returncode, expect, r.stdout + r.stderr)
-        return r.stdout
 
 
 class TestAffinities(PatchCase):
@@ -120,16 +132,6 @@ class TestAffinities(PatchCase):
         for label in ("HP", "STR", "VIT", "EATK", "EDEF", "DEX", "EVA", "AGL"):
             self.assertEqual(after7[label], before7[label], label)
 
-    def test_cli_notes_how_the_scale_works(self):
-        out = self.run_cli("enemy-set", self.fresh("aff3.iso"), "6",
-                           "--set", F.AFFINITY_ELEMENTS[0] + "=0")
-        self.assertIn("5% steps", out)
-
-    def test_cli_shows_them_only_when_asked(self):
-        el = F.AFFINITY_ELEMENTS[0]
-        self.assertNotIn(el, self.run_cli("enemies", self.iso, "--csv"))
-        self.assertIn(el, self.run_cli("enemies", self.iso, "--csv", "--affinities"))
-
 
 class TestUnits(PatchCase):
     """The player-unit table: 15 records before the enemy table, same layout."""
@@ -189,19 +191,23 @@ class TestUnits(PatchCase):
         self.assertGreater(F.unit_record_tail(), 0,
                            "the affinity block does overhang — the tail cannot be 0")
 
-    def test_cli_accepts_affinity_fields(self):
+    def test_unit_affinity_fields_round_trip(self):
         p = self.fresh("unitaffcli.iso")
-        self.run_cli("unit-set", p, "0", "--set", f"Ice={F.affinity_byte(50)}")
+        with X.Iso(p, write=True) as iso:
+            X.write_unit(iso, 0, {"Ice": F.affinity_byte(50)})
         with X.Iso(p) as iso:
-            self.assertEqual(X.unit_affinity_pcts(X.read_unit(iso, 0))["Ice"], 50)
-        self.assertIn("Beam", self.run_cli("units", p, "--affinities"))
+            pcts = X.unit_affinity_pcts(X.read_unit(iso, 0))
+        self.assertEqual(pcts["Ice"], 50)
+        self.assertIn("Beam", pcts)
 
-    def test_cli_lists_and_writes(self):
+    def test_units_are_named_and_writable(self):
         p = self.fresh("unitcli.iso")
-        out = self.run_cli("units", p)
-        self.assertIn("chaos", out)
-        self.assertIn("E.S.Dinah", out)
-        self.run_cli("unit-set", p, "0", "--set", "HP=555")
+        with X.Iso(p) as iso:
+            names = [X.unit_name(iso, i) for i in range(F.UNIT_COUNT)]
+        self.assertIn("chaos", names)
+        self.assertIn("E.S.Dinah", names)
+        with X.Iso(p, write=True) as iso:
+            X.write_unit(iso, 0, {"HP": 555})
         with X.Iso(p) as iso:
             self.assertEqual(X.read_unit(iso, 0)["HP"], 555)
 
@@ -209,10 +215,6 @@ class TestUnits(PatchCase):
         hp_off = next(o for lbl, o, _w, _k in F.UNIT_FIELDS if lbl == "HP")
         self.assertEqual(X._locate(F.UNIT_TABLES[1] + 2 * F.ENEMY_STRIDE + hp_off, 1),
                          ("unit stats", "unit 2 HP"))
-
-    def test_unknown_unit_field_is_rejected(self):
-        # SystemExit with a message exits 1 (argparse errors are the 2s)
-        self.run_cli("unit-set", self.iso, "0", "--set", "Luck=7", expect=1)
 
 
 class TestSkillTargeting(unittest.TestCase):
@@ -473,7 +475,6 @@ class TestRetailComparison(PatchCase):
     def test_a_retail_disc_reports_no_differences(self):
         with X.Iso(self.iso) as iso:
             self.assertEqual(X.diff_vanilla(iso), {})
-        self.assertIn("matches the retail", self.run_cli("diff", self.iso))
 
     def test_a_single_edit_is_the_only_difference(self):
         p = self.fresh("one.iso")
@@ -516,17 +517,20 @@ class TestRetailComparison(PatchCase):
         with X.Iso(p) as iso:
             self.assertEqual(X.break_seq_of(X.read_enemy(iso, 6)), before[:-1])
             self.assertIn(6, X.diff_vanilla(iso))
-        self.run_cli("restore", p)
+        with X.Iso(p, write=True) as iso:
+            restore_enemies(iso)
         with X.Iso(p) as iso:
             self.assertEqual(X.break_seq_of(X.read_enemy(iso, 6)), before)
             self.assertEqual(X.diff_vanilla(iso), {})
 
     def test_restore_puts_retail_values_back(self):
         p = self.fresh("restore.iso")
-        self.run_cli("rebalance", p, "--profile", "faster")
+        with X.Iso(p, write=True) as iso:
+            X.apply_rebalance(iso, X.plan_rebalance(iso, F.PROFILES["faster"]))
         with X.Iso(p) as iso:
             self.assertTrue(X.diff_vanilla(iso))
-        self.run_cli("restore", p)
+        with X.Iso(p, write=True) as iso:
+            restore_enemies(iso)
         with X.Iso(p) as iso:
             self.assertEqual(X.diff_vanilla(iso), {})
 
@@ -548,30 +552,33 @@ class TestRetailComparison(PatchCase):
         with X.Iso(p, write=True) as iso:
             X.write_enemy(iso, 6, {"HP": 5})
             X.write_enemy(iso, 7, {"HP": 5})
-        self.run_cli("restore", p, "--only", "6")
+        with X.Iso(p, write=True) as iso:
+            restore_enemies(iso, only={6})
         with X.Iso(p) as iso:
             self.assertEqual(X.read_enemy(iso, 6)["HP"], 22400)
             self.assertEqual(X.read_enemy(iso, 7)["HP"], 5)
 
-    def test_restore_dry_run_writes_nothing(self):
+    def test_surveying_what_to_restore_writes_nothing(self):
         p = self.fresh("restore3.iso")
         with X.Iso(p, write=True) as iso:
             X.write_enemy(iso, 6, {"HP": 5})
         before = Path(p).read_bytes()
-        out = self.run_cli("restore", p, "--dry-run")
-        self.assertIn("dry run", out)
+        with X.Iso(p) as iso:
+            self.assertIn(6, X.diff_vanilla(iso))
         self.assertEqual(Path(p).read_bytes(), before)
 
 
 class TestPatchFiles(PatchCase):
     def test_export_then_apply_reproduces_the_disc(self):
         source = self.fresh("source.iso")
-        self.run_cli("rebalance", source, "--profile", "faster")
-        out = os.path.join(self.dir, "mod.json")
-        self.run_cli("export-patch", source, "--out", out, "--note", "half HP")
+        with X.Iso(source, write=True) as iso:
+            X.apply_rebalance(iso, X.plan_rebalance(iso, F.PROFILES["faster"]))
+        with X.Iso(source) as iso:
+            doc = X.make_patch(export_edits(iso), note="half HP")
 
         target = self.fresh("target.iso")
-        self.run_cli("apply-patch", target, out)
+        with X.Iso(target, write=True) as iso:
+            X.apply_patch(iso, X.parse_patch(doc))
         with X.Iso(source) as a, X.Iso(target) as b:
             for i in range(F.ENEMY_COUNT):
                 self.assertEqual(X.read_enemy(a, i), X.read_enemy(b, i),
@@ -581,31 +588,28 @@ class TestPatchFiles(PatchCase):
         p = self.fresh("exp.iso")
         with X.Iso(p, write=True) as iso:
             X.write_enemy(iso, 6, {"HP": 999, "EXP": 1})
-        out = os.path.join(self.dir, "small.json")
-        self.run_cli("export-patch", p, "--out", out, "--note", "tiny")
-        doc = json.loads(Path(out).read_text())
+        with X.Iso(p) as iso:
+            doc = X.make_patch(export_edits(iso), note="tiny", serial="SLUS-20892")
+        doc = json.loads(json.dumps(doc))        # it has to survive a round trip
         self.assertEqual(doc["format"], X.PATCH_FORMAT)
         self.assertEqual(doc["version"], X.PATCH_VERSION)
         self.assertEqual(doc["note"], "tiny")
         self.assertEqual(doc["game"], "SLUS-20892")
         self.assertEqual(doc["edits"], {"6": {"HP": 999, "EXP": 1}})
 
-    def test_apply_dry_run_writes_nothing(self):
+    def test_parsing_a_patch_writes_nothing(self):
         p = self.fresh("dry.iso")
-        out = os.path.join(self.dir, "d.json")
-        with open(out, "w") as f:
-            json.dump(X.make_patch({6: {"HP": 3}}, note="n"), f)
+        doc = X.make_patch({6: {"HP": 3}}, note="n")
         before = Path(p).read_bytes()
-        self.assertIn("dry run", self.run_cli("apply-patch", p, out, "--dry-run"))
+        self.assertEqual(X.parse_patch(doc), {6: {"HP": 3}})
         self.assertEqual(Path(p).read_bytes(), before)
 
     def test_patches_can_carry_affinities(self):
         p = self.fresh("affpatch.iso")
-        out = os.path.join(self.dir, "aff.json")
-        with open(out, "w") as f:
-            json.dump(X.make_patch({6: {F.AFFINITY_ELEMENTS[0]: F.affinity_byte(0),
-                                        F.AFFINITY_ELEMENTS[1]: F.affinity_byte(250)}}), f)
-        self.run_cli("apply-patch", p, out)
+        doc = X.make_patch({6: {F.AFFINITY_ELEMENTS[0]: F.affinity_byte(0),
+                                F.AFFINITY_ELEMENTS[1]: F.affinity_byte(250)}})
+        with X.Iso(p, write=True) as iso:
+            X.apply_patch(iso, X.parse_patch(doc))
         with X.Iso(p) as iso:
             rec = X.read_enemy(iso, 6)
         self.assertEqual((F.affinity_pct(rec[F.AFFINITY_ELEMENTS[0]]),
@@ -646,12 +650,12 @@ class TestPatchFiles(PatchCase):
 
     def test_a_rejected_patch_writes_nothing(self):
         p = self.fresh("reject.iso")
-        out = os.path.join(self.dir, "bad.json")
-        with open(out, "w") as f:
-            json.dump({"format": X.PATCH_FORMAT, "version": 1,
-                       "edits": {"6": {"HP": 1}, "9999": {"HP": 2}}}, f)
+        doc = {"format": X.PATCH_FORMAT, "version": 1,
+               "edits": {"6": {"HP": 1}, "9999": {"HP": 2}}}
         before = Path(p).read_bytes()
-        self.run_cli("apply-patch", p, out, expect=1)
+        # validation is all-or-nothing, and it happens before the image is opened
+        with self.assertRaises(Exception):
+            X.parse_patch(doc)
         self.assertEqual(Path(p).read_bytes(), before,
                          "a patch that fails validation must not half-apply")
 
@@ -882,21 +886,31 @@ class TestSecretKeyGates(PatchCase):
                 self.assertEqual((now["Type"], now["Id"]), (was["Type"], was["Id"]))
                 self.assertEqual(now["Slot"], 0)
 
-    def test_cli_lists_and_unlocks(self):
+    def test_gates_are_listed_and_unlockable(self):
         p = self.seed_costs(self.fresh("gates.iso"))
-        out = self.run_cli("secret-keys", p)
-        self.assertIn("Secret Key 1", out)
-        self.assertIn("31/31 still require their key", out)
-        self.run_cli("secret-keys", p, "--unlock")
-        self.assertIn("0/31 still require their key", self.run_cli("secret-keys", p))
+        with X.Iso(p) as iso:
+            gates = X.read_secret_key_gates(iso)
+        self.assertEqual(len(gates), 31)
+        self.assertIn(1, [g["key"] for g in gates])
+        self.assertEqual(sum(1 for g in gates if g["gated"]), 31)
+        with X.Iso(p, write=True) as iso:
+            X.write_secret_key_gates(iso, required=False)
+        with X.Iso(p) as iso:
+            self.assertEqual(sum(1 for g in X.read_secret_key_gates(iso) if g["gated"]), 0)
 
-    def test_explain_diff_names_the_gate_bytes(self):
+    def test_a_diff_of_the_gate_bytes_is_named_and_mapped(self):
         p = self.seed_costs(self.fresh("gates.iso"))
         pristine = self.seed_costs(self.fresh("pristine.iso"))
         with X.Iso(p, write=True) as iso:
             X.write_secret_key_gates(iso, required=False)
-        out = self.run_cli("explain-diff", p, "--pristine", pristine,
-                           "--show", "40", "--verbose")
-        self.assertIn("skill costs", out)
-        self.assertIn("Secret Key gate", out)
-        self.assertIn("reproducible with this editor: 31 of 31", out)
+        runs = X.diff_images(pristine, p)
+        self.assertTrue(runs, "unlocking every gate has to change bytes")
+        named = set()
+        for off, length in runs:
+            for b in range(off, off + length):
+                region, what = X._locate(b, 1)
+                if region:
+                    named.add((region, what))
+        self.assertTrue(any(r == "skill costs" for r, _w in named), sorted(named)[:5])
+        self.assertTrue(any("Secret Key gate" in (w or "") for _r, w in named),
+                        sorted(named)[:5])

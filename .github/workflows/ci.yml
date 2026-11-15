@@ -29,7 +29,7 @@ jobs:
           fi
 
       - name: Compile every module
-        run: python -m compileall -q Editor tests make_release.py
+        run: python -m compileall -q Editor tests
 
       - name: web/tables.json is in sync with x2fields.py
         run: python Editor/gen_web_tables.py --check
@@ -39,9 +39,6 @@ jobs:
 
       - name: ISO engine self-test (synthetic disc)
         run: python Editor/x2selftest.py
-
-      - name: Release bundle builds
-        run: python make_release.py ci-test
 
   web:
     runs-on: ubuntu-latest
