@@ -5,20 +5,20 @@
 ISO/
 
 # Player saves — personal / copyrighted; used locally for research only
-Saves/
-*.psv
-*.PSV
-*.psu
-*.max
-*.cbs
-*.sps
-*.xps
-*.mcd
-*.mc2
-*.ps2
+# Saves/  (tracked as test content)
+# *.psv  (tracked as test content)
+# *.PSV  (tracked as test content)
+# *.psu  (tracked as test content)
+# *.max  (tracked as test content)
+# *.cbs  (tracked as test content)
+# *.sps  (tracked as test content)
+# *.xps  (tracked as test content)
+# *.mcd  (tracked as test content)
+# *.mc2  (tracked as test content)
+# *.ps2  (tracked as test content)
 
 # Third-party cheat files (used locally as RE anchors, not redistributed)
-Cheats/
+# Cheats/  (tracked as test content)
 
 # Backups the editor makes before writing
 *.bak
